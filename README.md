@@ -75,12 +75,12 @@ This project generates a PDF calendar with tide information for a specified tide
 1. **Run the Docker container:**
 
     ```bash
-    docker run -p 5000:5000 tide-calendar-app
+    docker run -p 5001:5001 tide-calendar-app
     ```
 
 2. **Access the app:**
 
-    Open your web browser and go to `http://127.0.0.1:5000/`.
+    Open your web browser and go to `http://127.0.0.1:5001/`.
 
 ## Project Structure
 
