@@ -11,7 +11,7 @@
         <h1>Tide Calendar Generator</h1>
         <form method="post">
             <label for="station_id">Tide Station ID:</label>
-            <input type="text" id="station_id" name="station_id" value="9449639" required><br>
+            <input type="text" id="station_id" name="station_id" value="{{ station_id }}" required><br>
 
             <label for="year">Year:</label>
             <select id="year" name="year" required>
@@ -34,7 +34,7 @@
                 <option value="12">December</option>
             </select><br>
 
-            <button type="submit">Generate PDF</button>
+            <button type="submit">Generate and download the PDF</button>
         </form>
 
         <div class="instructions">
