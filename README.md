@@ -53,7 +53,7 @@ This project generates a PDF calendar with tide information for a specified tide
 2. **Run the Flask app:**
 
     ```bash
-    flask run
+    flask run --host=0.0.0.0 --port=5001
     ```
 
 3. **Access the app:**
@@ -120,6 +120,120 @@ tide_calendar/
 
 - Ensure `pcal` and `ghostscript` are installed on your system if running locally.
 - The default tide station ID is set to `9449639` for demonstration purposes.
+
+For deployment, it's common practice to use standard HTTP (port 80) or HTTPS (port 443) ports to make the application accessible over the web without specifying a port number in the URL. Here’s how you can set this up in your Docker deployment.
+
+### Using Port 80 or 443
+
+1. **Modify the Docker Run Command**
+   
+   To use port 80 or 443, map the internal port 5000 to the desired external port.
+
+   **For HTTP (port 80):**
+   ```bash
+   docker run -p 80:5000 tide-calendar-app
+   ```
+
+   **For HTTPS (port 443):**
+   ```bash
+   docker run -p 443:5000 tide-calendar-app
+   ```
+
+2. **Using HTTPS (port 443)**
+
+   If you are using HTTPS, you'll need to set up SSL/TLS certificates. This is typically done using a reverse proxy like Nginx or a cloud provider's load balancer that handles SSL termination.
+
+### Example with Nginx as a Reverse Proxy
+
+1. **Nginx Configuration**
+
+   Create an Nginx configuration file to proxy requests to your Flask app running inside Docker.
+
+   **nginx.conf:**
+
+   ```nginx
+   server {
+       listen 80;
+       server_name yourdomain.com;
+
+       location / {
+           proxy_pass http://localhost:5000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+   }
+   ```
+
+2. **Docker Compose**
+
+   You can use Docker Compose to run both your Flask app and Nginx.
+
+   **docker-compose.yml:**
+
+   ```yaml
+   version: '3'
+   services:
+     app:
+       build: .
+       ports:
+         - "5000:5000"
+       environment:
+         FLASK_ENV: production
+
+     nginx:
+       image: nginx:latest
+       ports:
+         - "80:80"
+       volumes:
+         - ./nginx.conf:/etc/nginx/conf.d/default.conf
+       depends_on:
+         - app
+   ```
+
+3. **Building and Running with Docker Compose**
+
+   ```bash
+   docker-compose up --build
+   ```
+
+### SSL with Let's Encrypt
+
+If you are using port 443, you’ll need to set up SSL certificates. Let’s Encrypt is a popular free option. Here’s a basic setup using Certbot with Nginx.
+
+1. **Install Certbot**
+
+   Install Certbot and the Nginx plugin on your server.
+
+   **For Ubuntu:**
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get install certbot python3-certbot-nginx
+   ```
+
+2. **Obtain and Install SSL Certificate**
+
+   ```bash
+   sudo certbot --nginx -d yourdomain.com
+   ```
+
+   Follow the prompts to obtain and install the certificate.
+
+3. **Automatic Renewal**
+
+   Certbot automatically installs a cron job for certificate renewal. You can test the renewal process with:
+
+   ```bash
+   sudo certbot renew --dry-run
+   ```
+
+### Summary
+
+- For production deployment, map port 5000 to port 80 for HTTP or port 443 for HTTPS in your Docker run command.
+- Use Nginx as a reverse proxy to manage incoming traffic and SSL termination.
+- Obtain and configure SSL certificates if using HTTPS, using tools like Certbot and Let's Encrypt.
 
 ## Troubleshooting
 
