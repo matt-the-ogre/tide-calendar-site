@@ -1,0 +1,75 @@
+/* Base styles */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #e0f7fa; /* Light cyan background */
+    color: #006064; /* Dark cyan text */
+    margin: 0;
+    padding: 0;
+}
+
+/* Container for the form */
+.container {
+    max-width: 600px;
+    margin: 50px auto;
+    padding: 20px;
+    background-color: #ffffff; /* White background */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    text-align: center;
+}
+
+/* Header styles */
+h1 {
+    color: #004d40; /* Darker cyan */
+    margin-bottom: 20px;
+}
+
+/* Form styles */
+form {
+    display: flex;
+    flex-direction: column;
+}
+
+label {
+    margin: 10px 0 5px;
+}
+
+input, select, button {
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #004d40; /* Darker cyan border */
+    border-radius: 5px;
+}
+
+input:focus, select:focus {
+    border-color: #00838f; /* Slightly lighter cyan when focused */
+    outline: none;
+}
+
+button {
+    background-color: #004d40; /* Darker cyan */
+    color: #ffffff; /* White text */
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #006064; /* Slightly lighter cyan on hover */
+}
+
+.instructions {
+    margin-top: 30px;
+    text-align: left;
+}
+
+.instructions h2 {
+    color: #004d40; /* Darker cyan */
+}
+
+.instructions p, .instructions ol {
+    color: #006064; /* Dark cyan text */
+}
+
+.instructions ol {
+    margin-left: 20px;
+}
