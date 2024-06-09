@@ -19,7 +19,7 @@ ln -sf /etc/nginx/sites-available/tide-calendar /etc/nginx/sites-enabled/
 sudo systemctl reload nginx
 
 # Bring down the Flask container to avoid conflicts
-docker-compose down
+docker-compose down --remove-orphans
 
 # Build and restart the Flask container
-docker-compose up --build -d
+docker-compose up --build -d --remove-orphans
