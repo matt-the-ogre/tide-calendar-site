@@ -14,10 +14,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3  # Updated to version 3 for Node.js 20 support
 
     - name: Set up SSH
-      uses: webfactory/ssh-agent@v0.5.3
+      uses: webfactory/ssh-agent@v0.5.4  # Updated to version 0.8.1 for Node.js 20 support
       with:
         ssh-private-key: ${{ secrets.DO_SSH_KEY }}
 
