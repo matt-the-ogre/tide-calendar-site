@@ -23,4 +23,4 @@ jobs:
 
     - name: Deploy to DigitalOcean Droplet
       run: |
-        ssh -o StrictHostKeyChecking=no root@24.144.94.148 'bash /opt/tide-calendar/deploy.sh'
+        ssh -o StrictHostKeyChecking=no root@209.38.174.80 'bash /opt/tide-calendar/deploy.sh'
