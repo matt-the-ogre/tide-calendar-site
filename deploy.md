@@ -94,7 +94,6 @@ You need to set up SSH keys to allow GitHub Actions to SSH into your DigitalOcea
 ### Step 4: Test Your CI/CD Pipeline
 
 1. **Push Changes to the `main` Branch:**
-1.
 
    ```bash
    git add .
