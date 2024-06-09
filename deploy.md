@@ -13,6 +13,7 @@ First, create a script on your DigitalOcean Droplet that will handle pulling the
 2. **Create the deployment script:** `nano /opt/tide-calendar/deploy.sh`
 
 3. **Add the following content to the deploy.sh script:**
+
    ```bash
    #!/bin/bash
 
@@ -53,6 +54,7 @@ You need to set up SSH keys to allow GitHub Actions to SSH into your DigitalOcea
 2. **Create a workflow file:** `nano .github/workflows/deploy.yml`
 
 3. **Add the following content to the deploy.yml file:**
+
    ```yaml
    name: Deploy to DigitalOcean
 
@@ -92,12 +94,13 @@ You need to set up SSH keys to allow GitHub Actions to SSH into your DigitalOcea
 ### Step 4: Test Your CI/CD Pipeline
 
 1. **Push Changes to the `main` Branch:**
-1. 
+
    ```bash
    git add .
    git commit -m "Set up CI/CD with GitHub Actions"
    git push origin main
    ```
+
 2. **Check the Workflow Execution:**
    - Go to your GitHub repository.
    - Click on "Actions".
