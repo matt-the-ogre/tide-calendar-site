@@ -1,9 +1,10 @@
 #!/bin/bash
 
-# this is for deployment in production on the virtual machine
-
 # Change to the project directory
 cd /opt/tide-calendar
+
+# Reset any local changes
+git reset --hard HEAD
 
 # Pull the latest changes from GitHub
 git pull origin main
