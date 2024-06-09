@@ -73,3 +73,26 @@ button:hover {
 .instructions ol {
     margin-left: 20px;
 }
+
+footer {
+    text-align: center;
+    padding: 20px;
+    background-color: #e0f7fa; /* Match the page background color */
+    margin-top: 30px;
+}
+
+.social-icons {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.social-icons a {
+    color: #006064; /* Dark cyan text color */
+    font-size: 24px;
+    transition: color 0.3s;
+}
+
+.social-icons a:hover {
+    color: #004d40; /* Darker cyan on hover */
+}

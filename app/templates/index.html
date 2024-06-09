@@ -4,11 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tide Calendar</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        footer {
+            text-align: center;
+            padding: 20px;
+            background-color: #e0f7fa; /* Match the page background color */
+            margin-top: 30px;
+            width: 100%;
+            bottom: 0;
+        }
+
+        .social-icons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .social-icons a {
+            color: #006064; /* Dark cyan text color */
+            font-size: 24px;
+            transition: color 0.3s;
+        }
+
+        .social-icons a:hover {
+            color: #004d40; /* Darker cyan on hover */
+        }
+    </style>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
 </head>
 <body>
     <div class="container">
         <h1>Tide Calendar Generator</h1>
+        <h2>Currently only works with tide stations in the USA.</h2>
         <form method="post">
             <label for="station_id">Tide Station ID:</label>
             <input type="text" id="station_id" name="station_id" value="{{ station_id }}" required><br>
@@ -49,6 +79,14 @@
             <p>Once you have your station ID, enter it in the "Tide Station ID" field above.</p>
         </div>
     </div>
+
+    <footer>
+        <div class="social-icons">
+            <a href="https://linkedin.com/in/mattman" target="_blank"><i class="fab fa-linkedin"></i></a>
+            <a href="mailto:sleepy.map1861@fastmail.com" target="_blank"><i class="fas fa-envelope"></i></a>
+            <a href="https://x.com/mattmanuel" target="_blank"><i class="fab fa-twitter"></i></a>
+        </div>
+    </footer>
 
     <script>
         // Get current date
