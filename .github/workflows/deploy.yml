@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:  # Allows manual triggering
 
 jobs:
   deploy:
@@ -11,13 +12,13 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3  # Updated to version 3 for Node.js 20 support
+      uses: actions/checkout@v3
 
     - name: Set up SSH
-      uses: webfactory/ssh-agent@v0.5.4  # Using the latest stable version available
+      uses: webfactory/ssh-agent@v0.5.4
       with:
         ssh-private-key: ${{ secrets.DO_SSH_KEY }}
 
     - name: Deploy to DigitalOcean Droplet
       run: |
-        ssh -o StrictHostKeyChecking=no root@your_droplet_ip 'bash /opt/tide-calendar/deploy.sh'
+        ssh -o StrictHostKeyChecking=no root@209.38.174.80 'bash /opt/tide-calendar/deploy.sh'
