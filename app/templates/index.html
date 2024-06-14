@@ -7,7 +7,7 @@
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script defer data-domain="tidecalendar.xyz" src="https://plausible.io/js/script.js"></script>
+    <script defer data-domain="tidecalendar.xyz" src="https://plausible.io/js/script.tagged-events.outbound-links.js"></script>
     <script type="text/javascript">
         document.addEventListener("DOMContentLoaded", function() {
             var user = "sleepy.map1861";
@@ -59,7 +59,7 @@
     <div class="container">
         <h1>Tide Calendar Generator</h1>
         <h2>Currently only works with tide stations in the USA.</h2>
-        <form method="post">
+        <form class="plausible-event-name=Form+Generate+PDF" method="post">
             <label for="station_id">Tide Station ID:</label>
             <input type="text" id="station_id" name="station_id" value="{{ station_id }}" required><br>
 
@@ -89,7 +89,7 @@
                 </div>
             </div>
 
-            <button type="submit">Generate and download the PDF</button>
+            <button class="plausible-event-name=Generate+PDF" type="submit">Generate and download the PDF</button>
         </form>
 
         <div class="instructions">
