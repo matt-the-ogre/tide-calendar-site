@@ -16,8 +16,10 @@ cp nginx.conf /etc/nginx/sites-available/tide-calendar
 ln -sf /etc/nginx/sites-available/tide-calendar /etc/nginx/sites-enabled/
 
 # Reload Nginx to apply the new configuration
-systemctl reload nginx
+sudo systemctl reload nginx
 
-# Build and restart the Docker containers
-docker-compose down
-docker-compose up --build -d
+# Bring down the Flask container to avoid conflicts
+docker-compose down --remove-orphans
+
+# Build and restart the Flask container
+docker-compose up --build -d --remove-orphans

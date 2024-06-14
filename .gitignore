@@ -124,3 +124,6 @@ dmypy.json
 
 # generated PDF files
 *.pdf
+
+# Mac files
+.DS_Store
