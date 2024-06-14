@@ -8,6 +8,16 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script defer data-domain="tidecalendar.xyz" src="https://plausible.io/js/script.js"></script>
+    <script type="text/javascript">
+        document.addEventListener("DOMContentLoaded", function() {
+            var user = "sleepy.map1861";
+            var domain = "fastmail.com";
+            var email = user + "@" + domain;
+            var emailLink = document.getElementById("email-link");
+            emailLink.setAttribute("href", "mailto:" + email);
+        });
+    </script>
+
     <style>
         footer {
             text-align: center;
@@ -98,8 +108,9 @@
     <footer>
         <div class="social-icons">
             <a href="https://linkedin.com/in/mattman" target="_blank"><i class="fab fa-linkedin"></i></a>
-            <a href="mailto:sleepy.map1861@fastmail.com" target="_blank"><i class="fas fa-envelope"></i></a>
+            <a id="email-link" href="#"><i class="fas fa-envelope"></i></a>
             <a href="https://x.com/mattmanuel" target="_blank"><i class="fab fa-twitter"></i></a>
+            <a href="https://github.com/matt-the-ogre/tide-calendar-site/" target="_blank"><i class="fab fa-github"></i></a>
         </div>
     </footer>
 
