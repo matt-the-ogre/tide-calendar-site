@@ -128,7 +128,7 @@ if __name__ == "__main__":
     subprocess.run(["rm", pcal_filename])
 
     # move the PDF file to the app folder
-    subprocess.run(["mv", pcal_filename.replace('.txt', '.pdf'), "app/"])
+    # subprocess.run(["mv", pcal_filename.replace('.txt', '.pdf'), "app/"])
     
     # Print a message indicating the PDF file creation
     logging.info(f"PDF file created: {pcal_filename.replace('.txt', '.pdf')}")
