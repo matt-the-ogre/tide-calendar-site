@@ -89,7 +89,7 @@ def download_tide_data(station_id, year, month):
 
 if __name__ == "__main__":
     # Set up logging
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser(description="Download tide data as CSV.")
     parser.add_argument('--station_id', type=str, default='9449639', help='Station ID (default: 9449639)')

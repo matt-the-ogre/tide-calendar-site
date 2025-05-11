@@ -75,7 +75,7 @@
         </div>
         <!-- Add the "Return home" button -->
         <div style="text-align: center; margin-top: 20px;">
-        <a href="/" class="btn" style="text-decoration: none; background-color: #006064; color: white; padding: 10px 20px; border-radius: 5px; font-size: 16px;">Return home</a>
+        <a href="/" class="btn plausible-event-name=Return+Home" style="text-decoration: none; background-color: #006064; color: white; padding: 10px 20px; border-radius: 5px; font-size: 16px;">Return home</a>
         </div>
     </div>
 
@@ -92,25 +92,9 @@
     </footer>
 
     <script>
-        // Get current date
-        const currentDate = new Date();
-        const currentYear = currentDate.getFullYear();
-        const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
-
-        // Populate year dropdown with options from 2025 to 2040
-        const yearSelect = document.getElementById('year');
-        for (let year = 2025; year <= 2040; year++) {
-            const option = document.createElement('option');
-            option.value = year;
-            option.textContent = year;
-            if (year === currentYear) {
-                option.selected = true;
-            }
-            yearSelect.appendChild(option);
-        }
-
-        // Set the default value for the month dropdown to the current month
-        document.getElementById('month').value = currentMonth;
+        console.log('Tide station not found error');
+        // Log the error to Plausible
+        // plausible.logError(error, { event: 'tide station not found' });
     </script>
 </body>
 </html>
