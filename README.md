@@ -22,7 +22,7 @@ This project generates a PDF calendar with tide information for a specified tide
 2. **Create and activate a virtual environment:**
 
     ```bash
-    python -m venv venv
+    python3 -m venv venv
     source venv/bin/activate  # On Windows use `venv\Scripts\activate`
     ```
 
@@ -34,9 +34,18 @@ This project generates a PDF calendar with tide information for a specified tide
 
 4. **Install system dependencies:**
 
+Linux
+
     ```bash
     sudo apt-get update
     sudo apt-get install -y pcal ghostscript
+    ```
+
+MacOS
+
+    ```bash
+    brew update; brew upgrade
+    brew install pcal ghostscript
     ```
 
 ### Running the App Locally
@@ -53,7 +62,8 @@ This project generates a PDF calendar with tide information for a specified tide
 2. **Run the Flask app:**
 
     ```bash
-    flask run --host=0.0.0.0 --port=5001
+    cd app
+    flask run --host 0.0.0.0 --port 5001
     ```
 
 3. **Access the app:**

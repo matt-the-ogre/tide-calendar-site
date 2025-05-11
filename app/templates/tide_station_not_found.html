@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tide Calendar</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script defer data-domain="tidecalendar.xyz" src="https://plausible.io/js/script.tagged-events.outbound-links.js"></script>
+    <script type="text/javascript">
+        document.addEventListener("DOMContentLoaded", function() {
+            var user = "sleepy.map1861";
+            var domain = "fastmail.com";
+            var email = user + "@" + domain;
+            var emailLink = document.getElementById("email-link");
+            emailLink.setAttribute("href", "mailto:" + email);
+        });
+    </script>
+
+    <style>
+        footer {
+            text-align: center;
+            padding: 20px;
+            background-color: #e0f7fa; /* Match the page background color */
+            margin-top: 30px;
+            width: 100%;
+            bottom: 0;
+        }
+
+        .social-icons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .social-icons a {
+            color: #006064; /* Dark cyan text color */
+            font-size: 24px;
+            transition: color 0.3s;
+        }
+
+        .social-icons a:hover {
+            color: #004d40; /* Darker cyan on hover */
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .form-row select {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tide Calendar Generator</h1>
+        <h2>Currently only works with tide stations in the USA.</h2>
+        <h2>⚠️ Station ID not found ⚠️</h2>
+        <p>It seems that the tide station ID you entered is not found in the NOAA database. Please check the ID and try again.</p>
+        
+        <div class="instructions">
+            <h2>How to Find Your Tide Station ID</h2>
+            <p>To find your tide station ID, follow these steps:</p>
+            <ol>
+                <li>Visit the <a href="https://tidesandcurrents.noaa.gov/stations.html?type=Water+Levels" target="_blank">NOAA Tide Stations Page</a>.</li>
+                <li>Use the map or the search function to find the tide station closest to your location.</li>
+                <li>Click on the tide station marker to see the station details.</li>
+                <li>Look for the station ID in the station details (usually a 7-digit number).</li>
+            </ol>
+            <p>Once you have your station ID, enter it in the "Tide Station ID" field above.</p>
+        </div>
+        <!-- Add the "Return home" button -->
+        <div style="text-align: center; margin-top: 20px;">
+        <a href="/" class="btn" style="text-decoration: none; background-color: #006064; color: white; padding: 10px 20px; border-radius: 5px; font-size: 16px;">Return home</a>
+        </div>
+    </div>
+
+    <footer>
+        <div class="social-icons">
+            <p>Feedback or a feature suggestion? Contact me here.</p>
+            <p>
+            <a href="https://linkedin.com/in/mattman" target="_blank"><i class="fab fa-linkedin"></i></a>
+            <a id="email-link" href="#"><i class="fas fa-envelope"></i></a>
+            <a href="https://x.com/mattmanuel" target="_blank"><i class="fab fa-twitter"></i></a>
+            <a href="https://github.com/matt-the-ogre/tide-calendar-site/" target="_blank"><i class="fab fa-github"></i></a>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Get current date
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+
+        // Populate year dropdown with options from 2025 to 2040
+        const yearSelect = document.getElementById('year');
+        for (let year = 2025; year <= 2040; year++) {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year;
+            if (year === currentYear) {
+                option.selected = true;
+            }
+            yearSelect.appendChild(option);
+        }
+
+        // Set the default value for the month dropdown to the current month
+        document.getElementById('month').value = currentMonth;
+    </script>
+</body>
+</html>
