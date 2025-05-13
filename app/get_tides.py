@@ -106,7 +106,6 @@ if __name__ == "__main__":
         downloaded_filename = download_tide_data(args.station_id, args.year, args.month)
 
     # convert the tide data to pcal format
-    # downloaded_filename = f"{args.station_id}_{args.year}_{args.month:02d}.csv"
 
     # check if the downloaded file exists
     if not downloaded_filename:
