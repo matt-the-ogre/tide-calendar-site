@@ -1,4 +1,5 @@
 import argparse
+import os
 import requests
 from datetime import datetime
 import calendar
@@ -36,14 +37,20 @@ def convert_tide_data_to_pcal(tide_data_filename, pcal_filename):
             # Format the date for pcal (mm/dd)
             pcal_date = f"{int(month)}/{int(day)}"
             
-            if prediction < 1.0:
-                # add an asterisk to the pcal_date if the tide is less than 1.0 meter
+            if prediction < 0.3:
+                # add an asterisk to the pcal_date if the tide is less than the prediction value specified above
                 # this indicates the day is special to pcal and it will be colour-coded
                 pcal_date += "*"
             
             # Write the event to the pcal file
             # Including time and tide type in the event description
             pcal_file.write(f"{pcal_date}  {time} {tide_type_full} {prediction} m\n")
+        
+        # write a blank line at the end of the file
+        pcal_file.write("\n")
+
+        # write the tide station id in a note at the end of the file
+        pcal_file.write(f"note/1 all Tide Station ID: {tide_data_filename.split('_')[0]}\n")
 
 
 def download_tide_data(station_id, year, month):
@@ -76,6 +83,9 @@ def download_tide_data(station_id, year, month):
         logging.debug(f"Data successfully saved to {filename}")
     else:
         logging.error(f"Failed to download data: {response.status_code}")
+    
+    # return the filename for further processing
+    return filename
 
 if __name__ == "__main__":
     # Set up logging
@@ -91,11 +101,32 @@ if __name__ == "__main__":
     # Ensure month is in the correct format
     if args.month < 1 or args.month > 12:
         logging.error("Month must be between 1 and 12")
+        exit(1)
     else:
-        download_tide_data(args.station_id, args.year, args.month)
+        downloaded_filename = download_tide_data(args.station_id, args.year, args.month)
 
     # convert the tide data to pcal format
-    downloaded_filename = f"{args.station_id}_{args.year}_{args.month:02d}.csv"
+
+    # check if the downloaded file exists
+    if not downloaded_filename:
+        logging.error(f"File {downloaded_filename} does not exist.")
+        exit(1)
+    # check if the downloaded file is empty
+    if downloaded_filename and os.path.getsize(downloaded_filename) == 0:
+        logging.error(f"File {downloaded_filename} is empty.")
+        exit(1)
+
+    # check if the downloaded file's second line starts with the string "No Predictions data was found.", and if so, exit
+    with open(downloaded_filename, 'r') as file:
+        lines = file.readlines()
+        if len(lines) < 2:
+            logging.error(f"File {downloaded_filename} does not contain enough data.")
+            exit(1)
+        second_line = lines[1]
+        if "No Predictions data was found." in second_line:
+            logging.error(f"No predictions data found for {args.station_id} in {args.year}-{args.month:02d}.")
+            exit(1)
+    
     # make a pcal file with the tide events using the month and year in the filename
     pcal_filename = f"tide_calendar_{args.station_id}_{args.year}_{args.month:02d}.txt"
     
@@ -114,8 +145,14 @@ if __name__ == "__main__":
     # print("For more information, see the pcal documentation.")
     # print("https://manpages.debian.org/testing/pcal/pcal.1.en.html")
 
+    # -s r1.r2:g1.g2.b1.b2 -- colour of highlighted days
+    # -m -- show the month name
+    # -S -- show the year
+    # -f -- specify the input file
+    # -o -- specify the output file
+
     # Call the shell command to create the calendar page
-    subprocess.run(["pcal", "-f", pcal_filename, "-o", pcal_filename.replace('.txt', '.ps'), "-s 1.0:0.0:0.0", "-m", "-S", str(args.month), str(args.year)])
+    subprocess.run(["pcal", "-f", pcal_filename, "-o", pcal_filename.replace('.txt', '.ps'), "-s 0.0:0.0:1.0", "-m", "-S", str(args.month), str(args.year)])
 
     # Convert the PostScript file to PDF
     subprocess.run(["ps2pdf", pcal_filename.replace('.txt', '.ps'), pcal_filename.replace('.txt', '.pdf')])

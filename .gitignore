@@ -125,5 +125,10 @@ dmypy.json
 # generated PDF files
 *.pdf
 
+# generated TXT files
+*.txt
+# generated CSV files
+*.csv
+
 # Mac files
 .DS_Store
