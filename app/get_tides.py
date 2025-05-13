@@ -119,7 +119,11 @@ if __name__ == "__main__":
 
     # check if the downloaded file's second line starts with the string "No Predictions data was found.", and if so, exit
     with open(downloaded_filename, 'r') as file:
-        second_line = file.readlines()[1]
+        lines = file.readlines()
+        if len(lines) < 2:
+            logging.error(f"File {downloaded_filename} does not contain enough data.")
+            exit(1)
+        second_line = lines[1]
         if "No Predictions data was found." in second_line:
             logging.error(f"No predictions data found for {args.station_id} in {args.year}-{args.month:02d}.")
             exit(1)
