@@ -74,18 +74,23 @@ def download_tide_data(station_id, year, month):
 
     # Make the request
     response = requests.get(base_url, params=params)
-    
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Save the response content to a CSV file
-        filename = f"{station_id}_{year}_{month:02d}.csv"
-        with open(filename, 'wb') as file:
-            file.write(response.content)
-        logging.debug(f"Data successfully saved to {filename}")
-    else:
-        logging.error(f"Failed to download data: {response.status_code}")
-    
-    # return the filename for further processing
+    if response.status_code != 200:
+        logging.error(f"Failed to download data for station {station_id}: {response.status_code}")
+        return None
+
+    filename = f"{station_id}_{year}_{month:02d}.csv"
+    with open(filename, 'wb') as file:
+        file.write(response.content)
+
+    # Check if the file contains "No Predictions data was found."
+    with open(filename, 'r') as file:
+        lines = file.readlines()
+        if len(lines) < 2 or "No Predictions data was found." in lines[1]:
+            logging.error(f"No predictions data found for station {station_id} in {year}-{month:02d}.")
+            os.remove(filename)
+            return None
+
+    logging.debug(f"Data successfully saved to {filename}")
     return filename
 
 def log_station_id(station_id):
@@ -140,6 +145,9 @@ if __name__ == "__main__":
         # Log the station ID lookup
         log_station_id(args.station_id)
         downloaded_filename = download_tide_data(args.station_id, args.year, args.month)
+        if not downloaded_filename:
+            logging.error("Could not retrieve tide data. Please check the station ID and try again.")
+            exit(1)
 
     # convert the tide data to pcal format
 
