@@ -5,6 +5,7 @@ from datetime import datetime
 import calendar
 import subprocess
 import logging
+import sqlite3
 
 # sample call: python get_tide_data.py --station_id 9449639 --year 2024 --month 6
 
@@ -87,6 +88,39 @@ def download_tide_data(station_id, year, month):
     # return the filename for further processing
     return filename
 
+def log_station_id(station_id):
+    db_path = 'tide_station_ids.db'
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS tide_station_ids (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            station_id TEXT UNIQUE NOT NULL,
+            lookup_count INTEGER NOT NULL DEFAULT 1,
+            last_lookup DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    # Try to update lookup_count if station_id exists
+    result = c.execute('SELECT lookup_count FROM tide_station_ids WHERE station_id = ?', (station_id,)).fetchone()
+    if result:
+        c.execute('''
+            UPDATE tide_station_ids
+            SET lookup_count = lookup_count + 1,
+                last_lookup = CURRENT_TIMESTAMP
+            WHERE station_id = ?
+        ''', (station_id,))
+        # Get the new lookup_count after update
+        new_count = result[0] + 1
+    else:
+        c.execute('''
+            INSERT INTO tide_station_ids (station_id, lookup_count)
+            VALUES (?, 1)
+        ''', (station_id,))
+        new_count = 1
+    conn.commit()
+    conn.close()
+    logging.info(f"Station ID {station_id} has been looked up {new_count} times.")
+
 if __name__ == "__main__":
     # Set up logging
     logging.basicConfig(level=logging.INFO)
@@ -103,6 +137,8 @@ if __name__ == "__main__":
         logging.error("Month must be between 1 and 12")
         exit(1)
     else:
+        # Log the station ID lookup
+        log_station_id(args.station_id)
         downloaded_filename = download_tide_data(args.station_id, args.year, args.month)
 
     # convert the tide data to pcal format
