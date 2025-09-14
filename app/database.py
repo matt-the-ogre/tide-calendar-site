@@ -2,7 +2,7 @@ import sqlite3
 import logging
 import os
 
-DB_PATH = 'tide_station_ids.db'
+DB_PATH = os.path.join(os.path.dirname(__file__), 'tide_station_ids.db')
 
 def init_database():
     """Initialize the database and create tables if they don't exist."""
