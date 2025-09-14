@@ -138,3 +138,5 @@ dmypy.json
 *.db
 *.sqlite
 *.db-journal
+
+tide_station_ids.db
