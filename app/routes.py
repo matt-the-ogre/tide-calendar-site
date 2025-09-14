@@ -31,7 +31,8 @@ def index():
             return render_template('tide_station_not_found.html', message=f"Invalid input: {str(e)}")
 
         # Call the get_tides.py script with the new argument format
-        subprocess.run([sys.executable, 'get_tides.py', '--station_id', station_id, '--year', str(year), '--month', str(month)])
+        script_path = os.path.join(os.path.dirname(__file__), 'get_tides.py')
+        subprocess.run([sys.executable, script_path, '--station_id', station_id, '--year', str(year), '--month', str(month)])
 
         # PDF is saved as "tide_calendar_{station_id}_{year}_{month:02d}.pdf"
         pdf_filename = f"tide_calendar_{station_id}_{year}_{month:02d}.pdf"
