@@ -150,15 +150,6 @@ if __name__ == "__main__":
     logging.debug(f"PCAL file created: {pcal_filename}")
 
     # now make a calendar page using `pcal` and the pcal file with the tide events for that month and year
-    # print("To create a calendar page with the tide events, run the following command:")
-    # print(f"pcal -f {pcal_filename} -o {pcal_filename.replace('.txt', '.ps')}")
-    # print("This will create a PostScript file that you can print or view.")
-    # print("You can also convert the PostScript file to PDF using `ps2pdf`.")
-    # print("For example: `ps2pdf pcal_tide_events_2024_06.ps pcal_tide_events_2024_06.pdf`")
-    # print("This will create a PDF file that you can view or print.")
-    # print("You can also customize the appearance of the calendar page using pcal options.")
-    # print("For more information, see the pcal documentation.")
-    # print("https://manpages.debian.org/testing/pcal/pcal.1.en.html")
 
     # -s r1.r2:g1.g2.b1.b2 -- colour of highlighted days
     # -m -- show the month name
