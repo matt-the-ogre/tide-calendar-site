@@ -98,26 +98,30 @@ MacOS
 tide_calendar/
 ├── app/
 │   ├── __init__.py
-│   ├── routes.py
+│   ├── routes.py           # Web routes with form validation
+│   ├── get_tides.py        # Tide data processing and PDF generation
+│   ├── database.py         # Centralized SQLite database operations
 │   ├── templates/
 │   │   └── index.html
 │   └── static/
 │       └── style.css
-├── get_tides.py
-├── run.py
+├── run.py                  # Application entry point
 ├── requirements.txt
 ├── Dockerfile
+├── CLAUDE.md              # Development documentation
 └── README.md
 ```
 
 ## Explanation of Key Files
 
 - **app/__init__.py**: Initializes the Flask app.
-- **app/routes.py**: Contains the route for the web interface.
+- **app/routes.py**: Contains the web routes with form validation and error handling.
+- **app/get_tides.py**: Script to generate the PDF calendar with tide information.
+- **app/database.py**: Centralized SQLite database operations for station tracking.
 - **app/templates/index.html**: HTML template for the web interface.
 - **app/static/style.css**: CSS file for styling the web interface.
-- **get_tides.py**: Script to generate the PDF calendar with tide information.
-- **run.py**: Entry point to run the Flask app.
+- **run.py**: Entry point to run the Flask app with database initialization.
+- **CLAUDE.md**: Development documentation and architecture overview.
 - **requirements.txt**: List of Python dependencies.
 - **Dockerfile**: Instructions to build the Docker image.
 

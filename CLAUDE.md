@@ -45,26 +45,28 @@ FLASK_RUN_PORT=5001
 ## Architecture Overview
 
 ### Core Components
-- **Flask Web Application**: Serves tide calendar generation interface
+- **Flask Web Application**: Serves tide calendar generation interface with form validation
 - **Tide Data Fetcher**: `get_tides.py` retrieves NOAA tide data and generates PDF calendars
-- **Database**: SQLite database (`tide_station_ids.db`) tracks station usage statistics
+- **Database Module**: `database.py` centralized SQLite operations for station usage tracking
 - **PDF Generation Pipeline**: Uses `pcal` and `ghostscript` for calendar creation
 
 ### Application Structure
 ```
 app/
 ├── __init__.py          # Flask app initialization
-├── routes.py            # Web routes and form handling
+├── routes.py            # Web routes, form handling, and input validation
 ├── get_tides.py         # Core tide data processing and PDF generation
-├── run.py              # Application entry point with SQLite initialization
+├── database.py          # Centralized SQLite database operations
+├── run.py              # Application entry point with database initialization
 ├── templates/          # Jinja2 HTML templates
 └── static/            # CSS and static assets
 ```
 
 ### Key Workflows
-1. **PDF Generation**: User submits form → `routes.py` calls `get_tides.py` → NOAA API fetch → pcal conversion → PDF creation
-2. **Database Tracking**: Station IDs and lookup counts stored in SQLite for analytics
-3. **Error Handling**: Missing/empty PDFs trigger custom error templates
+1. **PDF Generation**: User submits form → `routes.py` validates input → calls `get_tides.py` → NOAA API fetch → pcal conversion → PDF creation
+2. **Database Tracking**: Station IDs and lookup counts stored in SQLite via `database.py` module
+3. **Form Validation**: Input validation prevents crashes and provides user-friendly error messages
+4. **Error Handling**: Missing/empty PDFs and invalid inputs trigger custom error templates
 
 ### Technology Stack
 - **Backend**: Flask with Python 3.9+
@@ -78,4 +80,6 @@ app/
 - PDF files are generated in the app directory and served as downloads
 - Station ID 9449639 is used as default demonstration value
 - Low tide events (<0.3m) are marked with asterisks in calendars
-- SQLite database auto-initializes on application startup
+- SQLite database auto-initializes on application startup via centralized `database.py` module
+- Form validation prevents crashes: validates station ID (numeric), year (2000-2030), month (1-12)
+- Cross-platform compatibility ensured with `sys.executable` instead of hardcoded Python command
