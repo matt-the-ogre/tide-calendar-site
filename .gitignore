@@ -139,4 +139,4 @@ dmypy.json
 *.sqlite
 *.db-journal
 
-tide_station_ids.db
+**/tide_station_ids.db

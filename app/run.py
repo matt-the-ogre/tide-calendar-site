@@ -1,25 +1,10 @@
 from dotenv import load_dotenv
 import os
-import sqlite3
+from app.database import init_database
 
 load_dotenv()
 
-def init_db():
-    conn = sqlite3.connect('tide_station_ids.db')
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS tide_station_ids (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            station_id TEXT UNIQUE NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            lookup_count INTEGER NOT NULL DEFAULT 1,
-            last_lookup DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-init_db()
+init_database()
 
 from app import app
 
