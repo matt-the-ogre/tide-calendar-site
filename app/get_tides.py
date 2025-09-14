@@ -5,6 +5,7 @@ from datetime import datetime
 import calendar
 import subprocess
 import logging
+import sqlite3
 
 # sample call: python get_tide_data.py --station_id 9449639 --year 2024 --month 6
 
@@ -73,19 +74,57 @@ def download_tide_data(station_id, year, month):
 
     # Make the request
     response = requests.get(base_url, params=params)
-    
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Save the response content to a CSV file
-        filename = f"{station_id}_{year}_{month:02d}.csv"
-        with open(filename, 'wb') as file:
-            file.write(response.content)
-        logging.debug(f"Data successfully saved to {filename}")
-    else:
-        logging.error(f"Failed to download data: {response.status_code}")
-    
-    # return the filename for further processing
+    if response.status_code != 200:
+        logging.error(f"Failed to download data for station {station_id}: {response.status_code}")
+        return None
+
+    filename = f"{station_id}_{year}_{month:02d}.csv"
+    with open(filename, 'wb') as file:
+        file.write(response.content)
+
+    # Check if the file contains "No Predictions data was found."
+    with open(filename, 'r') as file:
+        lines = file.readlines()
+        if len(lines) < 2 or "No Predictions data was found." in lines[1]:
+            logging.error(f"No predictions data found for station {station_id} in {year}-{month:02d}.")
+            os.remove(filename)
+            return None
+
+    logging.debug(f"Data successfully saved to {filename}")
     return filename
+
+def log_station_id(station_id):
+    db_path = 'tide_station_ids.db'
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS tide_station_ids (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            station_id TEXT UNIQUE NOT NULL,
+            lookup_count INTEGER NOT NULL DEFAULT 1,
+            last_lookup DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    # Try to update lookup_count if station_id exists
+    result = c.execute('SELECT lookup_count FROM tide_station_ids WHERE station_id = ?', (station_id,)).fetchone()
+    if result:
+        c.execute('''
+            UPDATE tide_station_ids
+            SET lookup_count = lookup_count + 1,
+                last_lookup = CURRENT_TIMESTAMP
+            WHERE station_id = ?
+        ''', (station_id,))
+        # Get the new lookup_count after update
+        new_count = result[0] + 1
+    else:
+        c.execute('''
+            INSERT INTO tide_station_ids (station_id, lookup_count)
+            VALUES (?, 1)
+        ''', (station_id,))
+        new_count = 1
+    conn.commit()
+    conn.close()
+    logging.info(f"Station ID {station_id} has been looked up {new_count} times.")
 
 if __name__ == "__main__":
     # Set up logging
@@ -103,7 +142,12 @@ if __name__ == "__main__":
         logging.error("Month must be between 1 and 12")
         exit(1)
     else:
+        # Log the station ID lookup
+        log_station_id(args.station_id)
         downloaded_filename = download_tide_data(args.station_id, args.year, args.month)
+        if not downloaded_filename:
+            logging.error("Could not retrieve tide data. Please check the station ID and try again.")
+            exit(1)
 
     # convert the tide data to pcal format
 
