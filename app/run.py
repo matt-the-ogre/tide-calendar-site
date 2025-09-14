@@ -10,9 +10,9 @@ def init_db():
     c.execute('''
         CREATE TABLE IF NOT EXISTS tide_station_ids (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            station_id TEXT NOT NULL,
+            station_id TEXT UNIQUE NOT NULL,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            lookup_count INTEGER NOT NULL,
+            lookup_count INTEGER NOT NULL DEFAULT 1,
             last_lookup DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
