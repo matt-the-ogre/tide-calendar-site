@@ -59,8 +59,8 @@
     <div class="container">
         <h1>Tide Calendar Generator</h1>
         <h2>Currently only works with tide stations in the USA.</h2>
-        <h2>⚠️ Station ID not found ⚠️</h2>
-        <p>It seems that the tide station ID you entered is not found in the NOAA database. Please check the ID and try again.</p>
+        <h2>⚠️ Error ⚠️</h2>
+        <p>{{ message | default('It seems that the tide station ID you entered is not found in the NOAA database. Please check the ID and try again.') }}</p>
         
         <div class="instructions">
             <h2>How to Find Your Tide Station ID</h2>
@@ -75,7 +75,7 @@
         </div>
         <!-- Add the "Return home" button -->
         <div style="text-align: center; margin-top: 20px;">
-        <a href="/" class="btn plausible-event-name=Return+Home" style="text-decoration: none; background-color: #006064; color: white; padding: 10px 20px; border-radius: 5px; font-size: 16px;">Return home</a>
+        <a href="/" class="btn" onclick="if(window.plausible) plausible('Error Page Return')" style="text-decoration: none; background-color: #006064; color: white; padding: 10px 20px; border-radius: 5px; font-size: 16px;">Return home</a>
         </div>
     </div>
 
@@ -92,9 +92,24 @@
     </footer>
 
     <script>
-        console.log('Tide station not found error');
-        // Log the error to Plausible
-        // plausible.logError(error, { event: 'tide station not found' });
+        // Track error event in Plausible
+        document.addEventListener('DOMContentLoaded', function() {
+            const errorMessage = {{ message | tojson | safe }} || 'Station not found';
+
+            if (window.plausible) {
+                plausible('Form Error', {
+                    props: {
+                        error_type: errorMessage.includes('Station ID must') ? 'invalid_station_id' :
+                                   errorMessage.includes('Month must') ? 'invalid_month' :
+                                   errorMessage.includes('Year must') ? 'invalid_year' :
+                                   errorMessage.includes('Could not find') ? 'station_not_found' :
+                                   errorMessage.includes('No station selected') ? 'no_station_selected' :
+                                   'other_error',
+                        error_message: errorMessage.substring(0, 100) // Truncate long messages
+                    }
+                });
+            }
+        });
     </script>
 </body>
 </html>

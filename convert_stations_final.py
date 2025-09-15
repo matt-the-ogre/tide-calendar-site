@@ -4,6 +4,16 @@ import csv
 import os
 import re
 
+# Common US state abbreviations
+US_STATES = {
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+    'DC', 'PR'  # Puerto Rico and DC
+}
+
 def convert_md_to_csv_final():
     """Convert tide-stations-raw-new.md to CSV, intelligently preserving state abbreviations."""
 
@@ -67,15 +77,7 @@ def convert_md_to_csv_final():
                 if state_match:
                     state_abbrev = state_match.group(1).upper()
                     # Check if it's a valid US state
-                    us_states = {
-                        'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-                        'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-                        'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-                        'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-                        'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
-                        'DC', 'PR'  # Puerto Rico and DC
-                    }
-                    if state_abbrev in us_states:
+                    if state_abbrev in US_STATES:
                         # Replace with uppercase state abbreviation
                         place_name = place_name[:state_match.start(1)] + state_abbrev + place_name[state_match.end(1):]
                         has_state = True
@@ -83,22 +85,17 @@ def convert_md_to_csv_final():
                 if not has_state:
                     # Try to infer state from context or common patterns
                     # Look for state abbreviations in the original line after place name
-                    remaining_text = line[station_match.end() + len(place_name):] if len(line) > station_match.end() + len(place_name) else ""
+                    start_idx = station_match.end() + len(place_name)
+                    if len(line) > start_idx:
+                        remaining_text = line[start_idx:]
+                    else:
+                        remaining_text = ""
 
                     # Look for state pattern in remaining text (case insensitive)
                     state_match = re.search(r'\b([A-Za-z]{2})\b', remaining_text)
                     if state_match:
                         potential_state = state_match.group(1).upper()
-                        # Common US state abbreviations
-                        us_states = {
-                            'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-                            'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-                            'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-                            'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-                            'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
-                            'DC', 'PR'  # Puerto Rico and DC
-                        }
-                        if potential_state in us_states:
+                        if potential_state in US_STATES:
                             place_name = f"{place_name}, {potential_state}"
 
                 # Avoid duplicates

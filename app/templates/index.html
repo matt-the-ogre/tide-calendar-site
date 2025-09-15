@@ -69,7 +69,7 @@
         .autocomplete-container {
             position: relative;
             width: 100%;
-            max-width: 800px;
+            max-width: 100%;
             margin: 0 auto;
         }
 
@@ -120,7 +120,7 @@
         </div>
         <h2>Currently only works with tide stations in the USA.</h2>
         <p>When you enter a place name and generate the calendar PDF, it will start a download of the PDF file. Save it or print it.</p>
-        <form class="plausible-event-name=Form+Generate+PDF" method="post">
+        <form id="tide_form" method="post">
             <label for="station_id">Tide Station (ID or Place Name):</label>
             <div class="autocomplete-container">
                 <input type="text" id="station_search" name="station_search" placeholder="Enter station ID or search for a place..." value="{{ last_place_name }}" autocomplete="off" required>
@@ -154,7 +154,7 @@
                 </div>
             </div>
 
-            <button class="plausible-event-name=Generate+PDF" type="submit">Generate and download the PDF</button>
+            <button id="generate_btn" type="submit">Generate and download the PDF</button>
         </form>
 
         <!-- <div class="instructions">
@@ -206,6 +206,36 @@
         // Initialize autocomplete functionality
         initializeAutocomplete();
 
+        // Track form submission with station details
+        document.getElementById('tide_form').addEventListener('submit', function(e) {
+            const stationId = document.getElementById('station_id').value;
+            const stationSearch = document.getElementById('station_search').value;
+            const year = document.getElementById('year').value;
+            const month = document.getElementById('month').value;
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                              'July', 'August', 'September', 'October', 'November', 'December'];
+            const monthName = monthNames[parseInt(month) - 1];
+
+            // Extract place name from the search field (format: "Place Name (ID)")
+            let placeName = stationSearch;
+            const parenIndex = stationSearch.lastIndexOf('(');
+            if (parenIndex > 0) {
+                placeName = stationSearch.substring(0, parenIndex).trim();
+            }
+
+            // Track the calendar generation event with properties
+            if (window.plausible) {
+                plausible('Calendar Generated', {
+                    props: {
+                        station_id: stationId || 'unknown',
+                        place_name: placeName,
+                        year_month: `${year}-${month}`,
+                        month_name: monthName
+                    }
+                });
+            }
+        });
+
         // Autocomplete functionality
         function initializeAutocomplete() {
             const searchInput = document.getElementById('station_search');
@@ -221,8 +251,26 @@
                 .then(response => response.json())
                 .then(data => {
                     popularStations = data;
+                    // Track page view with popular stations loaded
+                    if (window.plausible && data.length > 0) {
+                        plausible('Popular Stations Loaded', {
+                            props: {
+                                count: String(data.length)
+                            }
+                        });
+                    }
                 })
-                .catch(error => console.error('Error loading popular stations:', error));
+                .catch(error => {
+                    console.error('Error loading popular stations:', error);
+                    // Track error
+                    if (window.plausible) {
+                        plausible('Error', {
+                            props: {
+                                type: 'popular_stations_load_failed'
+                            }
+                        });
+                    }
+                });
 
             // The initial value is already set from the server-side template
             // If user types a place name and selects from dropdown, it will set the hidden station_id
@@ -318,7 +366,21 @@
                     item.dataset.stationId = station.station_id;
                     item.dataset.placeName = station.place_name;
 
-                    item.addEventListener('click', () => selectStation(item));
+                    item.addEventListener('click', () => {
+                        selectStation(item);
+
+                        // Track if this was from popular stations
+                        if (popularStations.some(s => s.station_id === station.station_id)) {
+                            if (window.plausible) {
+                                plausible('Popular Station Selected', {
+                                    props: {
+                                        station_id: station.station_id,
+                                        place_name: station.place_name
+                                    }
+                                });
+                            }
+                        }
+                    });
                     dropdown.appendChild(item);
                 });
 
@@ -343,6 +405,16 @@
                 searchInput.value = `${placeName} (${stationId})`;
                 hiddenInput.value = stationId;
                 hideDropdown();
+
+                // Track autocomplete selection
+                if (window.plausible) {
+                    plausible('Autocomplete Selection', {
+                        props: {
+                            station_id: stationId,
+                            place_name: placeName
+                        }
+                    });
+                }
             }
         }
     </script>
