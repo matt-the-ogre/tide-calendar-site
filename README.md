@@ -63,7 +63,7 @@ MacOS
 
     ```bash
     cd app
-    flask run --host 0.0.0.0 --port 5001
+    flask run --debug --host 0.0.0.0 --port 5001
     ```
 
 3. **Access the app:**
@@ -98,42 +98,74 @@ MacOS
 tide_calendar/
 ├── app/
 │   ├── __init__.py
-│   ├── routes.py           # Web routes with form validation
-│   ├── get_tides.py        # Tide data processing and PDF generation
-│   ├── database.py         # Centralized SQLite database operations
+│   ├── routes.py                    # Web routes with form validation and API endpoints
+│   ├── get_tides.py                 # Tide data processing and PDF generation
+│   ├── database.py                  # SQLite operations and station search functions
+│   ├── tide_stations_new.csv        # Canonical tide station database (2,900+ stations)
+│   ├── tide-stations-raw-new.md     # Raw NOAA station data source
+│   ├── tide_station_ids.db          # SQLite database with usage tracking
 │   ├── templates/
-│   │   └── index.html
+│   │   ├── index.html               # Main interface with autocomplete
+│   │   └── tide_station_not_found.html
 │   └── static/
-│       └── style.css
-├── run.py                  # Application entry point
+│       ├── style.css
+│       ├── favicon.ico
+│       └── tide-calendar-example.png
+├── convert_stations_final.py        # Utility to convert MD to CSV with proper formatting
+├── run.py                          # Application entry point
 ├── requirements.txt
 ├── Dockerfile
-├── CLAUDE.md              # Development documentation
+├── CLAUDE.md                       # Development documentation
 └── README.md
 ```
 
 ## Explanation of Key Files
 
-- **app/__init__.py**: Initializes the Flask app.
-- **app/routes.py**: Contains the web routes with form validation and error handling.
+- **app/__init__.py**: Initializes the Flask app and database.
+- **app/routes.py**: Web routes with form validation, API endpoints for autocomplete, and cookie management.
 - **app/get_tides.py**: Script to generate the PDF calendar with tide information.
-- **app/database.py**: Centralized SQLite database operations for station tracking.
-- **app/templates/index.html**: HTML template for the web interface.
-- **app/static/style.css**: CSS file for styling the web interface.
-- **run.py**: Entry point to run the Flask app with database initialization.
+- **app/database.py**: SQLite operations including station search, autocomplete, and usage tracking.
+- **app/tide_stations_new.csv**: Canonical database of 2,900+ tide stations with proper place names.
+- **app/templates/index.html**: Main web interface with intelligent autocomplete and responsive design.
+- **app/static/**: Contains CSS styling, favicon, and example images.
+- **convert_stations_final.py**: Utility script to convert raw NOAA data to properly formatted CSV.
+- **run.py**: Entry point to run the Flask app with automatic database initialization.
 - **CLAUDE.md**: Development documentation and architecture overview.
 - **requirements.txt**: List of Python dependencies.
 - **Dockerfile**: Instructions to build the Docker image.
 
+## Features
+
+- **Smart Autocomplete**: Search tide stations by place name with intelligent suggestions
+- **Comprehensive Database**: 2,900+ tide stations with proper geographic disambiguation
+- **User-Friendly Interface**: Type place names like "Point Roberts, WA" or use station IDs
+- **Remember Last Used**: Automatically remembers your last successful location
+- **PDF Generation**: Creates downloadable monthly tide calendars
+
 ## Usage
 
-1. Enter the tide station ID, year, and month in the web form.
-2. Click "Generate PDF" to create and download the tide calendar.
+### Method 1: Place Name Search (Recommended)
+1. Start typing a place name (e.g., "Seattle", "Miami", "San Francisco")
+2. Select from the autocomplete dropdown suggestions
+3. Choose your desired year and month
+4. Click "Generate and download the PDF"
+
+### Method 2: Direct Entry
+1. Type a complete place name (e.g., "Point Roberts, WA")
+2. Choose your desired year and month
+3. Click "Generate and download the PDF"
+
+### Method 3: Station ID (Advanced)
+1. Enter a 7-digit NOAA tide station ID directly
+2. Choose your desired year and month
+3. Click "Generate and download the PDF"
 
 ## Notes
 
 - Ensure `pcal` and `ghostscript` are installed on your system if running locally.
-- The default tide station ID is set to `9449639` for demonstration purposes.
+- The app defaults to "Point Roberts, WA" for demonstration purposes.
+- All tide stations are sourced from NOAA's official tide station database.
+- The application automatically tracks popular stations for better autocomplete suggestions.
 
 For deployment, it's common practice to use standard HTTP (port 80) or HTTPS (port 443) ports to make the application accessible over the web without specifying a port number in the URL. Here’s how you can set this up in your Docker deployment.
 
@@ -261,3 +293,32 @@ Contributions are welcome! Please fork the repository and submit a pull request 
 ## License
 
 This project is licensed under the GNU GPL v3 License.
+
+## Converting from pasted Markdown to simplified markdown of station id lists
+
+Here's a regex pattern that will match date ranges in that format:
+
+```regex
+[A-Z][a-z]{2} \d{1,2}, \d{4} - [A-Z][a-z]{2} \d{1,2}, \d{4}
+```
+
+This breaks down as:
+- `[A-Z][a-z]{2}` - Matches 3-letter month abbreviation (first letter uppercase, next two lowercase)
+- ` \d{1,2}` - Matches space followed by 1-2 digits for the day
+- `, \d{4}` - Matches comma, space, and 4 digits for the year
+- ` - ` - Matches the literal " - " separator
+- Then repeats the same pattern for the end date
+
+If you want to be more flexible and allow for variations in capitalization or spacing, you could use:
+
+```regex
+[A-Za-z]{3} \d{1,2}, \d{4} - [A-Za-z]{3} \d{1,2}, \d{4}
+```
+
+Or if you want to capture the individual parts, you can add capturing groups:
+
+```regex
+([A-Z][a-z]{2}) (\d{1,2}), (\d{4}) - ([A-Z][a-z]{2}) (\d{1,2}), (\d{4})
+```
+
+This will work in VS Code's find/replace dialog when you enable regex mode (the `.*` button).

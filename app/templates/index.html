@@ -53,15 +53,80 @@
         .form-row select {
             flex: 1;
         }
+
+        .example-image {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .example-image img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .autocomplete-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        #station_search {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .autocomplete-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+
+        .autocomplete-item:hover {
+            background-color: #e0f7fa;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item.selected {
+            background-color: #b2dfdb;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Tide Calendar Generator</h1>
+        <div class="example-image">
+            <img src="{{ url_for('static', filename='tide-calendar-example.png') }}" alt="Example tide calendar" />
+        </div>
         <h2>Currently only works with tide stations in the USA.</h2>
+        <p>When you enter a place name and generate the calendar PDF, it will start a download of the PDF file. Save it or print it.</p>
         <form class="plausible-event-name=Form+Generate+PDF" method="post">
-            <label for="station_id">Tide Station ID:</label>
-            <input type="text" id="station_id" name="station_id" value="{{ station_id }}" required><br>
+            <label for="station_id">Tide Station (ID or Place Name):</label>
+            <div class="autocomplete-container">
+                <input type="text" id="station_search" name="station_search" placeholder="Enter station ID or search for a place..." value="{{ last_place_name }}" autocomplete="off" required>
+                <input type="hidden" id="station_id" name="station_id" value="">
+                <div id="autocomplete_dropdown" class="autocomplete-dropdown"></div>
+            </div><br>
 
             <div class="form-row">
                 <div>
@@ -92,7 +157,7 @@
             <button class="plausible-event-name=Generate+PDF" type="submit">Generate and download the PDF</button>
         </form>
 
-        <div class="instructions">
+        <!-- <div class="instructions">
             <h2>How to Find Your Tide Station ID</h2>
             <p>To find your tide station ID, follow these steps:</p>
             <ol>
@@ -102,7 +167,7 @@
                 <li>Look for the station ID in the station details (usually a 7-digit number).</li>
             </ol>
             <p>Once you have your station ID, enter it in the "Tide Station ID" field above.</p>
-        </div>
+        </div> -->
     </div>
 
     <footer>
@@ -137,6 +202,149 @@
 
         // Set the default value for the month dropdown to the current month
         document.getElementById('month').value = currentMonth;
+
+        // Initialize autocomplete functionality
+        initializeAutocomplete();
+
+        // Autocomplete functionality
+        function initializeAutocomplete() {
+            const searchInput = document.getElementById('station_search');
+            const hiddenInput = document.getElementById('station_id');
+            const dropdown = document.getElementById('autocomplete_dropdown');
+
+            let popularStations = [];
+            let searchTimeout;
+            let selectedIndex = -1;
+
+            // Load popular stations on page load
+            fetch('/api/popular_stations')
+                .then(response => response.json())
+                .then(data => {
+                    popularStations = data;
+                })
+                .catch(error => console.error('Error loading popular stations:', error));
+
+            // The initial value is already set from the server-side template
+            // If user types a place name and selects from dropdown, it will set the hidden station_id
+
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                const query = this.value.trim();
+
+                if (query.length === 0) {
+                    hideDropdown();
+                    hiddenInput.value = '';
+                    return;
+                }
+
+                // If input looks like a station ID (all digits), set it directly
+                if (/^\d+$/.test(query)) {
+                    hiddenInput.value = query;
+                    hideDropdown();
+                    return;
+                }
+
+                // Search popular stations first (client-side)
+                const popularMatches = searchPopularStations(query);
+
+                if (popularMatches.length > 0) {
+                    showDropdown(popularMatches);
+                } else {
+                    // Fallback to API search after a short delay
+                    searchTimeout = setTimeout(() => {
+                        searchAPI(query);
+                    }, 300);
+                }
+            });
+
+            searchInput.addEventListener('keydown', function(e) {
+                const items = dropdown.querySelectorAll('.autocomplete-item');
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                    updateSelection(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, -1);
+                    updateSelection(items);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (selectedIndex >= 0 && items[selectedIndex]) {
+                        selectStation(items[selectedIndex]);
+                    }
+                } else if (e.key === 'Escape') {
+                    hideDropdown();
+                }
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                    hideDropdown();
+                }
+            });
+
+            function searchPopularStations(query) {
+                return popularStations.filter(station =>
+                    station.place_name.toLowerCase().includes(query.toLowerCase())
+                ).slice(0, 5);
+            }
+
+            function searchAPI(query) {
+                fetch(`/api/search_stations?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.length > 0) {
+                            showDropdown(data);
+                        } else {
+                            hideDropdown();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error searching stations:', error);
+                        hideDropdown();
+                    });
+            }
+
+            function showDropdown(stations) {
+                dropdown.innerHTML = '';
+                selectedIndex = -1;
+
+                stations.forEach((station, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'autocomplete-item';
+                    item.textContent = `${station.place_name} (${station.station_id})`;
+                    item.dataset.stationId = station.station_id;
+                    item.dataset.placeName = station.place_name;
+
+                    item.addEventListener('click', () => selectStation(item));
+                    dropdown.appendChild(item);
+                });
+
+                dropdown.style.display = 'block';
+            }
+
+            function hideDropdown() {
+                dropdown.style.display = 'none';
+                selectedIndex = -1;
+            }
+
+            function updateSelection(items) {
+                items.forEach((item, index) => {
+                    item.classList.toggle('selected', index === selectedIndex);
+                });
+            }
+
+            function selectStation(item) {
+                const stationId = item.dataset.stationId;
+                const placeName = item.dataset.placeName;
+
+                searchInput.value = `${placeName} (${stationId})`;
+                hiddenInput.value = stationId;
+                hideDropdown();
+            }
+        }
     </script>
 </body>
 </html>

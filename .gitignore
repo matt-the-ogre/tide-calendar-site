@@ -140,3 +140,7 @@ dmypy.json
 *.db-journal
 
 **/tide_station_ids.db
+
+# always _include_ tide_stations.csv
+!**/tide_stations.csv
+!**/tide_stations_new.csv

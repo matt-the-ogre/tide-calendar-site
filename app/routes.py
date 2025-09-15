@@ -1,10 +1,11 @@
 import logging
 import subprocess
 import sys
-from flask import render_template, request, send_file, make_response
+from flask import render_template, request, send_file, make_response, jsonify
 import os
 
 from app import app
+from app.database import search_stations_by_name, get_popular_stations, get_place_name_by_station_id, get_station_id_by_place_name
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -12,6 +13,18 @@ def index():
         station_id = request.form['station_id'].strip()
         year = request.form['year']
         month = request.form['month']
+
+        # If station_id is empty, try to get it from the place name in the search field
+        if not station_id:
+            station_search = request.form.get('station_search', '').strip()
+            if station_search:
+                # Try to find station ID by place name
+                found_station_id = get_station_id_by_place_name(station_search)
+                if found_station_id:
+                    station_id = found_station_id
+                else:
+                    return render_template('tide_station_not_found.html',
+                                         message=f"Could not find tide station for '{station_search}'. Please select from the autocomplete dropdown.")
 
         # Validate form inputs
         try:
@@ -49,13 +62,42 @@ def index():
             logging.error(f"File {pdf_filename} is empty.")
             return render_template('tide_station_not_found.html', message="Error: PDF file is empty.")
         
+        # Get the place name for the station ID to store in cookie
+        place_name = get_place_name_by_station_id(station_id)
+
         # Create a response object to set the cookie
         response = make_response(send_file(pdf_filename, as_attachment=True))
-        response.set_cookie('station_id', station_id)
+        if place_name:
+            response.set_cookie('last_place_name', place_name)
 
         return response
 
-    # If GET request, read the station_id from the cookie, if available
-    station_id = request.cookies.get('station_id', '9449639')  # Default to '9449639' if no cookie is found
+    # If GET request, read the last place name from the cookie, if available
+    last_place_name = request.cookies.get('last_place_name', 'Point Roberts, WA')
 
-    return render_template('index.html', station_id=station_id)
+    return render_template('index.html', last_place_name=last_place_name)
+
+@app.route('/api/search_stations')
+def api_search_stations():
+    """API endpoint to search for tide stations by place name."""
+    query = request.args.get('q', '').strip()
+
+    if not query or len(query) < 1:
+        return jsonify([])
+
+    try:
+        results = search_stations_by_name(query, limit=10)
+        return jsonify(results)
+    except Exception as e:
+        logging.error(f"Error in search API: {e}")
+        return jsonify([]), 500
+
+@app.route('/api/popular_stations')
+def api_popular_stations():
+    """API endpoint to get the most popular tide stations."""
+    try:
+        results = get_popular_stations(limit=16)
+        return jsonify(results)
+    except Exception as e:
+        logging.error(f"Error in popular stations API: {e}")
+        return jsonify([]), 500
