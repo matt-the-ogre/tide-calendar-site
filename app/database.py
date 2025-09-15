@@ -82,9 +82,10 @@ def import_stations_from_csv():
             cursor = conn.cursor()
 
             # Check if we already have place names populated
+            MIN_STATION_THRESHOLD = 100
             result = cursor.execute('SELECT COUNT(*) FROM tide_station_ids WHERE place_name IS NOT NULL').fetchone()
-            if result[0] > 0:
-                logging.debug("Station place names already populated")
+            if result[0] >= MIN_STATION_THRESHOLD:
+                logging.debug(f"Station place names already populated (count: {result[0]})")
                 return True
 
             # Import from CSV

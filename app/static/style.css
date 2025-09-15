@@ -9,9 +9,9 @@ body {
 
 /* Container for the form */
 .container {
-    max-width: 600px;
+    max-width: 900px;
     margin: 50px auto;
-    padding: 20px;
+    padding: 30px;
     background-color: #ffffff; /* White background */
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     border-radius: 10px;

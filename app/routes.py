@@ -17,14 +17,15 @@ def index():
         # If station_id is empty, try to get it from the place name in the search field
         if not station_id:
             station_search = request.form.get('station_search', '').strip()
-            if station_search:
-                # Try to find station ID by place name
-                found_station_id = get_station_id_by_place_name(station_search)
-                if found_station_id:
-                    station_id = found_station_id
-                else:
-                    return render_template('tide_station_not_found.html',
-                                         message=f"Could not find tide station for '{station_search}'. Please select from the autocomplete dropdown.")
+            if not station_search:
+                return render_template('tide_station_not_found.html',
+                                     message="No station selected. Please select a tide station from the autocomplete dropdown.")
+            # Try to find station ID by place name
+            found_station_id = get_station_id_by_place_name(station_search)
+            if not found_station_id:
+                return render_template('tide_station_not_found.html',
+                                     message=f"Could not find tide station for '{station_search}'. Please select from the autocomplete dropdown.")
+            station_id = found_station_id
 
         # Validate form inputs
         try:
