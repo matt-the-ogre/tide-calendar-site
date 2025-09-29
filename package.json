@@ -1,0 +1,24 @@
+{
+  "name": "tide-calendar-playwright-tests",
+  "version": "1.0.0",
+  "description": "Playwright test suite for Tide Calendar Flask application",
+  "scripts": {
+    "test": "playwright test",
+    "test:local": "playwright test --config=playwright.config.local.ts",
+    "test:prod": "playwright test --config=playwright.config.prod.ts",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report",
+    "test:install": "playwright install",
+    "test:install-deps": "playwright install-deps"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

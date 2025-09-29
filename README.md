@@ -15,8 +15,8 @@ This project generates a PDF calendar with tide information for a specified tide
 1. **Clone the repository:**
 
     ```bash
-    git clone https://github.com/yourusername/tide-calendar-generator.git
-    cd tide-calendar-generator
+    git clone https://github.com/matt-the-ogre/tide-calendar-site.git
+    cd tide-calendar-site
     ```
 
 2. **Create and activate a virtual environment:**
@@ -34,14 +34,14 @@ This project generates a PDF calendar with tide information for a specified tide
 
 4. **Install system dependencies:**
 
-Linux
+    **Linux:**
 
     ```bash
     sudo apt-get update
     sudo apt-get install -y pcal ghostscript
     ```
 
-MacOS
+    **macOS:**
 
     ```bash
     brew update; brew upgrade
@@ -68,7 +68,7 @@ MacOS
 
 3. **Access the app:**
 
-    Open your web browser and go to `http://127.0.0.1:5000/`.
+    Open your web browser and go to `http://127.0.0.1:5001/`.
 
 ## Containerized Deployment
 
@@ -173,16 +173,16 @@ For deployment, it's common practice to use standard HTTP (port 80) or HTTPS (po
 
 1. **Modify the Docker Run Command**
    
-   To use port 80 or 443, map the internal port 5000 to the desired external port.
+   To use port 80 or 443, map the internal port 5001 to the desired external port.
 
    **For HTTP (port 80):**
    ```bash
-   docker run -p 80:5000 tide-calendar-app
+   docker run -p 80:5001 tide-calendar-app
    ```
 
    **For HTTPS (port 443):**
    ```bash
-   docker run -p 443:5000 tide-calendar-app
+   docker run -p 443:5001 tide-calendar-app
    ```
 
 2. **Using HTTPS (port 443)**
@@ -203,7 +203,7 @@ For deployment, it's common practice to use standard HTTP (port 80) or HTTPS (po
        server_name yourdomain.com;
 
        location / {
-           proxy_pass http://localhost:5000;
+           proxy_pass http://localhost:5001;
            proxy_set_header Host $host;
            proxy_set_header X-Real-IP $remote_addr;
            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -224,7 +224,7 @@ For deployment, it's common practice to use standard HTTP (port 80) or HTTPS (po
      app:
        build: .
        ports:
-         - "5000:5000"
+         - "5001:5001"
        environment:
          FLASK_ENV: production
 
@@ -277,7 +277,7 @@ If you are using port 443, you’ll need to set up SSL certificates. Let’s Enc
 
 ### Summary
 
-- For production deployment, map port 5000 to port 80 for HTTP or port 443 for HTTPS in your Docker run command.
+- For production deployment, map port 5001 to port 80 for HTTP or port 443 for HTTPS in your Docker run command.
 - Use Nginx as a reverse proxy to manage incoming traffic and SSL termination.
 - Obtain and configure SSL certificates if using HTTPS, using tools like Certbot and Let's Encrypt.
 
@@ -294,31 +294,3 @@ Contributions are welcome! Please fork the repository and submit a pull request 
 
 This project is licensed under the GNU GPL v3 License.
 
-## Converting from pasted Markdown to simplified markdown of station id lists
-
-Here's a regex pattern that will match date ranges in that format:
-
-```regex
-[A-Z][a-z]{2} \d{1,2}, \d{4} - [A-Z][a-z]{2} \d{1,2}, \d{4}
-```
-
-This breaks down as:
-- `[A-Z][a-z]{2}` - Matches 3-letter month abbreviation (first letter uppercase, next two lowercase)
-- ` \d{1,2}` - Matches space followed by 1-2 digits for the day
-- `, \d{4}` - Matches comma, space, and 4 digits for the year
-- ` - ` - Matches the literal " - " separator
-- Then repeats the same pattern for the end date
-
-If you want to be more flexible and allow for variations in capitalization or spacing, you could use:
-
-```regex
-[A-Za-z]{3} \d{1,2}, \d{4} - [A-Za-z]{3} \d{1,2}, \d{4}
-```
-
-Or if you want to capture the individual parts, you can add capturing groups:
-
-```regex
-([A-Z][a-z]{2}) (\d{1,2}), (\d{4}) - ([A-Z][a-z]{2}) (\d{1,2}), (\d{4})
-```
-
-This will work in VS Code's find/replace dialog when you enable regex mode (the `.*` button).
