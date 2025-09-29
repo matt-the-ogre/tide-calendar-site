@@ -58,7 +58,7 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container" data-error-message="{{ message | default('Station not found') | replace('\"', '&quot;') }}">
         <h1>Tide Calendar Generator</h1>
         <h2>Currently only works with tide stations in the USA.</h2>
         <h2>⚠️ Error ⚠️</h2>
@@ -93,21 +93,30 @@
         </div>
     </footer>
 
-    <script>
+    <script type="text/javascript">
         // Track error event in Plausible
         document.addEventListener('DOMContentLoaded', function() {
-            const errorMessage = {{ message | tojson | safe }} || 'Station not found';
+            var container = document.querySelector('.container');
+            var errorMessage = container.getAttribute('data-error-message') || 'Station not found';
 
             if (window.plausible) {
+                var errorType = 'other_error';
+                if (errorMessage.indexOf('Station ID must') !== -1) {
+                    errorType = 'invalid_station_id';
+                } else if (errorMessage.indexOf('Month must') !== -1) {
+                    errorType = 'invalid_month';
+                } else if (errorMessage.indexOf('Year must') !== -1) {
+                    errorType = 'invalid_year';
+                } else if (errorMessage.indexOf('Could not find') !== -1) {
+                    errorType = 'station_not_found';
+                } else if (errorMessage.indexOf('No station selected') !== -1) {
+                    errorType = 'no_station_selected';
+                }
+
                 plausible('Form Error', {
                     props: {
-                        error_type: errorMessage.includes('Station ID must') ? 'invalid_station_id' :
-                                   errorMessage.includes('Month must') ? 'invalid_month' :
-                                   errorMessage.includes('Year must') ? 'invalid_year' :
-                                   errorMessage.includes('Could not find') ? 'station_not_found' :
-                                   errorMessage.includes('No station selected') ? 'no_station_selected' :
-                                   'other_error',
-                        error_message: errorMessage.substring(0, 100) // Truncate long messages
+                        error_type: errorType,
+                        error_message: errorMessage.substring(0, 100)
                     }
                 });
             }
