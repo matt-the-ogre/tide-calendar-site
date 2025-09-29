@@ -144,3 +144,5 @@ dmypy.json
 # always _include_ tide_stations.csv
 !**/tide_stations.csv
 !**/tide_stations_new.csv
+
+!**/ads.txt
