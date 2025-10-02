@@ -142,180 +142,181 @@ jobs:
           test-results/
         retention-days: 30
 
-  test-mobile:
-    name: Mobile Device Testing
-    timeout-minutes: 45
-    runs-on: ubuntu-latest
-    needs: test-local
-    if: success()
+  # TODO: Re-enable when tests are implemented (see Linear issue)
+  # test-mobile:
+  #   name: Mobile Device Testing
+  #   timeout-minutes: 45
+  #   runs-on: ubuntu-latest
+  #   needs: test-local
+  #   if: success()
 
-    strategy:
-      matrix:
-        device: ['iPhone 12', 'Pixel 5', 'iPad']
+  #   strategy:
+  #     matrix:
+  #       device: ['iPhone 12', 'Pixel 5', 'iPad']
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
+  #   - name: Set up Node.js
+  #     uses: actions/setup-node@v4
+  #     with:
+  #       node-version: ${{ env.NODE_VERSION }}
+  #       cache: 'npm'
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
+  #   - name: Set up Python
+  #     uses: actions/setup-python@v4
+  #     with:
+  #       python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y pcal ghostscript
+  #   - name: Install system dependencies
+  #     run: |
+  #       sudo apt-get update
+  #       sudo apt-get install -y pcal ghostscript
 
-    - name: Install Python dependencies
-      run: pip install -r requirements.txt
+  #   - name: Install Python dependencies
+  #     run: pip install -r requirements.txt
 
-    - name: Install Node.js dependencies
-      run: npm ci
+  #   - name: Install Node.js dependencies
+  #     run: npm ci
 
-    - name: Install Playwright browsers
-      run: npx playwright install --with-deps
+  #   - name: Install Playwright browsers
+  #     run: npx playwright install --with-deps
 
-    - name: Start Flask application
-      run: |
-        cd app
-        export FLASK_APP=run.py
-        export FLASK_ENV=development
-        export FLASK_RUN_PORT=5001
-        flask run --host 0.0.0.0 --port 5001 &
-        echo $! > ../flask.pid
-        cd ..
+  #   - name: Start Flask application
+  #     run: |
+  #       cd app
+  #       export FLASK_APP=run.py
+  #       export FLASK_ENV=development
+  #       export FLASK_RUN_PORT=5001
+  #       flask run --host 0.0.0.0 --port 5001 &
+  #       echo $! > ../flask.pid
+  #       cd ..
 
-        # Wait for Flask to start
-        timeout=30
-        while ! curl -f http://localhost:5001/ > /dev/null 2>&1; do
-          sleep 1
-          timeout=$((timeout - 1))
-          if [ $timeout -le 0 ]; then
-            echo "Flask app failed to start"
-            exit 1
-          fi
-        done
-        echo "Flask app started successfully"
+  #       # Wait for Flask to start
+  #       timeout=30
+  #       while ! curl -f http://localhost:5001/ > /dev/null 2>&1; do
+  #         sleep 1
+  #         timeout=$((timeout - 1))
+  #         if [ $timeout -le 0 ]; then
+  #           echo "Flask app failed to start"
+  #           exit 1
+  #         fi
+  #       done
+  #       echo "Flask app started successfully"
 
-    - name: Run mobile tests for ${{ matrix.device }}
-      run: npx playwright test mobile-responsive.spec.ts --project="${{ matrix.device }}"
-      env:
-        BASE_URL: http://localhost:5001
-        TEST_ENV: local
-        CI: true
+  #   - name: Run mobile tests for ${{ matrix.device }}
+  #     run: npx playwright test mobile-responsive.spec.ts --project="${{ matrix.device }}"
+  #     env:
+  #       BASE_URL: http://localhost:5001
+  #       TEST_ENV: local
+  #       CI: true
 
-    - name: Stop Flask application
-      if: always()
-      run: |
-        if [ -f flask.pid ]; then
-          kill $(cat flask.pid) || true
-          rm flask.pid
-        fi
+  #   - name: Stop Flask application
+  #     if: always()
+  #     run: |
+  #       if [ -f flask.pid ]; then
+  #         kill $(cat flask.pid) || true
+  #         rm flask.pid
+  #       fi
 
-    - name: Upload mobile test artifacts
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: playwright-report-mobile-${{ matrix.device }}
-        path: |
-          playwright-report/
-          test-results/
-        retention-days: 30
+  #   - name: Upload mobile test artifacts
+  #     uses: actions/upload-artifact@v4
+  #     if: always()
+  #     with:
+  #       name: playwright-report-mobile-${{ matrix.device }}
+  #       path: |
+  #         playwright-report/
+  #         test-results/
+  #       retention-days: 30
 
-  performance-test:
-    name: Performance Testing
-    timeout-minutes: 30
-    runs-on: ubuntu-latest
-    needs: test-local
-    if: success()
+  # performance-test:
+  #   name: Performance Testing
+  #   timeout-minutes: 30
+  #   runs-on: ubuntu-latest
+  #   needs: test-local
+  #   if: success()
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
+  #   - name: Set up Node.js
+  #     uses: actions/setup-node@v4
+  #     with:
+  #       node-version: ${{ env.NODE_VERSION }}
+  #       cache: 'npm'
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
+  #   - name: Set up Python
+  #     uses: actions/setup-python@v4
+  #     with:
+  #       python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y pcal ghostscript
+  #   - name: Install system dependencies
+  #     run: |
+  #       sudo apt-get update
+  #       sudo apt-get install -y pcal ghostscript
 
-    - name: Install Python dependencies
-      run: pip install -r requirements.txt
+  #   - name: Install Python dependencies
+  #     run: pip install -r requirements.txt
 
-    - name: Install Node.js dependencies
-      run: npm ci
+  #   - name: Install Node.js dependencies
+  #     run: npm ci
 
-    - name: Install Playwright browsers
-      run: npx playwright install --with-deps
+  #   - name: Install Playwright browsers
+  #     run: npx playwright install --with-deps
 
-    - name: Start Flask application
-      run: |
-        cd app
-        export FLASK_APP=run.py
-        export FLASK_ENV=development
-        export FLASK_RUN_PORT=5001
-        flask run --host 0.0.0.0 --port 5001 &
-        echo $! > ../flask.pid
-        cd ..
+  #   - name: Start Flask application
+  #     run: |
+  #       cd app
+  #       export FLASK_APP=run.py
+  #       export FLASK_ENV=development
+  #       export FLASK_RUN_PORT=5001
+  #       flask run --host 0.0.0.0 --port 5001 &
+  #       echo $! > ../flask.pid
+  #       cd ..
 
-        # Wait for Flask to start
-        timeout=30
-        while ! curl -f http://localhost:5001/ > /dev/null 2>&1; do
-          sleep 1
-          timeout=$((timeout - 1))
-          if [ $timeout -le 0 ]; then
-            echo "Flask app failed to start"
-            exit 1
-          fi
-        done
-        echo "Flask app started successfully"
+  #       # Wait for Flask to start
+  #       timeout=30
+  #       while ! curl -f http://localhost:5001/ > /dev/null 2>&1; do
+  #         sleep 1
+  #         timeout=$((timeout - 1))
+  #         if [ $timeout -le 0 ]; then
+  #           echo "Flask app failed to start"
+  #           exit 1
+  #         fi
+  #       done
+  #       echo "Flask app started successfully"
 
-    - name: Run performance tests
-      run: npx playwright test performance.spec.ts --project=chromium
-      env:
-        BASE_URL: http://localhost:5001
-        TEST_ENV: local
-        CI: true
+  #   - name: Run performance tests
+  #     run: npx playwright test performance.spec.ts --project=chromium
+  #     env:
+  #       BASE_URL: http://localhost:5001
+  #       TEST_ENV: local
+  #       CI: true
 
-    - name: Stop Flask application
-      if: always()
-      run: |
-        if [ -f flask.pid ]; then
-          kill $(cat flask.pid) || true
-          rm flask.pid
-        fi
+  #   - name: Stop Flask application
+  #     if: always()
+  #     run: |
+  #       if [ -f flask.pid ]; then
+  #         kill $(cat flask.pid) || true
+  #         rm flask.pid
+  #       fi
 
-    - name: Upload performance test artifacts
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: playwright-report-performance
-        path: |
-          playwright-report/
-          test-results/
-        retention-days: 30
+  #   - name: Upload performance test artifacts
+  #     uses: actions/upload-artifact@v4
+  #     if: always()
+  #     with:
+  #       name: playwright-report-performance
+  #       path: |
+  #         playwright-report/
+  #         test-results/
+  #       retention-days: 30
 
   notify-results:
     name: Notify Test Results
     runs-on: ubuntu-latest
-    needs: [test-local, test-production, test-mobile, performance-test]
+    needs: [test-local, test-production]
     if: always()
 
     steps:
@@ -324,8 +325,6 @@ jobs:
         echo "Test Results Summary:"
         echo "Local tests: ${{ needs.test-local.result }}"
         echo "Production tests: ${{ needs.test-production.result }}"
-        echo "Mobile tests: ${{ needs.test-mobile.result }}"
-        echo "Performance tests: ${{ needs.performance-test.result }}"
 
         # You can add notification logic here (Slack, email, etc.)
         if [[ "${{ needs.test-local.result }}" == "failure" ]]; then
