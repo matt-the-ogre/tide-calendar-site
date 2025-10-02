@@ -4,3 +4,5 @@ playwright-report/
 app/node_modules/
 app/test-results/
 app/playwright-report/
+.DS_Store
+.env
