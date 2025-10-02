@@ -19,12 +19,6 @@ jobs:
     timeout-minutes: 60
     runs-on: ubuntu-latest
 
-    services:
-      flask-app:
-        # We'll start the Flask app as a separate process instead of using services
-        # since we need to install system dependencies first
-        options: --health-cmd "echo healthy" --health-interval 10s --health-timeout 5s --health-retries 3
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -63,7 +57,8 @@ jobs:
         export FLASK_ENV=development
         export FLASK_RUN_PORT=5001
         flask run --host 0.0.0.0 --port 5001 &
-        echo $! > flask.pid
+        echo $! > ../flask.pid
+        cd ..
 
         # Wait for Flask to start
         timeout=30
@@ -198,7 +193,8 @@ jobs:
         export FLASK_ENV=development
         export FLASK_RUN_PORT=5001
         flask run --host 0.0.0.0 --port 5001 &
-        echo $! > flask.pid
+        echo $! > ../flask.pid
+        cd ..
 
         # Wait for Flask to start
         timeout=30
@@ -210,6 +206,7 @@ jobs:
             exit 1
           fi
         done
+        echo "Flask app started successfully"
 
     - name: Run mobile tests for ${{ matrix.device }}
       run: npx playwright test mobile-responsive.spec.ts --project="${{ matrix.device }}"
@@ -281,7 +278,8 @@ jobs:
         export FLASK_ENV=development
         export FLASK_RUN_PORT=5001
         flask run --host 0.0.0.0 --port 5001 &
-        echo $! > flask.pid
+        echo $! > ../flask.pid
+        cd ..
 
         # Wait for Flask to start
         timeout=30
@@ -293,6 +291,7 @@ jobs:
             exit 1
           fi
         done
+        echo "Flask app started successfully"
 
     - name: Run performance tests
       run: npx playwright test performance.spec.ts --project=chromium
