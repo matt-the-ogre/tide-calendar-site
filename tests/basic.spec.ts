@@ -24,19 +24,19 @@ test.describe('Basic Functionality Tests', () => {
   });
 
   test('should show error for invalid station ID', async ({ page }) => {
-    // Enter invalid station ID
+    // Enter invalid station ID in search field (not from autocomplete)
     await page.fill('#station_search', 'invalid123');
-    
+
     // Select year and month (use years that are available: 2025-2040)
     await page.selectOption('#year', '2025');
     await page.selectOption('#month', '01');
-    
+
     // Submit form
     await page.click('#generate_btn');
-    
-    // Should navigate to error page
-    await expect(page.locator('h2')).toContainText('⚠️ Error ⚠️');
-    await expect(page.locator('p')).toContainText('Station ID must be a number');
+
+    // Should navigate to error page with message about invalid place name
+    await expect(page.locator('h2:has-text("⚠️ Error ⚠️")')).toBeVisible();
+    await expect(page.locator('p:has-text("Could not find tide station")')).toBeVisible();
   });
 
   test('should have all 12 months in dropdown', async ({ page }) => {
@@ -54,11 +54,11 @@ test.describe('Basic Functionality Tests', () => {
   test('should validate year selection bounds', async ({ page }) => {
     // Check that year dropdown has reasonable bounds (2025-2040)
     const yearSelect = page.locator('#year');
-    
-    // Should have options for current years
-    await expect(yearSelect.locator('option[value="2025"]')).toBeVisible();
-    await expect(yearSelect.locator('option[value="2040"]')).toBeVisible();
-    
+
+    // Should have options for current years - check they exist, not visibility
+    await expect(yearSelect.locator('option[value="2025"]')).toHaveCount(1);
+    await expect(yearSelect.locator('option[value="2040"]')).toHaveCount(1);
+
     // Count should be reasonable (16 years: 2025-2040)
     const yearOptions = await yearSelect.locator('option').count();
     expect(yearOptions).toBe(16);

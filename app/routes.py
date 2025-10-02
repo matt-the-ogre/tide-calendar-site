@@ -3,9 +3,30 @@ import subprocess
 import sys
 from flask import render_template, request, send_file, make_response, jsonify
 import os
+import glob
+import time
 
 from app import app
 from app.database import search_stations_by_name, get_popular_stations, get_place_name_by_station_id, get_station_id_by_place_name
+
+def cleanup_old_pdfs(directory, max_age_hours=1):
+    """Delete PDF files older than max_age_hours from the specified directory."""
+    try:
+        current_time = time.time()
+        max_age_seconds = max_age_hours * 3600
+        pdf_pattern = os.path.join(directory, "tide_calendar_*.pdf")
+
+        for pdf_file in glob.glob(pdf_pattern):
+            try:
+                file_age = current_time - os.path.getmtime(pdf_file)
+                if file_age > max_age_seconds:
+                    os.remove(pdf_file)
+                    logging.info(f"Cleaned up old PDF: {pdf_file}")
+            except OSError as e:
+                logging.warning(f"Could not delete old PDF {pdf_file}: {e}")
+
+    except Exception as e:
+        logging.error(f"Error during PDF cleanup: {e}")
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -46,17 +67,19 @@ def index():
 
         # Call the get_tides.py script with the new argument format
         script_path = os.path.join(os.path.dirname(__file__), 'get_tides.py')
-        subprocess.run([sys.executable, script_path, '--station_id', station_id, '--year', str(year), '--month', str(month)])
+        # Get the project root directory (parent of app directory)
+        project_root = os.path.dirname(os.path.dirname(__file__))
+        subprocess.run([sys.executable, script_path, '--station_id', station_id, '--year', str(year), '--month', str(month)], cwd=project_root)
 
-        # PDF is saved as "tide_calendar_{station_id}_{year}_{month:02d}.pdf"
-        pdf_filename = f"tide_calendar_{station_id}_{year}_{month:02d}.pdf"
+        # PDF is saved as "tide_calendar_{station_id}_{year}_{month:02d}.pdf" in project root
+        pdf_filename = os.path.join(project_root, f"tide_calendar_{station_id}_{year}_{month:02d}.pdf")
 
         # Check if the PDF file exists
         if not os.path.exists(pdf_filename):
             # log an error message
             logging.error(f"File {pdf_filename} does not exist.")
             return render_template('tide_station_not_found.html', message="Error: PDF file not found.")
-        
+
         # Check if the PDF file is empty
         if os.path.getsize(pdf_filename) == 0:
             # log an error message
@@ -70,6 +93,9 @@ def index():
         response = make_response(send_file(pdf_filename, as_attachment=True))
         if place_name:
             response.set_cookie('last_place_name', place_name)
+
+        # Clean up old PDF files (older than 1 hour)
+        cleanup_old_pdfs(project_root, max_age_hours=1)
 
         return response
 
