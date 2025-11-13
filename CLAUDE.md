@@ -17,7 +17,7 @@ pip install -r requirements.txt
 # Linux: sudo apt-get install -y pcal ghostscript
 # macOS: brew install pcal ghostscript
 
-# Run the Flask app locally
+# Run the Flask app locally (development uses port 5001)
 cd app
 flask run --host 0.0.0.0 --port 5001
 ```
@@ -27,10 +27,10 @@ flask run --host 0.0.0.0 --port 5001
 # Build Docker image
 docker build -t tide-calendar-app .
 
-# Run with Docker
-docker run -p 5001:5001 tide-calendar-app
+# Run with Docker (maps local port 5001 to container port 80)
+docker run -p 5001:80 tide-calendar-app
 
-# Run with Docker Compose
+# Run with Docker Compose (configured for local dev on port 5001)
 docker-compose up --build
 ```
 
@@ -39,8 +39,40 @@ Create `.env` file with:
 ```
 FLASK_APP=run.py
 FLASK_ENV=development  # or production
-FLASK_RUN_PORT=5001
+FLASK_RUN_PORT=5001  # local dev; production uses port 80
 ```
+
+### CapRover Deployment
+This application is deployed to CapRover at https://captain.mattmanuel.ca
+
+**Deployment Configuration:**
+- `captain-definition` file specifies Dockerfile-based deployment
+- Application runs on port 80 (CapRover standard)
+- Automatic deployments via GitHub webhook on pushes to `main` branch
+- CapRover handles SSL/TLS certificates via Let's Encrypt
+- CapRover provides reverse proxy (no nginx configuration needed)
+
+**Environment Variables in CapRover:**
+```
+FLASK_APP=run.py
+FLASK_ENV=production
+FLASK_RUN_PORT=80
+```
+
+**Persistent Data:**
+- SQLite database: `/app/tide_calendar.db`
+- Configure persistent volume in CapRover to preserve data across deployments
+
+**Manual Deployment:**
+1. Push changes to `main` branch
+2. GitHub webhook triggers CapRover deployment automatically
+3. CapRover builds Docker image and deploys with zero downtime
+
+**Initial Setup (already configured):**
+- Created CapRover app at https://captain.mattmanuel.ca
+- Configured custom domain: tidecalendar.xyz
+- Enabled HTTPS with automatic Let's Encrypt certificate
+- Set up GitHub webhook for automatic deployments
 
 ## Architecture Overview
 
@@ -73,10 +105,11 @@ app/
 - **External Dependencies**: `pcal` (calendar generation), `ghostscript` (PDF processing)
 - **Data Source**: NOAA CO-OPS API for tide predictions
 - **Database**: SQLite for station tracking
-- **Deployment**: Docker with nginx reverse proxy support
+- **Deployment**: CapRover (Docker-based PaaS with automatic SSL and reverse proxy)
 
 ### Important Notes
-- Application runs on port 5001 by default
+- **Local development**: Application runs on port 5001
+- **Production (CapRover)**: Application runs on port 80 (CapRover proxies from 443→80)
 - PDF files are generated in the app directory and served as downloads
 - Station ID 9449639 is used as default demonstration value
 - Low tide events (<0.3m) are marked with asterisks in calendars
