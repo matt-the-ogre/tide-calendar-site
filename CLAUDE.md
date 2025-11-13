@@ -60,8 +60,9 @@ FLASK_RUN_PORT=80
 ```
 
 **Persistent Data:**
-- SQLite database: `/app/tide_calendar.db`
-- Configure persistent volume in CapRover to preserve data across deployments
+- SQLite database: `/data/tide_station_ids.db`
+- Configure persistent volume in CapRover: Path in App = `/data`
+- This preserves the database across deployments and updates
 
 **Manual Deployment:**
 1. Push changes to `main` branch
@@ -110,6 +111,7 @@ app/
 ### Important Notes
 - **Local development**: Application runs on port 5001
 - **Production (CapRover)**: Application runs on port 80 (CapRover proxies from 443→80)
+- **Database location**: `/data/tide_station_ids.db` (configurable via `DB_PATH` env var)
 - PDF files are generated in the app directory and served as downloads
 - Station ID 9449639 is used as default demonstration value
 - Low tide events (<0.3m) are marked with asterisks in calendars

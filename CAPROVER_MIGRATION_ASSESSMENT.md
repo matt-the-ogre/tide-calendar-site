@@ -136,7 +136,8 @@ deploy.sh                   # Deployment script (git pull, rebuild)
 
 4. **Set persistent data (if needed):**
    - Configure persistent storage for SQLite database
-   - Path: `/app/tide_calendar.db`
+   - Path in App: `/data`
+   - Database file: `/data/tide_station_ids.db`
 
 ### Phase 3: Testing & Deployment
 
@@ -174,9 +175,10 @@ deploy.sh                   # Deployment script (git pull, rebuild)
 - CapRover will proxy all requests to Flask (no change needed)
 
 ### Database Persistence
-- Current: SQLite database in `/app/tide_calendar.db`
+- Current: SQLite database in `/app/tide_station_ids.db`
 - CapRover: Configure persistent volume to preserve database across deployments
-- Path mapping: `/app/tide_calendar.db` → persistent storage
+- Path mapping: `/data` → persistent storage
+- Database file: `/data/tide_station_ids.db`
 
 ### Environment Variables
 - Current: Set via docker-compose.yaml

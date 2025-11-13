@@ -9,6 +9,9 @@ ENV FLASK_RUN_PORT=80
 # Create and set the working directory
 WORKDIR /app
 
+# Create persistent data directory
+RUN mkdir -p /data
+
 # # Install any needed packages specified in requirements.txt
 # RUN pip install --no-cache-dir -r requirements.txt
 
