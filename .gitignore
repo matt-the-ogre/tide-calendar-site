@@ -8,3 +8,7 @@ app/playwright-report/
 .env
 app/tide*.pdf
 **/tide*.pdf
+
+# Database files
+data/
+*.db
