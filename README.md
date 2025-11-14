@@ -110,7 +110,7 @@ tide_calendar/
 │   └── static/
 │       ├── style.css
 │       ├── favicon.ico
-│       └── tide-calendar-example.png
+│       └── tide-calendar-example.webp
 ├── convert_stations_final.py        # Utility to convert MD to CSV with proper formatting
 ├── run.py                          # Application entry point
 ├── requirements.txt
