@@ -41,7 +41,7 @@ def init_database():
                 logging.info("Added place_name column to tide_station_ids table")
             conn.commit()
             logging.debug("Database initialized successfully")
-    except sqlite3.Error as e:
+    except (sqlite3.Error, OSError) as e:
         logging.error(f"Database initialization error: {e}")
         raise
 
