@@ -6,3 +6,9 @@ app/test-results/
 app/playwright-report/
 .DS_Store
 .env
+app/tide*.pdf
+**/tide*.pdf
+
+# Database files
+data/
+*.db

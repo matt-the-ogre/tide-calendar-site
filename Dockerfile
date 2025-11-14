@@ -4,10 +4,13 @@ FROM python:3.9-slim-bullseye
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_APP=run.py
-ENV FLASK_RUN_PORT=5001
+ENV FLASK_RUN_PORT=80
 
 # Create and set the working directory
 WORKDIR /app
+
+# Create persistent data directory
+RUN mkdir -p /data
 
 # # Install any needed packages specified in requirements.txt
 # RUN pip install --no-cache-dir -r requirements.txt
@@ -29,7 +32,7 @@ COPY requirements.txt /app
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose the port the app runs on
-EXPOSE 5001
+EXPOSE 80
 
 # Command to run the Flask app
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5001"]
+CMD ["flask", "run", "--host=0.0.0.0", "--port=80"]
