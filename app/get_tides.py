@@ -5,6 +5,7 @@ from datetime import datetime
 import calendar
 import subprocess
 import logging
+import re
 try:
     from app.database import log_station_lookup
 except ImportError:
@@ -12,13 +13,30 @@ except ImportError:
 
 # sample call: python get_tide_data.py --station_id 9449639 --year 2024 --month 6
 
-def convert_tide_data_to_pcal(tide_data_filename, pcal_filename):
+def sanitize_filename(text):
+    """Convert location name to safe filename component."""
+    if not text:
+        return "unknown"
+
+    safe = re.sub(r'[/\\:*?"<>|,]', '_', text)
+    safe = safe.replace(' ', '_')
+    safe = re.sub(r'_+', '_', safe)
+    safe = safe.strip('_')
+
+    max_length = 100
+    if len(safe) > max_length:
+        safe = safe[:max_length].rstrip('_')
+
+    return safe or "unknown"
+
+def convert_tide_data_to_pcal(tide_data_filename, pcal_filename, location_name=None):
     """
     Converts tide data to a pcal compatible custom dates file.
 
     Parameters:
     - tide_data_filename: The path to the file containing the tide data.
     - pcal_filename: The path to the output pcal custom dates file.
+    - location_name: Optional human-readable location name for display in calendar.
     """
     # Open the tide data file and the output pcal file
     with open(tide_data_filename, 'r') as tide_file, open(pcal_filename, 'w') as pcal_file:
@@ -53,8 +71,12 @@ def convert_tide_data_to_pcal(tide_data_filename, pcal_filename):
         # write a blank line at the end of the file
         pcal_file.write("\n")
 
-        # write the tide station id in a note at the end of the file
-        pcal_file.write(f"note/1 all Tide Station ID: {tide_data_filename.split('_')[0]}\n")
+        # write the tide station location in a note at the end of the file
+        # Use location_name if provided, otherwise fallback to station ID
+        if location_name:
+            pcal_file.write(f"note/1 all Tide Station: {location_name}\n")
+        else:
+            pcal_file.write(f"note/1 all Tide Station ID: {tide_data_filename.split('_')[0]}\n")
 
 
 def download_tide_data(station_id, year, month):
@@ -105,7 +127,8 @@ if __name__ == "__main__":
     parser.add_argument('--station_id', type=str, default='9449639', help='Station ID (default: 9449639)')
     parser.add_argument('--year', type=int, default=datetime.now().year, help='Year (default: current year)')
     parser.add_argument('--month', type=int, default=datetime.now().month, help='Month (default: current month)')
-    
+    parser.add_argument('--location_name', type=str, default=None, help='Human-readable location name for display')
+
     args = parser.parse_args()
 
     # Ensure month is in the correct format
@@ -144,10 +167,17 @@ if __name__ == "__main__":
     
     # make a pcal file with the tide events using the month and year in the filename
     pcal_filename = f"tide_calendar_{args.station_id}_{args.year}_{args.month:02d}.txt"
-    
-    convert_tide_data_to_pcal(downloaded_filename, pcal_filename)
+
+    convert_tide_data_to_pcal(downloaded_filename, pcal_filename, args.location_name)
 
     logging.debug(f"PCAL file created: {pcal_filename}")
+
+    # Determine PDF filename based on location_name or station_id
+    if args.location_name:
+        location_safe = sanitize_filename(args.location_name)
+        pdf_base = f"tide_calendar_{location_safe}_{args.year}_{args.month:02d}"
+    else:
+        pdf_base = f"tide_calendar_{args.station_id}_{args.year}_{args.month:02d}"
 
     # now make a calendar page using `pcal` and the pcal file with the tide events for that month and year
 
@@ -160,8 +190,8 @@ if __name__ == "__main__":
     # Call the shell command to create the calendar page
     subprocess.run(["pcal", "-f", pcal_filename, "-o", pcal_filename.replace('.txt', '.ps'), "-s 0.0:0.0:1.0", "-m", "-S", str(args.month), str(args.year)])
 
-    # Convert the PostScript file to PDF
-    subprocess.run(["ps2pdf", pcal_filename.replace('.txt', '.ps'), pcal_filename.replace('.txt', '.pdf')])
+    # Convert the PostScript file to PDF with the new filename
+    subprocess.run(["ps2pdf", pcal_filename.replace('.txt', '.ps'), f"{pdf_base}.pdf"])
 
     # delete the PostScript file
     subprocess.run(["rm", pcal_filename.replace('.txt', '.ps')])
@@ -171,8 +201,8 @@ if __name__ == "__main__":
     subprocess.run(["rm", pcal_filename])
 
     # move the PDF file to the app folder
-    # subprocess.run(["mv", pcal_filename.replace('.txt', '.pdf'), "app/"])
-    
+    # subprocess.run(["mv", f"{pdf_base}.pdf", "app/"])
+
     # Print a message indicating the PDF file creation
-    logging.info(f"PDF file created: {pcal_filename.replace('.txt', '.pdf')}")
+    logging.info(f"PDF file created: {pdf_base}.pdf")
     # call the shell command to create the calendar page
