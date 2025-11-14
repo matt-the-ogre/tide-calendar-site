@@ -1,12 +1,26 @@
 import sqlite3
 import logging
 import os
+from pathlib import Path
 
-DB_PATH = os.getenv('DB_PATH', '/data/tide_station_ids.db')
+# Get the app directory for relative database path
+APP_DIR = Path(__file__).parent.resolve()
+
+# Default to app directory if DB_PATH not set, allows production override to /data
+DEFAULT_DB_PATH = str(APP_DIR / 'tide_station_ids.db')
+DB_PATH = os.getenv('DB_PATH', DEFAULT_DB_PATH)
 
 def init_database():
     """Initialize the database and create tables if they don't exist."""
     try:
+        # Ensure parent directory exists
+        db_dir = os.path.dirname(DB_PATH)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+            logging.info(f"Created database directory: {db_dir}")
+
+        logging.info(f"Using database path: {DB_PATH}")
+
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
             cursor.execute('''
