@@ -12,3 +12,4 @@ app/tide*.pdf
 # Database files
 data/
 *.db
+tide_calendar*
