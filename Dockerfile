@@ -12,24 +12,21 @@ WORKDIR /app
 # Create persistent data directory
 RUN mkdir -p /data
 
-# # Install any needed packages specified in requirements.txt
-# RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the current directory contents into the container at /app
-COPY app /app
-
 # Install system dependencies
 RUN apt-get update && \
-apt-get install -y --no-install-recommends \
-pcal \
-ghostscript && \
-rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends \
+    pcal \
+    ghostscript && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy only the requirements file to the container
+# Copy requirements first for better caching
 COPY requirements.txt /app
 
 # Install python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the application code
+COPY app /app
 
 # Expose the port the app runs on
 EXPOSE 80
