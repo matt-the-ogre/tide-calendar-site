@@ -5,9 +5,61 @@ from flask import render_template, request, send_file, make_response, jsonify
 import os
 import glob
 import time
+import re
 
 from app import app
 from app.database import search_stations_by_name, get_popular_stations, get_place_name_by_station_id, get_station_id_by_place_name
+
+def extract_location_with_state(place_name):
+    """
+    Extract location with state abbreviation from full place name.
+    Examples:
+        "Point Roberts, WA" -> "Point Roberts, WA"
+        "Seattle, WA" -> "Seattle, WA"
+        "Port Allen, Hanapepe Bay, Kauai Island, HI" -> "Port Allen, HI"
+        "Esperanza, Antarctica" -> "Esperanza, Antarctica"
+    """
+    if not place_name:
+        return None
+
+    parts = [p.strip() for p in place_name.split(',')]
+
+    if len(parts) == 0:
+        return None
+    elif len(parts) == 1:
+        return parts[0]
+    else:
+        # Return first part + last part (city + state/country)
+        return f"{parts[0]}, {parts[-1]}"
+
+def sanitize_filename(text):
+    """
+    Convert location name to safe filename component.
+    Examples:
+        "Point Roberts, WA" -> "Point_Roberts_WA"
+        "Seattle, WA" -> "Seattle_WA"
+    """
+    if not text:
+        return "unknown"
+
+    # Replace problematic characters with underscores
+    safe = re.sub(r'[/\\:*?"<>|,]', '_', text)
+
+    # Replace spaces with underscores
+    safe = safe.replace(' ', '_')
+
+    # Remove multiple consecutive underscores
+    safe = re.sub(r'_+', '_', safe)
+
+    # Remove leading/trailing underscores
+    safe = safe.strip('_')
+
+    # Limit length to avoid filesystem issues
+    max_length = 100
+    if len(safe) > max_length:
+        safe = safe[:max_length].rstrip('_')
+
+    return safe or "unknown"
 
 def cleanup_old_pdfs(directory, max_age_hours=1):
     """Delete PDF files older than max_age_hours from the specified directory."""
@@ -65,14 +117,26 @@ def index():
             logging.error(f"Form validation error: {str(e)}")
             return render_template('tide_station_not_found.html', message=f"Invalid input: {str(e)}")
 
-        # Call the get_tides.py script with the new argument format
+        # Get the place name for the station ID
+        place_name = get_place_name_by_station_id(station_id)
+
+        # Extract and sanitize location name for filename
+        location_display = extract_location_with_state(place_name)
+        location_filename = sanitize_filename(location_display) if location_display else station_id
+
+        # Call the get_tides.py script with location name
         script_path = os.path.join(os.path.dirname(__file__), 'get_tides.py')
         # Get the project root directory (parent of app directory)
         project_root = os.path.dirname(os.path.dirname(__file__))
-        subprocess.run([sys.executable, script_path, '--station_id', station_id, '--year', str(year), '--month', str(month)], cwd=project_root)
 
-        # PDF is saved as "tide_calendar_{station_id}_{year}_{month:02d}.pdf" in project root
-        pdf_filename = os.path.join(project_root, f"tide_calendar_{station_id}_{year}_{month:02d}.pdf")
+        # Pass location_display to get_tides.py for calendar note text
+        cmd = [sys.executable, script_path, '--station_id', station_id, '--year', str(year), '--month', str(month)]
+        if location_display:
+            cmd.extend(['--location_name', location_display])
+        subprocess.run(cmd, cwd=project_root)
+
+        # PDF is now saved with human-readable location name
+        pdf_filename = os.path.join(project_root, f"tide_calendar_{location_filename}_{year}_{month:02d}.pdf")
 
         # Check if the PDF file exists
         if not os.path.exists(pdf_filename):
@@ -85,11 +149,8 @@ def index():
             # log an error message
             logging.error(f"File {pdf_filename} is empty.")
             return render_template('tide_station_not_found.html', message="Error: PDF file is empty.")
-        
-        # Get the place name for the station ID to store in cookie
-        place_name = get_place_name_by_station_id(station_id)
 
-        # Create a response object to set the cookie
+        # Create a response object to set the cookie (place_name already fetched above)
         response = make_response(send_file(pdf_filename, as_attachment=True))
         if place_name:
             response.set_cookie('last_place_name', place_name)
