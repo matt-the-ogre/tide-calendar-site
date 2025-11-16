@@ -22,6 +22,7 @@ COPY app/run.py /app/
 COPY app/routes.py /app/
 COPY app/get_tides.py /app/
 COPY app/database.py /app/
+COPY app/tide_adapters.py /app/
 
 # Templates and static assets
 COPY app/templates/ /app/templates/
