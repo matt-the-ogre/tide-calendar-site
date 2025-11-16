@@ -225,10 +225,18 @@ class TestCHSAdapter(unittest.TestCase):
     @patch('tide_adapters.requests.get')
     def test_get_predictions_success(self, mock_get):
         """Test successful CHS API request."""
-        # Mock successful response
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.text = json.dumps({
+        # Mock two responses: one for UUID lookup, one for data
+        # First call: UUID lookup
+        mock_lookup_response = Mock()
+        mock_lookup_response.status_code = 200
+        mock_lookup_response.text = json.dumps([
+            {"id": "test-uuid-123", "code": "07735", "officialName": "Vancouver, BC"}
+        ])
+
+        # Second call: Tide data
+        mock_data_response = Mock()
+        mock_data_response.status_code = 200
+        mock_data_response.text = json.dumps({
             "data": [
                 {
                     "eventDate": "2024-06-01T05:23:00Z",
@@ -242,7 +250,9 @@ class TestCHSAdapter(unittest.TestCase):
                 }
             ]
         })
-        mock_get.return_value = mock_response
+
+        # Configure mock to return different responses for different calls
+        mock_get.side_effect = [mock_lookup_response, mock_data_response]
 
         result = self.adapter.get_predictions('07735', 2024, 6)
 
@@ -374,11 +384,13 @@ class TestErrorScenarios(unittest.TestCase):
     @patch('tide_adapters.requests.get')
     def test_chs_network_timeout(self, mock_get):
         """Test CHS adapter handles network timeout."""
+        # Network timeout should happen during UUID lookup (first call)
         mock_get.side_effect = Exception("Network timeout")
 
         adapter = CHSAdapter()
         result = adapter.get_predictions('07735', 2024, 6)
 
+        # Should return None and handle the exception gracefully
         self.assertIsNone(result)
 
     def test_noaa_malformed_response(self):
