@@ -133,11 +133,19 @@ def import_stations_from_csv():
                     csv_station_ids.add(station_id)
 
                     # Insert or update station (USA/NOAA stations)
+                    # Use INSERT OR IGNORE to preserve lookup_count for existing stations
                     cursor.execute('''
-                        INSERT OR REPLACE INTO tide_station_ids
+                        INSERT OR IGNORE INTO tide_station_ids
                         (station_id, place_name, country, api_source, lookup_count, last_lookup)
                         VALUES (?, ?, "USA", "NOAA", 1, CURRENT_TIMESTAMP)
                     ''', (station_id, place_name))
+
+                    # Update metadata for existing stations without touching lookup_count
+                    cursor.execute('''
+                        UPDATE tide_station_ids
+                        SET place_name = ?, country = "USA", api_source = "NOAA"
+                        WHERE station_id = ?
+                    ''', (place_name, station_id))
                     imported_count += 1
 
             # Remove stations from database that are NOT in the CSV (cleanup invalid stations)
@@ -345,12 +353,20 @@ def import_canadian_stations_from_csv():
                     country = row.get('country', 'Canada')
                     api_source = row.get('api_source', 'CHS')
 
-                    # Insert or update station
+                    # Insert or update station (Canadian stations)
+                    # Use INSERT OR IGNORE to preserve lookup_count for existing stations
                     cursor.execute('''
-                        INSERT OR REPLACE INTO tide_station_ids
+                        INSERT OR IGNORE INTO tide_station_ids
                         (station_id, place_name, country, api_source, latitude, longitude, province, lookup_count, last_lookup)
                         VALUES (?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
                     ''', (station_id, place_name, country, api_source, latitude, longitude, province))
+
+                    # Update metadata for existing stations without touching lookup_count
+                    cursor.execute('''
+                        UPDATE tide_station_ids
+                        SET place_name = ?, country = ?, api_source = ?, latitude = ?, longitude = ?, province = ?
+                        WHERE station_id = ?
+                    ''', (place_name, country, api_source, latitude, longitude, province, station_id))
                     imported_count += 1
 
             # Remove Canadian stations from database that are NOT in the CSV
