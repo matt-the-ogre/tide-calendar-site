@@ -21,10 +21,9 @@ export default defineConfig({
   workers: 1,
 
   /* Reporter to use */
-  reporter: [
-    ['html'],
-    ['github'],
-  ],
+  reporter: process.env.CI
+    ? [['github']]
+    : [['html'], ['github']],
 
   /* Shared settings */
   use: {
