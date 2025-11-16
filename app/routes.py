@@ -8,7 +8,7 @@ import time
 import re
 
 from app import app
-from app.database import search_stations_by_name, get_popular_stations, get_place_name_by_station_id, get_station_id_by_place_name
+from app.database import search_stations_by_name, get_popular_stations, get_place_name_by_station_id, get_station_id_by_place_name, search_stations_by_country, get_popular_stations_by_country
 
 # Directory for storing generated PDF calendars (matches get_tides.py)
 # Default to app/calendars for local dev, override with PDF_OUTPUT_DIR env var for production
@@ -139,7 +139,7 @@ def index():
             if not (2000 <= year <= 2030):
                 raise ValueError("Year must be between 2000 and 2030")
             if not station_id or not station_id.isdigit():
-                raise ValueError("Station ID must be a number")
+                raise ValueError("Station ID must be a number (USA: 7 digits, Canada: 5 digits)")
 
         except ValueError as e:
             logging.error(f"Form validation error: {str(e)}")
@@ -217,12 +217,18 @@ def index():
 def api_search_stations():
     """API endpoint to search for tide stations by place name."""
     query = request.args.get('q', '').strip()
+    country = request.args.get('country', '').strip()  # Optional country filter
 
     if not query or len(query) < 1:
         return jsonify([])
 
     try:
-        results = search_stations_by_name(query, limit=10)
+        # Use country-specific search if country parameter is provided
+        if country and country.upper() in ['USA', 'CANADA']:
+            results = search_stations_by_country(query, country.upper(), limit=10)
+        else:
+            # If no country or "All Countries", search all stations
+            results = search_stations_by_name(query, limit=10)
         return jsonify(results)
     except Exception as e:
         logging.error(f"Error in search API: {e}")
@@ -231,8 +237,15 @@ def api_search_stations():
 @app.route('/api/popular_stations')
 def api_popular_stations():
     """API endpoint to get the most popular tide stations."""
+    country = request.args.get('country', '').strip()  # Optional country filter
+
     try:
-        results = get_popular_stations(limit=TOP_STATIONS_COUNT)
+        # Use country-specific query if country parameter is provided
+        if country and country.upper() in ['USA', 'CANADA']:
+            results = get_popular_stations_by_country(country.upper(), limit=TOP_STATIONS_COUNT)
+        else:
+            # If no country or "All Countries", get from all stations
+            results = get_popular_stations(limit=TOP_STATIONS_COUNT)
         return jsonify(results)
     except Exception as e:
         logging.error(f"Error in popular stations API: {e}")
@@ -253,7 +266,7 @@ def api_generate_quick():
 
         # Validate station_id
         if not station_id or not station_id.isdigit():
-            return jsonify({'error': 'Invalid station_id'}), 400
+            return jsonify({'error': 'Invalid station_id (USA: 7 digits, Canada: 5 digits)'}), 400
 
         # Get current month and year
         today = datetime.now()

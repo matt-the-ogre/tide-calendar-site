@@ -60,20 +60,32 @@
 <body>
     <div class="container" data-error-message="{{ message | default('Station not found') | replace('\"', '&quot;') }}">
         <h1>Tide Calendar Generator</h1>
-        <h2>Currently only works with tide stations in the USA.</h2>
+        <h2>Generate tide calendars for USA and Canadian stations</h2>
         <h2>⚠️ Error ⚠️</h2>
-        <p>{{ message | default('It seems that the tide station ID you entered is not found in the NOAA database. Please check the ID and try again.') }}</p>
-        
+        <p>{{ message | default('It seems that the tide station ID you entered is not found in the database. Please check the ID and try again.') }}</p>
+
         <div class="instructions">
             <h2>How to Find Your Tide Station ID</h2>
-            <p>To find your tide station ID, follow these steps:</p>
+
+            <h3>🇺🇸 For USA Stations (NOAA)</h3>
+            <p>To find a USA tide station ID, follow these steps:</p>
             <ol>
                 <li>Visit the <a href="https://tidesandcurrents.noaa.gov/stations.html?type=Water+Levels" target="_blank">NOAA Tide Stations Page</a>.</li>
                 <li>Use the map or the search function to find the tide station closest to your location.</li>
                 <li>Click on the tide station marker to see the station details.</li>
                 <li>Look for the station ID in the station details (usually a 7-digit number).</li>
             </ol>
-            <p>Once you have your station ID, enter it in the "Tide Station ID" field above.</p>
+
+            <h3>🇨🇦 For Canadian Stations (CHS)</h3>
+            <p>To find a Canadian tide station ID, follow these steps:</p>
+            <ol>
+                <li>Visit the <a href="https://www.tides.gc.ca/en/stations" target="_blank">Canadian Hydrographic Service Stations Page</a>.</li>
+                <li>Use the map or search to find the tide station you need.</li>
+                <li>Click on the station to view details.</li>
+                <li>Look for the station ID (usually a 5-digit number).</li>
+            </ol>
+
+            <p><strong>Tip:</strong> You can also use the search feature on our homepage to search by place name instead of entering a station ID!</p>
         </div>
         <!-- Add the "Return home" button -->
         <div style="text-align: center; margin-top: 20px;">
