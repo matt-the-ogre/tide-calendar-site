@@ -229,6 +229,30 @@ export class HomePage extends BasePage {
   }
 
   /**
+   * Wait for year dropdown to be populated by JavaScript
+   * This is a common wait pattern used across multiple tests
+   */
+  async waitForYearDropdownPopulated(timeout: number = 5000): Promise<void> {
+    await this.page.waitForFunction(() => {
+      const yearSelect = document.getElementById('year') as HTMLSelectElement;
+      return yearSelect && yearSelect.options.length > 0;
+    }, { timeout });
+  }
+
+  /**
+   * Get the first available year option value
+   */
+  async getFirstYearOption(): Promise<string> {
+    await this.waitForYearDropdownPopulated();
+    const firstOption = this.yearSelect.locator('option').first();
+    const value = await firstOption.getAttribute('value');
+    if (!value) {
+      throw new Error('No year options available');
+    }
+    return value;
+  }
+
+  /**
    * Get hidden station ID value
    */
   async getHiddenStationId(): Promise<string> {
