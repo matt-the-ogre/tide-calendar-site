@@ -96,3 +96,85 @@ footer {
 .social-icons a:hover {
     color: #004d40; /* Darker cyan on hover */
 }
+
+/* Popular Stations Section */
+.popular-stations-section {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #b2dfdb;
+}
+
+.popular-stations-section h3 {
+    color: #004d40;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+#loading-message {
+    color: #006064;
+    font-style: italic;
+    padding: 20px;
+}
+
+/* Table Styling */
+#popular-stations-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+#popular-stations-table th {
+    background-color: #004d40;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+}
+
+#popular-stations-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e0f7fa;
+}
+
+#popular-stations-table tbody tr:hover {
+    background-color: #e0f7fa;
+}
+
+#popular-stations-table tbody tr:nth-child(even) {
+    background-color: #f5f5f5;
+}
+
+/* Quick Generate Buttons */
+.quick-generate-btn {
+    background-color: #006064;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.3s;
+}
+
+.quick-generate-btn:hover {
+    background-color: #004d40;
+}
+
+.quick-generate-btn:disabled {
+    background-color: #b2dfdb;
+    cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    #popular-stations-table th,
+    #popular-stations-table td {
+        padding: 8px 6px;
+        font-size: 0.9em;
+    }
+
+    .quick-generate-btn {
+        padding: 6px 12px;
+        font-size: 0.85em;
+    }
+}
