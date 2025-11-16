@@ -304,12 +304,16 @@ class CHSAdapter(TideAdapter):
                 'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
             }
             self.logger.debug(f"Requesting CHS data for station {station_id}, {year}-{month:02d}")
+            self.logger.debug(f"CHS API endpoint: {endpoint}")
+            self.logger.debug(f"CHS API params: {params}")
             response = requests.get(endpoint, params=params, headers=headers, timeout=30)
 
+            self.logger.debug(f"CHS API response status: {response.status_code}")
             if response.status_code != 200:
-                self.logger.error(f"CHS API request failed with status {response.status_code}: {response.text}")
+                self.logger.error(f"CHS API request failed with status {response.status_code}: {response.text[:500]}")
                 return None
 
+            self.logger.debug(f"CHS API response length: {len(response.text)} characters")
             # Parse JSON response
             return self.parse_response(response.text)
 
@@ -352,8 +356,11 @@ class CHSAdapter(TideAdapter):
             # Parse JSON response
             data = json.loads(response_data)
 
+            self.logger.debug(f"CHS response keys: {list(data.keys())}")
+
             if 'data' not in data or not data['data']:
                 self.logger.error("CHS response contains no data")
+                self.logger.error(f"CHS response sample: {response_data[:500]}")
                 return None
 
             predictions = data['data']
