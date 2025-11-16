@@ -151,7 +151,7 @@
             <select id="country_filter" name="country_filter">
                 <option value="all">All Countries</option>
                 <option value="USA" selected>USA 🇺🇸</option>
-                <option value="CANADA">Canada 🇨🇦</option>
+                <option value="Canada">Canada 🇨🇦</option>
             </select><br>
 
             <label for="station_id">Tide Station (ID or Place Name):</label>
@@ -260,7 +260,7 @@
         // Helper function to get country flag emoji
         function getCountryFlag(country) {
             if (country === 'USA') return '🇺🇸';
-            if (country === 'CANADA') return '🇨🇦';
+            if (country === 'Canada') return '🇨🇦';
             return '';
         }
 
@@ -269,7 +269,7 @@
             const countryFilter = document.getElementById('country_filter');
             const savedCountry = getCookie('country_preference');
 
-            if (savedCountry && ['all', 'USA', 'CANADA'].includes(savedCountry)) {
+            if (savedCountry && ['all', 'USA', 'Canada'].includes(savedCountry)) {
                 countryFilter.value = savedCountry;
             }
 
@@ -586,7 +586,8 @@
                 // Country with flag
                 const countryCell = document.createElement('td');
                 const flag = station.country ? getCountryFlag(station.country) : '';
-                countryCell.innerHTML = `${flag}`;
+                const countryName = station.country || 'Unknown';
+                countryCell.innerHTML = `<span aria-label="${countryName}">${flag}</span>`;
                 countryCell.style.fontSize = '1.5em';
                 countryCell.style.textAlign = 'center';
                 row.appendChild(countryCell);
