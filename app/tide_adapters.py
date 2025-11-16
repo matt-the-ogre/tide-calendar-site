@@ -143,9 +143,12 @@ class NOAAAdapter(TideAdapter):
         }
 
         try:
-            # Make the API request
+            # Make the API request with User-Agent header
+            headers = {
+                'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
+            }
             self.logger.debug(f"Requesting NOAA data for station {station_id}, {year}-{month:02d}")
-            response = requests.get(self.BASE_URL, params=params, timeout=30)
+            response = requests.get(self.BASE_URL, params=params, headers=headers, timeout=30)
 
             if response.status_code != 200:
                 self.logger.error(f"NOAA API request failed with status {response.status_code}")
@@ -296,9 +299,12 @@ class CHSAdapter(TideAdapter):
         }
 
         try:
-            # Make the API request
+            # Make the API request with User-Agent header
+            headers = {
+                'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
+            }
             self.logger.debug(f"Requesting CHS data for station {station_id}, {year}-{month:02d}")
-            response = requests.get(endpoint, params=params, timeout=30)
+            response = requests.get(endpoint, params=params, headers=headers, timeout=30)
 
             if response.status_code != 200:
                 self.logger.error(f"CHS API request failed with status {response.status_code}: {response.text}")

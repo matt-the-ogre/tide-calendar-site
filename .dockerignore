@@ -1,0 +1,44 @@
+# Development dependencies
+app/node_modules/
+app/venv_test/
+
+# Generated files
+app/__pycache__/
+app/calendars/
+app/*.db
+
+# Test artifacts
+app/test-results/
+app/playwright-report/
+
+# Scripts (moved to /scripts)
+app/validate_tide_stations.py
+app/test_canadian_import.py
+app/run_debug.py
+app/migrate_database.py
+
+# Config files (at root level)
+app/package*.json
+app/playwright.config*.ts
+
+# Documentation and backups
+app/*.md
+app/*.txt
+app/*.backup.*
+
+# Git and CI
+.git
+.github
+.gitignore
+
+# Root level development files
+node_modules/
+test-results/
+playwright-report/
+tests/
+docs/
+scripts/
+backup/
+*.md
+validation_report.txt
+9410170_2025_11.csv

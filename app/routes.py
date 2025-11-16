@@ -184,7 +184,11 @@ def index():
         cmd = [sys.executable, script_path, '--station_id', station_id, '--year', str(year), '--month', str(month)]
         if location_display:
             cmd.extend(['--location_name', location_display])
-        subprocess.run(cmd, cwd=project_root)
+
+        # Set PYTHONPATH to include the app directory so imports work
+        env = os.environ.copy()
+        env['PYTHONPATH'] = os.path.dirname(__file__)
+        subprocess.run(cmd, cwd=project_root, env=env)
 
         # Check if the PDF file was created
         if not os.path.exists(pdf_full_path):
@@ -304,7 +308,11 @@ def api_generate_quick():
         cmd = [sys.executable, script_path, '--station_id', station_id, '--year', str(year), '--month', str(month), '--skip_logging']
         if location_display:
             cmd.extend(['--location_name', location_display])
-        subprocess.run(cmd, cwd=project_root)
+
+        # Set PYTHONPATH to include the app directory so imports work
+        env = os.environ.copy()
+        env['PYTHONPATH'] = os.path.dirname(__file__)
+        subprocess.run(cmd, cwd=project_root, env=env)
 
         # Check if the PDF file was created
         if not os.path.exists(pdf_full_path):

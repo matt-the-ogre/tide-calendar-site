@@ -88,17 +88,29 @@ TOP_STATIONS_COUNT=10
 - **Database Module**: `database.py` centralized SQLite operations for station usage tracking
 - **PDF Generation Pipeline**: Uses `pcal` and `ghostscript` for calendar creation
 
-### Application Structure
+### Repository Structure
 ```
-app/
-├── __init__.py          # Flask app initialization
-├── routes.py            # Web routes, form handling, and input validation
-├── get_tides.py         # Core tide data processing and PDF generation
-├── database.py          # Centralized SQLite database operations
-├── run.py              # Application entry point with database initialization
-├── templates/          # Jinja2 HTML templates
-└── static/            # CSS and static assets
+├── app/                    # Runtime application code (deployed to Docker)
+│   ├── __init__.py        # Flask app initialization
+│   ├── routes.py          # Web routes, form handling, and input validation
+│   ├── get_tides.py       # Core tide data processing and PDF generation
+│   ├── database.py        # Centralized SQLite database operations
+│   ├── run.py            # Application entry point with database initialization
+│   ├── templates/        # Jinja2 HTML templates
+│   ├── static/          # CSS and static assets
+│   ├── tide_stations_new.csv        # US/NOAA station data (imported at startup)
+│   └── canadian_tide_stations.csv   # Canadian/CHS station data (imported at startup)
+├── scripts/               # Development and maintenance scripts (NOT deployed)
+│   ├── validate_tide_stations.py    # Validate CSV stations against NOAA API
+│   └── test_canadian_import.py      # Test Canadian station imports
+├── backup/                # CSV backup files (NOT deployed)
+│   └── tide_stations_new.csv.backup.*
+├── tests/                 # Playwright end-to-end tests (NOT deployed)
+├── docs/                  # Documentation (NOT deployed)
+└── .dockerignore         # Excludes dev files from Docker image (~55 MB savings)
 ```
+
+**Note**: The Docker image only includes files from `/app` that are necessary for runtime. Development tools, tests, scripts, and documentation are excluded via `.dockerignore`, reducing the image size by approximately 55 MB.
 
 ### Key Workflows
 1. **PDF Generation with Caching**:
@@ -117,12 +129,35 @@ app/
 - **Database**: SQLite for station tracking
 - **Deployment**: CapRover (Docker-based PaaS with automatic SSL and reverse proxy)
 
+### Maintenance Scripts
+
+#### CSV Validation
+The `scripts/validate_tide_stations.py` script validates all stations in the CSV against the NOAA API:
+
+```bash
+# Run validation (dry-run mode to preview changes)
+python3 scripts/validate_tide_stations.py --dry-run
+
+# Run validation and update CSV (creates timestamped backup)
+python3 scripts/validate_tide_stations.py
+```
+
+**Features:**
+- Tests each station for current month prediction data availability
+- Rate limiting: 0.25s delay between requests (~4 req/sec) to respect NOAA API limits
+- Creates timestamped backup before modifying CSV
+- Generates detailed report with statistics
+- Expected runtime: ~12-15 minutes for ~2900 stations
+
+**When to run**: Monthly maintenance to keep the station list clean and prevent invalid stations from appearing in the popular stations list.
+
 ### Important Notes
 - **Local development**: Application runs on port 5001
 - **Production (CapRover)**: Application runs on port 80 (CapRover proxies from 443→80)
 - **Database location**: `/data/tide_station_ids.db` (configurable via `DB_PATH` env var)
 - **PDF cache location**: `/data/calendars/` in production, `app/calendars/` in local dev (configurable via `PDF_OUTPUT_DIR` env var)
 - **PDF caching**: Generated PDFs are cached for 30 days to reduce API calls and improve performance
+- **Database sync**: On container startup, the database automatically syncs with the CSV files, removing any stations not present in the canonical CSVs
 - Station ID 9449639 is used as default demonstration value
 - Low tide events (<0.3m) are marked with asterisks in calendars
 - SQLite database auto-initializes on application startup via centralized `database.py` module
