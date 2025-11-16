@@ -473,7 +473,7 @@ class CHSAdapter(TideAdapter):
             # Parse JSON response
             data = json.loads(response_data)
 
-            self.logger.debug(f"CHS response keys: {list(data.keys())}")
+            # Log response type first, then check structure
             self.logger.debug(f"CHS response type: {type(data)}")
 
             # Handle different possible response formats
@@ -481,9 +481,10 @@ class CHSAdapter(TideAdapter):
 
             if isinstance(data, list):
                 # Response is directly an array
-                self.logger.info("CHS response is a direct array")
+                self.logger.info(f"CHS response is a direct array with {len(data)} items")
                 predictions = data
             elif isinstance(data, dict):
+                self.logger.debug(f"CHS response keys: {list(data.keys())}")
                 # Try different possible keys for the data array
                 for key in ['data', 'predictions', 'results', 'items']:
                     if key in data and data[key]:
