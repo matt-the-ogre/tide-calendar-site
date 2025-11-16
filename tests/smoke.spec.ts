@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { HomePage } from './pages/HomePage';
 
 /**
  * Smoke Test Suite
@@ -6,58 +7,55 @@ import { test, expect } from '@playwright/test';
  * Designed to run in under 1 minute.
  */
 test.describe('Smoke Tests', () => {
+  let homePage: HomePage;
+
+  test.beforeEach(async ({ page }) => {
+    homePage = new HomePage(page);
+  });
+
   test('homepage loads and displays form', async ({ page }) => {
-    // Navigate to homepage
-    await page.goto('/');
+    await homePage.navigateToHome();
 
     // Verify page title
     await expect(page).toHaveTitle(/Tide Calendar/);
 
     // Verify main heading
-    await expect(page.locator('h1')).toContainText('Tide Calendar Generator');
+    await expect(homePage.mainHeading).toContainText('Tide Calendar Generator');
 
     // Verify form elements are present
-    await expect(page.locator('#station_search')).toBeVisible();
-    await expect(page.locator('#year')).toBeVisible();
-    await expect(page.locator('#month')).toBeVisible();
-    await expect(page.locator('#generate_btn')).toBeVisible();
+    await expect(homePage.stationSearchInput).toBeVisible();
+    await expect(homePage.yearSelect).toBeVisible();
+    await expect(homePage.monthSelect).toBeVisible();
+    await expect(homePage.generateButton).toBeVisible();
   });
 
-  test('form dropdowns are populated', async ({ page }) => {
-    await page.goto('/');
+  test('form dropdowns are populated', async () => {
+    await homePage.navigateToHome();
 
-    // Wait for JavaScript to populate year dropdown
-    await page.waitForFunction(() => {
-      const yearSelect = document.getElementById('year') as HTMLSelectElement;
-      return yearSelect && yearSelect.options.length > 0;
-    }, { timeout: 5000 });
+    // Wait for year dropdown to be populated
+    await homePage.waitForYearDropdownPopulated();
 
     // Check year dropdown has options
-    const yearOptions = await page.locator('#year option').count();
-    expect(yearOptions).toBeGreaterThan(0);
+    const yearOptions = await homePage.getYearOptions();
+    expect(yearOptions.length).toBeGreaterThan(0);
 
     // Check month dropdown has 12 months
-    const monthOptions = await page.locator('#month option').count();
-    expect(monthOptions).toBe(12);
+    const monthOptions = await homePage.getMonthOptions();
+    expect(monthOptions.length).toBe(12);
   });
 
-  test('form accepts valid input', async ({ page }) => {
-    await page.goto('/');
-
-    // Wait for form to be ready
-    await page.waitForSelector('#generate_btn');
+  test('form accepts valid input', async () => {
+    await homePage.navigateToHome();
 
     // Fill in a valid station ID
-    await page.fill('#station_search', '9449639');
+    await homePage.enterStationSearch('9449639');
 
-    // Select year and month
-    // Dynamically select the first available year option
-    const firstYearValue = await page.locator('#year option').first().getAttribute('value');
-    await page.selectOption('#year', firstYearValue!);
-    await page.selectOption('#month', '01');
+    // Select year and month using helper methods
+    const firstYearValue = await homePage.getFirstYearOption();
+    await homePage.selectYear(firstYearValue);
+    await homePage.selectMonth('01');
 
     // Verify button is clickable (don't actually submit to avoid long PDF generation)
-    const button = page.locator('#generate_btn');
-    await expect(button).toBeEnabled();
+    await expect(homePage.generateButton).toBeEnabled();
   });
 });
