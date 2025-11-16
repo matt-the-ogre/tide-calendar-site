@@ -13,7 +13,6 @@ Run from project root: python3 scripts/test_multi_country.py
 """
 
 import sys
-import os
 from pathlib import Path
 from datetime import datetime
 import logging
@@ -73,7 +72,7 @@ class TestResults:
         print(f"Total Tests: {self.total}")
         print(f"Passed: {self.passed}")
         print(f"Failed: {self.failed}")
-        print(f"Success Rate: {(self.passed/self.total*100) if self.total > 0 else 0:.1f}%")
+        print(f"Success Rate: {((self.passed/self.total*100) if self.total > 0 else 0):.1f}%")
 
         if self.timings:
             print("\n" + "-"*70)

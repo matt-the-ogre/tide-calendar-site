@@ -43,11 +43,11 @@ def init_database():
                 logging.info("Added place_name column to tide_station_ids table")
 
             if 'country' not in columns:
-                cursor.execute('ALTER TABLE tide_station_ids ADD COLUMN country TEXT DEFAULT "USA"')
+                cursor.execute("ALTER TABLE tide_station_ids ADD COLUMN country TEXT DEFAULT 'USA'")
                 logging.info("Added country column to tide_station_ids table")
 
             if 'api_source' not in columns:
-                cursor.execute('ALTER TABLE tide_station_ids ADD COLUMN api_source TEXT DEFAULT "NOAA"')
+                cursor.execute("ALTER TABLE tide_station_ids ADD COLUMN api_source TEXT DEFAULT 'NOAA'")
                 logging.info("Added api_source column to tide_station_ids table")
 
             if 'latitude' not in columns:
@@ -137,13 +137,13 @@ def import_stations_from_csv():
                     cursor.execute('''
                         INSERT OR IGNORE INTO tide_station_ids
                         (station_id, place_name, country, api_source, lookup_count, last_lookup)
-                        VALUES (?, ?, "USA", "NOAA", 1, CURRENT_TIMESTAMP)
+                        VALUES (?, ?, 'USA', 'NOAA', 1, CURRENT_TIMESTAMP)
                     ''', (station_id, place_name))
 
                     # Update metadata for existing stations without touching lookup_count
                     cursor.execute('''
                         UPDATE tide_station_ids
-                        SET place_name = ?, country = "USA", api_source = "NOAA"
+                        SET place_name = ?, country = 'USA', api_source = 'NOAA'
                         WHERE station_id = ?
                     ''', (place_name, station_id))
                     imported_count += 1
@@ -321,7 +321,7 @@ def import_canadian_stations_from_csv():
             cursor = conn.cursor()
 
             # Check if we already have Canadian stations
-            result = cursor.execute('SELECT COUNT(*) FROM tide_station_ids WHERE country = "Canada"').fetchone()
+            result = cursor.execute("SELECT COUNT(*) FROM tide_station_ids WHERE country = 'Canada'").fetchone()
             if result[0] > 10:
                 logging.debug(f"Canadian stations already populated (count: {result[0]})")
                 return True
@@ -372,7 +372,7 @@ def import_canadian_stations_from_csv():
             # Remove Canadian stations from database that are NOT in the CSV
             if csv_station_ids:
                 placeholders = ','.join('?' * len(csv_station_ids))
-                delete_query = f'DELETE FROM tide_station_ids WHERE country = "Canada" AND station_id NOT IN ({placeholders})'
+                delete_query = f"DELETE FROM tide_station_ids WHERE country = 'Canada' AND station_id NOT IN ({placeholders})"
                 cursor.execute(delete_query, tuple(csv_station_ids))
                 deleted_count = cursor.rowcount
 

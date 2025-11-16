@@ -7,7 +7,6 @@ Run from project root: python3 scripts/test_multi_country_offline.py
 """
 
 import sys
-import os
 from pathlib import Path
 from datetime import datetime
 import logging
@@ -19,7 +18,6 @@ sys.path.insert(0, str(APP_DIR))
 from database import (
     get_station_info,
     search_stations_by_country,
-    get_popular_stations_by_country,
     init_database,
     import_stations_from_csv,
     import_canadian_stations_from_csv
@@ -64,7 +62,7 @@ class TestResults:
         print(f"Total Tests: {self.total}")
         print(f"Passed: {self.passed}")
         print(f"Failed: {self.failed}")
-        print(f"Success Rate: {(self.passed/self.total*100) if self.total > 0 else 0:.1f}%")
+        print(f"Success Rate: {((self.passed/self.total*100) if self.total > 0 else 0):.1f}%")
 
         if self.errors:
             print("\n" + "-"*70)
