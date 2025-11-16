@@ -15,7 +15,7 @@ import requests
 import calendar
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional
 
 
 class TideAdapter(ABC):
@@ -234,9 +234,10 @@ class CHSAdapter(TideAdapter):
     """
     Adapter for Canadian Hydrographic Service IWLS API (Canadian tide predictions).
 
-    Station IDs: 5-digit numeric codes (e.g., 07735 for Vancouver)
+    Station IDs: 4-6 digit numeric codes (typically 5 digits, e.g., 07735 for Vancouver)
     API Endpoint: https://api-iwls.dfo-mpo.gc.ca/api/v1
     Time Series Code: wlp-hilo (water level predictions - high/low)
+    Times: Returned in UTC, formatted as YYYY-MM-DD HH:MM
     """
 
     BASE_URL = "https://api-iwls.dfo-mpo.gc.ca/api/v1"
@@ -365,11 +366,12 @@ class CHSAdapter(TideAdapter):
                     self.logger.warning(f"Skipping invalid CHS prediction: {prediction}")
                     continue
 
-                # Parse ISO 8601 datetime and convert to local format
-                # CHS returns UTC times, convert to local (assumes LST/LDT)
+                # Parse ISO 8601 datetime
+                # CHS returns UTC times - we keep them as-is for consistency
+                # (NOAA also uses local standard time without DST adjustment)
                 try:
                     dt = datetime.fromisoformat(event_date.replace('Z', '+00:00'))
-                    # Format as YYYY-MM-DD HH:MM
+                    # Format as YYYY-MM-DD HH:MM (keeping UTC)
                     date_time = dt.strftime('%Y-%m-%d %H:%M')
                 except ValueError as e:
                     self.logger.warning(f"Invalid date format in CHS response: {event_date}")

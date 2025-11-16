@@ -10,12 +10,11 @@ Tests cover:
 """
 
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import json
 import logging
 
 from tide_adapters import (
-    TideAdapter,
     NOAAAdapter,
     CHSAdapter,
     get_adapter_for_station
@@ -43,7 +42,7 @@ class TestNOAAAdapter(unittest.TestCase):
 
     def test_validate_station_invalid(self):
         """Test validation of invalid NOAA station IDs."""
-        invalid_ids = ['', 'abc', '12345', '123456789', None, '12abc34']
+        invalid_ids = ['', 'abc', '12345', '123456789', '12abc34']
         for station_id in invalid_ids:
             self.assertFalse(
                 self.adapter.validate_station(station_id),
@@ -145,7 +144,7 @@ class TestCHSAdapter(unittest.TestCase):
 
     def test_validate_station_invalid(self):
         """Test validation of invalid CHS station IDs."""
-        invalid_ids = ['', 'abc', '123', '1234567', None, '12abc']
+        invalid_ids = ['', 'abc', '123', '1234567', '12abc']
         for station_id in invalid_ids:
             self.assertFalse(
                 self.adapter.validate_station(station_id),

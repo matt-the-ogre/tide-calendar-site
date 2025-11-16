@@ -54,11 +54,13 @@ csv_data = adapter.get_predictions('9449639', 2024, 6)
 
 **Class:** `CHSAdapter`
 
-**Station ID Format:** 5-digit numeric codes (e.g., `07735`)
+**Station ID Format:** 4-6 digit numeric codes (typically 5 digits, e.g., `07735`)
 
 **API Endpoint:** `https://api-iwls.dfo-mpo.gc.ca/api/v1`
 
 **Time Series Code:** `wlp-hilo` (water level predictions - high/low)
+
+**Time Format:** Returns times in UTC, formatted as YYYY-MM-DD HH:MM
 
 **Example:**
 ```python
@@ -177,7 +179,7 @@ class NewCountryAdapter(TideAdapter):
 ### CHS
 - Returns JSON format
 - Alternates high and low tides in chronological order
-- Times are in UTC (converted to local format)
+- Times are returned in UTC and formatted as YYYY-MM-DD HH:MM
 - Requires tide type determination based on value patterns
 - May return 403 errors if proper User-Agent headers are not provided
 
