@@ -112,6 +112,30 @@
         .autocomplete-item.selected {
             background-color: #b2dfdb;
         }
+
+        .country-badge {
+            display: inline-block;
+            font-size: 0.85em;
+            margin-left: 8px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background-color: #f0f0f0;
+            color: #333;
+        }
+
+        .country-flag {
+            font-size: 1.2em;
+            margin-right: 5px;
+        }
+
+        #country_filter {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
@@ -120,9 +144,16 @@
         <div class="example-image">
             <img src="{{ url_for('static', filename='tide-calendar-example.webp') }}" alt="Example tide calendar" />
         </div>
-        <h2>Currently only works with tide stations in the USA.</h2>
+        <h2>Generate tide calendars for USA and Canadian stations</h2>
         <p>When you enter a place name and generate the calendar PDF, it will start a download of the PDF file. Save it or print it.</p>
         <form id="tide_form" method="post">
+            <label for="country_filter">Country Filter:</label>
+            <select id="country_filter" name="country_filter">
+                <option value="all">All Countries</option>
+                <option value="USA" selected>USA 🇺🇸</option>
+                <option value="CANADA">Canada 🇨🇦</option>
+            </select><br>
+
             <label for="station_id">Tide Station (ID or Place Name):</label>
             <div class="autocomplete-container">
                 <input type="text" id="station_search" name="station_search" placeholder="Enter station ID or search for a place..." value="{{ last_place_name }}" autocomplete="off" required>
@@ -167,6 +198,7 @@
                 <thead>
                     <tr>
                         <th>Rank</th>
+                        <th>Country</th>
                         <th>Station Name</th>
                         <th>Station ID</th>
                         <th>Popularity</th>
@@ -224,6 +256,79 @@
 
         // Set the default value for the month dropdown to the current month
         document.getElementById('month').value = currentMonth;
+
+        // Helper function to get country flag emoji
+        function getCountryFlag(country) {
+            if (country === 'USA') return '🇺🇸';
+            if (country === 'CANADA') return '🇨🇦';
+            return '';
+        }
+
+        // Initialize country filter from cookie
+        function initializeCountryFilter() {
+            const countryFilter = document.getElementById('country_filter');
+            const savedCountry = getCookie('country_preference');
+
+            if (savedCountry && ['all', 'USA', 'CANADA'].includes(savedCountry)) {
+                countryFilter.value = savedCountry;
+            }
+
+            // Save country preference when changed and reload popular stations
+            countryFilter.addEventListener('change', function() {
+                const selectedCountry = this.value;
+                setCookie('country_preference', selectedCountry, 365);
+
+                // Reload popular stations for the selected country
+                reloadPopularStations();
+
+                // Track country selection
+                if (window.plausible) {
+                    plausible('Country Filter Changed', {
+                        props: {
+                            country: selectedCountry
+                        }
+                    });
+                }
+            });
+        }
+
+        // Cookie helper functions
+        function setCookie(name, value, days) {
+            const d = new Date();
+            d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+            const expires = "expires=" + d.toUTCString();
+            document.cookie = name + "=" + value + ";" + expires + ";path=/";
+        }
+
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+            }
+            return null;
+        }
+
+        // Reload popular stations based on country filter
+        function reloadPopularStations() {
+            const countryFilter = document.getElementById('country_filter').value;
+            const url = countryFilter === 'all'
+                ? '/api/popular_stations'
+                : `/api/popular_stations?country=${countryFilter}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    renderPopularStationsTable(data);
+                })
+                .catch(error => {
+                    console.error('Error reloading popular stations:', error);
+                });
+        }
+
+        initializeCountryFilter();
 
         // Initialize autocomplete functionality
         initializeAutocomplete();
@@ -364,7 +469,12 @@
             }
 
             function searchAPI(query) {
-                fetch(`/api/search_stations?q=${encodeURIComponent(query)}`)
+                const countryFilter = document.getElementById('country_filter').value;
+                const url = countryFilter === 'all'
+                    ? `/api/search_stations?q=${encodeURIComponent(query)}`
+                    : `/api/search_stations?q=${encodeURIComponent(query)}&country=${countryFilter}`;
+
+                fetch(url)
                     .then(response => response.json())
                     .then(data => {
                         if (data.length > 0) {
@@ -386,7 +496,12 @@
                 stations.forEach((station, index) => {
                     const item = document.createElement('div');
                     item.className = 'autocomplete-item';
-                    item.textContent = `${station.place_name} (${station.station_id})`;
+
+                    // Add country flag if available
+                    const flag = station.country ? getCountryFlag(station.country) : '';
+                    const flagSpan = flag ? `<span class="country-flag">${flag}</span>` : '';
+
+                    item.innerHTML = `${flagSpan}${station.place_name} <span class="country-badge">${station.station_id}</span>`;
                     item.dataset.stationId = station.station_id;
                     item.dataset.placeName = station.place_name;
 
@@ -467,6 +582,14 @@
                 const rankCell = document.createElement('td');
                 rankCell.textContent = index + 1;
                 row.appendChild(rankCell);
+
+                // Country with flag
+                const countryCell = document.createElement('td');
+                const flag = station.country ? getCountryFlag(station.country) : '';
+                countryCell.innerHTML = `${flag}`;
+                countryCell.style.fontSize = '1.5em';
+                countryCell.style.textAlign = 'center';
+                row.appendChild(countryCell);
 
                 // Station Name
                 const nameCell = document.createElement('td');
