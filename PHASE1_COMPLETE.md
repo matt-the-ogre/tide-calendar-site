@@ -31,14 +31,13 @@ CREATE TABLE tide_station_ids (
 
 ### 2. Canadian Station Data ✅
 Created `app/canadian_tide_stations.csv` with 24 curated Canadian tide stations:
-- **British Columbia (BC)**: 10 stations (Vancouver, Victoria, Tofino, Prince Rupert, etc.)
-- **Quebec (QC)**: 4 stations (Québec, Rimouski, Pointe-au-Père, etc.)
+- **British Columbia (BC)**: 10 stations (Vancouver, Victoria, Tofino, Nanaimo, Prince Rupert, etc.)
+- **Quebec (QC)**: 6 stations (Québec, Québec (Lauzon), Rimouski, Pointe-au-Père, Sept-Îles, Havre-Saint-Pierre)
 - **Nova Scotia (NS)**: 3 stations (Halifax, Yarmouth, North Sydney)
-- **Newfoundland and Labrador (NL)**: 3 stations (St. John's, Argentia)
+- **Newfoundland and Labrador (NL)**: 2 stations (St. John's, Argentia)
 - **New Brunswick (NB)**: 1 station (Saint John)
 - **Prince Edward Island (PE)**: 1 station (Charlottetown)
 - **Northwest Territories (NT)**: 1 station (Tuktoyaktuk)
-- **Other**: 1 station (St. John's - special ID format)
 
 ### 3. Database Functions Enhanced ✅
 Updated `app/database.py` with new functions:

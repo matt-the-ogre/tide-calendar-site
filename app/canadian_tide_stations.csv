@@ -13,10 +13,9 @@ station_id,place_name,province,latitude,longitude,country,api_source
 03370,"Québec (Lauzon), QC",QC,46.813,-71.163,Canada,CHS
 04015,"Pointe-au-Père, QC",QC,48.516,-68.474,Canada,CHS
 05cebf1df3d0f4a073c4bb9a8,"St. John's, NL",NL,47.563,-52.707,Canada,CHS
-07795,"Nanaimo, BC",BC,49.167,-123.933,Canada,CHS
+07917,"Nanaimo, BC",BC,49.167,-123.933,Canada,CHS
 08525,"Bamfield, BC",BC,48.835,-125.136,Canada,CHS
 09850,"Tuktoyaktuk, NT",NT,69.439,-133.021,Canada,CHS
-07735,"Point Atkinson (Vancouver), BC",BC,49.334,-123.266,Canada,CHS
 03800,"Sept-Îles, QC",QC,50.200,-66.382,Canada,CHS
 04085,"Havre-Saint-Pierre, QC",QC,50.239,-63.598,Canada,CHS
 01560,"Charlottetown, PE",PE,46.236,-63.125,Canada,CHS

@@ -24,6 +24,11 @@ DB_PATH = os.getenv('DB_PATH', DEFAULT_DB_PATH)
 
 def check_column_exists(cursor, table_name, column_name):
     """Check if a column exists in a table."""
+    # Whitelist allowed table names to prevent SQL injection
+    allowed_tables = ['tide_station_ids']
+    if table_name not in allowed_tables:
+        raise ValueError(f"Invalid table name: {table_name}. Allowed tables: {allowed_tables}")
+
     cursor.execute(f"PRAGMA table_info({table_name})")
     columns = [column[1] for column in cursor.fetchall()]
     return column_name in columns

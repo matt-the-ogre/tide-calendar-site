@@ -1,6 +1,7 @@
 import sqlite3
 import logging
 import os
+import csv
 from pathlib import Path
 
 # Get the app directory for relative database path
@@ -82,9 +83,6 @@ def log_station_lookup(station_id):
 
 def import_stations_from_csv():
     """Import station data from CSV file if database is empty."""
-    import csv
-    import os
-
     csv_path = os.path.join(os.path.dirname(__file__), 'tide_stations_new.csv')
 
     if not os.path.exists(csv_path):
@@ -268,8 +266,6 @@ def get_station_info(station_id):
 
 def import_canadian_stations_from_csv():
     """Import Canadian tide station data from CSV file."""
-    import csv
-
     csv_path = os.path.join(os.path.dirname(__file__), 'canadian_tide_stations.csv')
 
     if not os.path.exists(csv_path):
@@ -294,8 +290,20 @@ def import_canadian_stations_from_csv():
                     station_id = row['station_id']
                     place_name = row['place_name']
                     province = row.get('province', '')
-                    latitude = float(row['latitude']) if row.get('latitude') else None
-                    longitude = float(row['longitude']) if row.get('longitude') else None
+
+                    # Parse coordinates with error handling
+                    try:
+                        latitude = float(row['latitude']) if row.get('latitude') and row['latitude'].strip() else None
+                    except (ValueError, AttributeError) as e:
+                        logging.warning(f"Invalid latitude for station {station_id} ({place_name}): {row.get('latitude')}. Setting to None.")
+                        latitude = None
+
+                    try:
+                        longitude = float(row['longitude']) if row.get('longitude') and row['longitude'].strip() else None
+                    except (ValueError, AttributeError) as e:
+                        logging.warning(f"Invalid longitude for station {station_id} ({place_name}): {row.get('longitude')}. Setting to None.")
+                        longitude = None
+
                     country = row.get('country', 'Canada')
                     api_source = row.get('api_source', 'CHS')
 
@@ -350,8 +358,8 @@ def search_stations_by_country(query, country=None, limit=10):
             return [{
                 'station_id': row[0],
                 'place_name': row[1],
-                'country': row[2] if len(row) > 2 else 'USA',
-                'lookup_count': row[3] if len(row) > 3 else row[2]
+                'country': row[2],
+                'lookup_count': row[3]
             } for row in results]
 
     except sqlite3.Error as e:
@@ -385,8 +393,8 @@ def get_popular_stations_by_country(country=None, limit=16):
             return [{
                 'station_id': row[0],
                 'place_name': row[1],
-                'country': row[2] if len(row) > 2 else 'USA',
-                'lookup_count': row[3] if len(row) > 3 else row[2]
+                'country': row[2],
+                'lookup_count': row[3]
             } for row in results]
 
     except sqlite3.Error as e:
