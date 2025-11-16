@@ -7,9 +7,11 @@ import subprocess
 import logging
 import re
 try:
-    from app.database import log_station_lookup
+    from app.database import log_station_lookup, get_station_info
+    from app.tide_adapters import get_adapter_for_station
 except ImportError:
-    from database import log_station_lookup
+    from database import log_station_lookup, get_station_info
+    from tide_adapters import get_adapter_for_station
 
 # sample call: python get_tide_data.py --station_id 9449639 --year 2024 --month 6
 
@@ -93,43 +95,55 @@ def convert_tide_data_to_pcal(tide_data_filename, pcal_filename, location_name=N
 
 
 def download_tide_data(station_id, year, month):
-    # Calculate the last day of the month
-    _, last_day = calendar.monthrange(year, month)
+    """
+    Download tide data using the appropriate API adapter.
 
-    # Construct the request URL based on the provided sample API call
-    base_url = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
-    params = {
-        "begin_date": f"{year}{month:02d}01",
-        "end_date": f"{year}{month:02d}{last_day}",
-        "station": station_id,
-        "product": "predictions",
-        "datum": "MLLW",
-        "time_zone": "lst_ldt",
-        "interval": "hilo",
-        "units": "metric",
-        "format": "csv",
-    }
+    Args:
+        station_id: The tide station ID (format depends on API)
+        year: Year for predictions
+        month: Month for predictions (1-12)
 
-    # Make the request
-    response = requests.get(base_url, params=params)
-    if response.status_code != 200:
-        logging.error(f"Failed to download data for station {station_id}: {response.status_code}")
-        return None
+    Returns:
+        Filename of the CSV file with tide data, or None if download fails
+    """
+    try:
+        # Get station info to determine which API to use
+        station_info = get_station_info(station_id)
+        api_source = station_info.get('api_source') if station_info else None
 
-    filename = f"{station_id}_{year}_{month:02d}.csv"
-    with open(filename, 'wb') as file:
-        file.write(response.content)
+        # Get the appropriate adapter for this station
+        adapter = get_adapter_for_station(station_id, api_source)
+        logging.info(f"Using {adapter.__class__.__name__} for station {station_id}")
 
-    # Check if the file contains "No Predictions data was found."
-    with open(filename, 'r') as file:
-        lines = file.readlines()
-        if len(lines) < 2 or "No Predictions data was found." in lines[1]:
-            logging.error(f"No predictions data found for station {station_id} in {year}-{month:02d}.")
-            os.remove(filename)
+        # Fetch predictions from the API
+        csv_data = adapter.get_predictions(station_id, year, month)
+
+        if not csv_data:
+            logging.error(f"Failed to download data for station {station_id}")
             return None
 
-    logging.debug(f"Data successfully saved to {filename}")
-    return filename
+        # Save to file
+        filename = f"{station_id}_{year}_{month:02d}.csv"
+        with open(filename, 'w') as file:
+            file.write(csv_data)
+
+        # Verify the file has data
+        with open(filename, 'r') as file:
+            lines = file.readlines()
+            if len(lines) < 2:
+                logging.error(f"No predictions data found for station {station_id} in {year}-{month:02d}.")
+                os.remove(filename)
+                return None
+
+        logging.debug(f"Data successfully saved to {filename}")
+        return filename
+
+    except ValueError as e:
+        logging.error(f"Error getting adapter for station {station_id}: {e}")
+        return None
+    except Exception as e:
+        logging.error(f"Unexpected error downloading tide data: {e}")
+        return None
 
 
 if __name__ == "__main__":
