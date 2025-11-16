@@ -17,6 +17,9 @@ APP_DIR = Path(__file__).parent.resolve()
 DEFAULT_PDF_DIR = str(APP_DIR / 'calendars')
 PDF_OUTPUT_DIR = os.getenv('PDF_OUTPUT_DIR', DEFAULT_PDF_DIR)
 
+# Top stations count configuration
+TOP_STATIONS_COUNT = int(os.getenv('TOP_STATIONS_COUNT', '10'))
+
 def extract_location_with_state(place_name):
     """
     Extract location with state abbreviation from full place name.
@@ -68,24 +71,42 @@ def sanitize_filename(text):
 
     return safe or "unknown"
 
-def cleanup_old_pdfs(directory, max_age_hours=1):
-    """Delete PDF files older than max_age_hours from the specified directory."""
+def cleanup_previous_month_pdfs(directory):
+    """Delete all PDF files from previous months to keep cache directory clean."""
     try:
-        current_time = time.time()
-        max_age_seconds = max_age_hours * 3600
+        from datetime import datetime
+        import re
+
+        # Get current year and month
+        today = datetime.now()
+        current_year = today.year
+        current_month = today.month
+
         pdf_pattern = os.path.join(directory, "tide_calendar_*.pdf")
+        deleted_count = 0
 
         for pdf_file in glob.glob(pdf_pattern):
             try:
-                file_age = current_time - os.path.getmtime(pdf_file)
-                if file_age > max_age_seconds:
-                    os.remove(pdf_file)
-                    logging.info(f"Cleaned up old PDF: {pdf_file}")
-            except OSError as e:
-                logging.warning(f"Could not delete old PDF {pdf_file}: {e}")
+                # Extract year and month from filename using regex
+                # Pattern: tide_calendar_<location>_<YYYY>_<MM>.pdf
+                match = re.search(r'_(\d{4})_(\d{2})\.pdf$', pdf_file)
+                if match:
+                    pdf_year = int(match.group(1))
+                    pdf_month = int(match.group(2))
+
+                    # Delete if PDF is from a previous month (earlier year or earlier month in same year)
+                    if pdf_year < current_year or (pdf_year == current_year and pdf_month < current_month):
+                        os.remove(pdf_file)
+                        deleted_count += 1
+                        logging.info(f"Cleaned up old PDF: {pdf_file} ({pdf_year}-{pdf_month:02d})")
+            except (OSError, ValueError) as e:
+                logging.warning(f"Could not process PDF {pdf_file}: {e}")
+
+        if deleted_count > 0:
+            logging.info(f"Cleaned up {deleted_count} PDF(s) from previous months")
 
     except Exception as e:
-        logging.error(f"Error during PDF cleanup: {e}")
+        logging.error(f"Error during previous month PDF cleanup: {e}")
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -138,6 +159,8 @@ def index():
         # Check if PDF already exists in cache
         if os.path.exists(pdf_full_path) and os.path.getsize(pdf_full_path) > 0:
             logging.info(f"Serving cached PDF: {pdf_full_path}")
+            # Clean up previous month's PDF files to keep cache directory clean
+            cleanup_previous_month_pdfs(PDF_OUTPUT_DIR)
             # Create a response object to set the cookie
             response = make_response(send_file(pdf_full_path, as_attachment=True))
             if place_name:
@@ -180,8 +203,8 @@ def index():
         if place_name:
             response.set_cookie('last_place_name', place_name)
 
-        # Clean up old PDF files (older than 30 days to keep cache useful)
-        cleanup_old_pdfs(PDF_OUTPUT_DIR, max_age_hours=720)  # 30 days
+        # Clean up previous month's PDF files to keep cache directory clean
+        cleanup_previous_month_pdfs(PDF_OUTPUT_DIR)
 
         return response
 
@@ -209,8 +232,80 @@ def api_search_stations():
 def api_popular_stations():
     """API endpoint to get the most popular tide stations."""
     try:
-        results = get_popular_stations(limit=16)
+        results = get_popular_stations(limit=TOP_STATIONS_COUNT)
         return jsonify(results)
     except Exception as e:
         logging.error(f"Error in popular stations API: {e}")
         return jsonify([]), 500
+
+@app.route('/api/generate_quick', methods=['POST'])
+def api_generate_quick():
+    """API endpoint to quickly generate current month's PDF without logging."""
+    try:
+        from datetime import datetime
+
+        # Get station_id from JSON request
+        data = request.get_json()
+        if not data or 'station_id' not in data:
+            return jsonify({'error': 'station_id is required'}), 400
+
+        station_id = data['station_id'].strip()
+
+        # Validate station_id
+        if not station_id or not station_id.isdigit():
+            return jsonify({'error': 'Invalid station_id'}), 400
+
+        # Get current month and year
+        today = datetime.now()
+        year = today.year
+        month = today.month
+
+        # Get the place name for the station ID
+        place_name = get_place_name_by_station_id(station_id)
+
+        # Extract and sanitize location name for filename
+        location_display = extract_location_with_state(place_name)
+        location_filename = sanitize_filename(location_display) if location_display else station_id
+
+        # Construct PDF filename and full path
+        pdf_filename_only = f"tide_calendar_{location_filename}_{year}_{month:02d}.pdf"
+        pdf_full_path = os.path.join(PDF_OUTPUT_DIR, pdf_filename_only)
+
+        # Check if PDF already exists in cache
+        if os.path.exists(pdf_full_path) and os.path.getsize(pdf_full_path) > 0:
+            logging.info(f"Serving cached PDF for quick generate: {pdf_full_path}")
+            return send_file(pdf_full_path, as_attachment=True, download_name=pdf_filename_only)
+
+        # PDF not in cache, generate it
+        logging.info(f"Generating quick PDF for station {station_id}, {year}-{month:02d} (no logging)")
+
+        # Ensure PDF output directory exists
+        if not os.path.exists(PDF_OUTPUT_DIR):
+            os.makedirs(PDF_OUTPUT_DIR, exist_ok=True)
+            logging.info(f"Created PDF output directory: {PDF_OUTPUT_DIR}")
+
+        # Call the get_tides.py script with --skip_logging flag
+        script_path = os.path.join(os.path.dirname(__file__), 'get_tides.py')
+        project_root = os.path.dirname(os.path.dirname(__file__))
+
+        cmd = [sys.executable, script_path, '--station_id', station_id, '--year', str(year), '--month', str(month), '--skip_logging']
+        if location_display:
+            cmd.extend(['--location_name', location_display])
+        subprocess.run(cmd, cwd=project_root)
+
+        # Check if the PDF file was created
+        if not os.path.exists(pdf_full_path):
+            logging.error(f"Quick generate failed: File {pdf_full_path} does not exist.")
+            return jsonify({'error': 'PDF file generation failed'}), 500
+
+        # Check if the PDF file is empty
+        if os.path.getsize(pdf_full_path) == 0:
+            logging.error(f"Quick generate failed: File {pdf_full_path} is empty.")
+            return jsonify({'error': 'PDF file is empty'}), 500
+
+        # Return the PDF file
+        return send_file(pdf_full_path, as_attachment=True, download_name=pdf_filename_only)
+
+    except Exception as e:
+        logging.error(f"Error in quick generate API: {e}")
+        return jsonify({'error': str(e)}), 500

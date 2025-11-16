@@ -141,6 +141,7 @@ if __name__ == "__main__":
     parser.add_argument('--year', type=int, default=datetime.now().year, help='Year (default: current year)')
     parser.add_argument('--month', type=int, default=datetime.now().month, help='Month (default: current month)')
     parser.add_argument('--location_name', type=str, default=None, help='Human-readable location name for display')
+    parser.add_argument('--skip_logging', action='store_true', help='Skip logging station lookup to database')
 
     args = parser.parse_args()
 
@@ -149,8 +150,6 @@ if __name__ == "__main__":
         logging.error("Month must be between 1 and 12")
         exit(1)
     else:
-        # Log the station ID lookup
-        log_station_lookup(args.station_id)
         downloaded_filename = download_tide_data(args.station_id, args.year, args.month)
         if not downloaded_filename:
             logging.error("Could not retrieve tide data. Please check the station ID and try again.")
@@ -221,4 +220,9 @@ if __name__ == "__main__":
 
     # Print a message indicating the PDF file creation
     logging.info(f"PDF file created: {pdf_output_path}")
-    # call the shell command to create the calendar page
+
+    # Log the successful station lookup (unless skip_logging flag is set)
+    # Only log AFTER successful PDF generation to avoid polluting popular stations with failed lookups
+    if not args.skip_logging:
+        log_station_lookup(args.station_id)
+        logging.info(f"Logged successful lookup for station {args.station_id}")

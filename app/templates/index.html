@@ -159,6 +159,26 @@
             <button id="generate_btn" type="submit">Generate and download the PDF</button>
         </form>
 
+        <!-- Popular Stations Table -->
+        <div id="popular-stations-section" class="popular-stations-section">
+            <h3>Most Popular Tide Stations</h3>
+            <div id="loading-message">Loading popular stations...</div>
+            <table id="popular-stations-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Station Name</th>
+                        <th>Station ID</th>
+                        <th>Popularity</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="popular-stations-body">
+                    <!-- Populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
         <!-- <div class="instructions">
             <h2>How to Find Your Tide Station ID</h2>
             <p>To find your tide station ID, follow these steps:</p>
@@ -253,6 +273,8 @@
                 .then(response => response.json())
                 .then(data => {
                     popularStations = data;
+                    // Render popular stations table
+                    renderPopularStationsTable(data);
                     // Track page view with popular stations loaded
                     if (window.plausible && data.length > 0) {
                         plausible('Popular Stations Loaded', {
@@ -417,6 +439,139 @@
                         }
                     });
                 }
+            }
+        }
+
+        // Popular Stations Table Functions
+        function renderPopularStationsTable(stations) {
+            const loadingMessage = document.getElementById('loading-message');
+            const table = document.getElementById('popular-stations-table');
+            const tbody = document.getElementById('popular-stations-body');
+
+            // Hide loading message
+            loadingMessage.style.display = 'none';
+
+            // Check if we have stations
+            if (!stations || stations.length === 0) {
+                loadingMessage.textContent = 'No popular stations available yet.';
+                loadingMessage.style.display = 'block';
+                return;
+            }
+
+            // Build table rows
+            tbody.innerHTML = '';
+            stations.forEach((station, index) => {
+                const row = document.createElement('tr');
+
+                // Rank
+                const rankCell = document.createElement('td');
+                rankCell.textContent = index + 1;
+                row.appendChild(rankCell);
+
+                // Station Name
+                const nameCell = document.createElement('td');
+                nameCell.textContent = station.place_name || 'Unknown';
+                row.appendChild(nameCell);
+
+                // Station ID
+                const idCell = document.createElement('td');
+                idCell.textContent = station.station_id;
+                row.appendChild(idCell);
+
+                // Popularity (lookup count)
+                const popCell = document.createElement('td');
+                popCell.textContent = station.lookup_count || 0;
+                row.appendChild(popCell);
+
+                // Action button
+                const actionCell = document.createElement('td');
+                const button = document.createElement('button');
+                button.className = 'quick-generate-btn';
+                button.textContent = 'Generate PDF';
+                button.dataset.stationId = station.station_id;
+                button.dataset.placeName = station.place_name || 'Unknown';
+                button.addEventListener('click', () => handleQuickGenerate(station.station_id, station.place_name, button));
+                actionCell.appendChild(button);
+                row.appendChild(actionCell);
+
+                tbody.appendChild(row);
+            });
+
+            // Show table
+            table.style.display = 'table';
+        }
+
+        async function handleQuickGenerate(stationId, placeName, button) {
+            // Disable button and show loading state
+            button.disabled = true;
+            const originalText = button.textContent;
+            button.textContent = 'Generating...';
+
+            try {
+                // Get current month and year
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = now.getMonth() + 1; // JavaScript months are 0-indexed
+                const monthName = now.toLocaleString('default', { month: 'long' });
+
+                // Track analytics event
+                if (window.plausible) {
+                    plausible('Popular Station Quick Generate', {
+                        props: {
+                            station_id: stationId,
+                            place_name: placeName,
+                            year_month: `${year}-${month}`,
+                            month_name: monthName
+                        }
+                    });
+                }
+
+                // Make AJAX request to generate PDF
+                const response = await fetch('/api/generate_quick', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ station_id: stationId })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(errorData.error || `HTTP error ${response.status}`);
+                }
+
+                // Download the PDF
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `tide_calendar_${stationId}_${year}_${month.toString().padStart(2, '0')}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+
+                // Success - restore button
+                button.textContent = originalText;
+                button.disabled = false;
+
+            } catch (error) {
+                console.error('Error generating quick PDF:', error);
+                alert(`Error generating PDF: ${error.message}`);
+
+                // Track error
+                if (window.plausible) {
+                    plausible('Quick Generate Error', {
+                        props: {
+                            station_id: stationId,
+                            error: error.message
+                        }
+                    });
+                }
+
+                // Restore button
+                button.textContent = originalText;
+                button.disabled = false;
             }
         }
     </script>

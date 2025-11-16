@@ -41,6 +41,7 @@ FLASK_APP=run.py
 FLASK_ENV=development  # or production
 FLASK_RUN_PORT=5001  # local dev; production uses port 80
 PDF_OUTPUT_DIR=/data/calendars  # production only; local dev uses app/calendars
+TOP_STATIONS_COUNT=10  # number of popular stations to display (default: 10)
 ```
 
 ### CapRover Deployment
@@ -59,6 +60,7 @@ FLASK_APP=run.py
 FLASK_ENV=production
 FLASK_RUN_PORT=80
 PDF_OUTPUT_DIR=/data/calendars
+TOP_STATIONS_COUNT=10
 ```
 
 **Persistent Data:**

@@ -82,7 +82,7 @@ def log_station_lookup(station_id):
         return None
 
 def import_stations_from_csv():
-    """Import station data from CSV file if database is empty."""
+    """Import station data from CSV file and remove stations not in CSV (sync database to CSV)."""
     csv_path = os.path.join(os.path.dirname(__file__), 'tide_stations_new.csv')
 
     if not os.path.exists(csv_path):
@@ -100,13 +100,15 @@ def import_stations_from_csv():
                 logging.debug(f"Station place names already populated (count: {result[0]})")
                 return True
 
-            # Import from CSV
+            # Import from CSV and collect all valid station IDs
             imported_count = 0
+            csv_station_ids = set()
             with open(csv_path, 'r', encoding='utf-8') as csvfile:
                 reader = csv.DictReader(csvfile)
                 for row in reader:
                     station_id = row['station_id']
                     place_name = row['place_name']
+                    csv_station_ids.add(station_id)
 
                     # Insert or update station
                     cursor.execute('''
@@ -115,6 +117,18 @@ def import_stations_from_csv():
                         VALUES (?, ?, 1, CURRENT_TIMESTAMP)
                     ''', (station_id, place_name))
                     imported_count += 1
+
+            # Remove stations from database that are NOT in the CSV (cleanup invalid stations)
+            # This ensures the database stays in sync with the validated canonical CSV
+            if csv_station_ids:
+                # Build a parameterized query to delete stations not in CSV
+                placeholders = ','.join('?' * len(csv_station_ids))
+                delete_query = f'DELETE FROM tide_station_ids WHERE station_id NOT IN ({placeholders})'
+                cursor.execute(delete_query, tuple(csv_station_ids))
+                deleted_count = cursor.rowcount
+
+                if deleted_count > 0:
+                    logging.info(f"Removed {deleted_count} invalid station(s) not present in CSV")
 
             conn.commit()
             logging.info(f"Imported {imported_count} stations from CSV")
@@ -265,7 +279,7 @@ def get_station_info(station_id):
         return None
 
 def import_canadian_stations_from_csv():
-    """Import Canadian tide station data from CSV file."""
+    """Import Canadian tide station data from CSV file and remove Canadian stations not in CSV."""
     csv_path = os.path.join(os.path.dirname(__file__), 'canadian_tide_stations.csv')
 
     if not os.path.exists(csv_path):
@@ -282,14 +296,16 @@ def import_canadian_stations_from_csv():
                 logging.debug(f"Canadian stations already populated (count: {result[0]})")
                 return True
 
-            # Import from CSV
+            # Import from CSV and collect all valid Canadian station IDs
             imported_count = 0
+            csv_station_ids = set()
             with open(csv_path, 'r', encoding='utf-8') as csvfile:
                 reader = csv.DictReader(csvfile)
                 for row in reader:
                     station_id = row['station_id']
                     place_name = row['place_name']
                     province = row.get('province', '')
+                    csv_station_ids.add(station_id)
 
                     # Parse coordinates with error handling
                     try:
@@ -314,6 +330,16 @@ def import_canadian_stations_from_csv():
                         VALUES (?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
                     ''', (station_id, place_name, country, api_source, latitude, longitude, province))
                     imported_count += 1
+
+            # Remove Canadian stations from database that are NOT in the CSV
+            if csv_station_ids:
+                placeholders = ','.join('?' * len(csv_station_ids))
+                delete_query = f'DELETE FROM tide_station_ids WHERE country = "Canada" AND station_id NOT IN ({placeholders})'
+                cursor.execute(delete_query, tuple(csv_station_ids))
+                deleted_count = cursor.rowcount
+
+                if deleted_count > 0:
+                    logging.info(f"Removed {deleted_count} invalid Canadian station(s) not present in CSV")
 
             conn.commit()
             logging.info(f"Imported {imported_count} Canadian stations from CSV")
