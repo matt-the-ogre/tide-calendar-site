@@ -13,6 +13,19 @@ except ImportError:
 
 # sample call: python get_tide_data.py --station_id 9449639 --year 2024 --month 6
 
+# Directory for storing generated PDF calendars
+# Default to app/calendars for local dev, override with PDF_OUTPUT_DIR env var for production
+from pathlib import Path
+APP_DIR = Path(__file__).parent.resolve()
+DEFAULT_PDF_DIR = str(APP_DIR / 'calendars')
+PDF_OUTPUT_DIR = os.getenv('PDF_OUTPUT_DIR', DEFAULT_PDF_DIR)
+
+def ensure_pdf_directory():
+    """Ensure the PDF output directory exists."""
+    if not os.path.exists(PDF_OUTPUT_DIR):
+        os.makedirs(PDF_OUTPUT_DIR, exist_ok=True)
+        logging.info(f"Created PDF output directory: {PDF_OUTPUT_DIR}")
+
 def sanitize_filename(text):
     """Convert location name to safe filename component."""
     if not text:
@@ -172,12 +185,18 @@ if __name__ == "__main__":
 
     logging.debug(f"PCAL file created: {pcal_filename}")
 
+    # Ensure PDF output directory exists
+    ensure_pdf_directory()
+
     # Determine PDF filename based on location_name or station_id
     if args.location_name:
         location_safe = sanitize_filename(args.location_name)
-        pdf_base = f"tide_calendar_{location_safe}_{args.year}_{args.month:02d}"
+        pdf_filename = f"tide_calendar_{location_safe}_{args.year}_{args.month:02d}.pdf"
     else:
-        pdf_base = f"tide_calendar_{args.station_id}_{args.year}_{args.month:02d}"
+        pdf_filename = f"tide_calendar_{args.station_id}_{args.year}_{args.month:02d}.pdf"
+
+    # Full path for PDF output
+    pdf_output_path = os.path.join(PDF_OUTPUT_DIR, pdf_filename)
 
     # now make a calendar page using `pcal` and the pcal file with the tide events for that month and year
 
@@ -190,8 +209,8 @@ if __name__ == "__main__":
     # Call the shell command to create the calendar page
     subprocess.run(["pcal", "-f", pcal_filename, "-o", pcal_filename.replace('.txt', '.ps'), "-s 0.0:0.0:1.0", "-m", "-S", str(args.month), str(args.year)])
 
-    # Convert the PostScript file to PDF with the new filename
-    subprocess.run(["ps2pdf", pcal_filename.replace('.txt', '.ps'), f"{pdf_base}.pdf"])
+    # Convert the PostScript file to PDF and save to /data/calendars
+    subprocess.run(["ps2pdf", pcal_filename.replace('.txt', '.ps'), pdf_output_path])
 
     # delete the PostScript file
     subprocess.run(["rm", pcal_filename.replace('.txt', '.ps')])
@@ -200,9 +219,6 @@ if __name__ == "__main__":
     # delete the pcal file
     subprocess.run(["rm", pcal_filename])
 
-    # move the PDF file to the app folder
-    # subprocess.run(["mv", f"{pdf_base}.pdf", "app/"])
-
     # Print a message indicating the PDF file creation
-    logging.info(f"PDF file created: {pdf_base}.pdf")
+    logging.info(f"PDF file created: {pdf_output_path}")
     # call the shell command to create the calendar page

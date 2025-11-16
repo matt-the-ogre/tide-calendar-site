@@ -40,6 +40,7 @@ Create `.env` file with:
 FLASK_APP=run.py
 FLASK_ENV=development  # or production
 FLASK_RUN_PORT=5001  # local dev; production uses port 80
+PDF_OUTPUT_DIR=/data/calendars  # production only; local dev uses app/calendars
 ```
 
 ### CapRover Deployment
@@ -57,12 +58,14 @@ This application is deployed to CapRover at https://captain.mattmanuel.ca
 FLASK_APP=run.py
 FLASK_ENV=production
 FLASK_RUN_PORT=80
+PDF_OUTPUT_DIR=/data/calendars
 ```
 
 **Persistent Data:**
 - SQLite database: `/data/tide_station_ids.db`
+- Generated PDF calendars: `/data/calendars/`
 - Configure persistent volume in CapRover: Path in App = `/data`
-- This preserves the database across deployments and updates
+- This preserves the database and cached PDFs across deployments and updates
 
 **Manual Deployment:**
 1. Push changes to `main` branch
@@ -96,7 +99,11 @@ app/
 ```
 
 ### Key Workflows
-1. **PDF Generation**: User submits form → `routes.py` validates input → calls `get_tides.py` → NOAA API fetch → pcal conversion → PDF creation
+1. **PDF Generation with Caching**:
+   - User submits form → `routes.py` validates input
+   - Check if PDF exists in cache (`/data/calendars/` in production, `app/calendars/` in dev)
+   - If cached: serve immediately
+   - If not cached: call `get_tides.py` → NOAA/CHS API fetch → pcal conversion → PDF creation → save to cache
 2. **Database Tracking**: Station IDs and lookup counts stored in SQLite via `database.py` module
 3. **Form Validation**: Input validation prevents crashes and provides user-friendly error messages
 4. **Error Handling**: Missing/empty PDFs and invalid inputs trigger custom error templates
@@ -112,7 +119,8 @@ app/
 - **Local development**: Application runs on port 5001
 - **Production (CapRover)**: Application runs on port 80 (CapRover proxies from 443→80)
 - **Database location**: `/data/tide_station_ids.db` (configurable via `DB_PATH` env var)
-- PDF files are generated in the app directory and served as downloads
+- **PDF cache location**: `/data/calendars/` in production, `app/calendars/` in local dev (configurable via `PDF_OUTPUT_DIR` env var)
+- **PDF caching**: Generated PDFs are cached for 30 days to reduce API calls and improve performance
 - Station ID 9449639 is used as default demonstration value
 - Low tide events (<0.3m) are marked with asterisks in calendars
 - SQLite database auto-initializes on application startup via centralized `database.py` module

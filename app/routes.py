@@ -10,6 +10,13 @@ import re
 from app import app
 from app.database import search_stations_by_name, get_popular_stations, get_place_name_by_station_id, get_station_id_by_place_name
 
+# Directory for storing generated PDF calendars (matches get_tides.py)
+# Default to app/calendars for local dev, override with PDF_OUTPUT_DIR env var for production
+from pathlib import Path
+APP_DIR = Path(__file__).parent.resolve()
+DEFAULT_PDF_DIR = str(APP_DIR / 'calendars')
+PDF_OUTPUT_DIR = os.getenv('PDF_OUTPUT_DIR', DEFAULT_PDF_DIR)
+
 def extract_location_with_state(place_name):
     """
     Extract location with state abbreviation from full place name.
@@ -124,6 +131,27 @@ def index():
         location_display = extract_location_with_state(place_name)
         location_filename = sanitize_filename(location_display) if location_display else station_id
 
+        # Construct PDF filename and full path
+        pdf_filename_only = f"tide_calendar_{location_filename}_{year}_{month:02d}.pdf"
+        pdf_full_path = os.path.join(PDF_OUTPUT_DIR, pdf_filename_only)
+
+        # Check if PDF already exists in cache
+        if os.path.exists(pdf_full_path) and os.path.getsize(pdf_full_path) > 0:
+            logging.info(f"Serving cached PDF: {pdf_full_path}")
+            # Create a response object to set the cookie
+            response = make_response(send_file(pdf_full_path, as_attachment=True))
+            if place_name:
+                response.set_cookie('last_place_name', place_name)
+            return response
+
+        # PDF not in cache, generate it
+        logging.info(f"Generating new PDF for station {station_id}, {year}-{month:02d}")
+
+        # Ensure PDF output directory exists
+        if not os.path.exists(PDF_OUTPUT_DIR):
+            os.makedirs(PDF_OUTPUT_DIR, exist_ok=True)
+            logging.info(f"Created PDF output directory: {PDF_OUTPUT_DIR}")
+
         # Call the get_tides.py script with location name
         script_path = os.path.join(os.path.dirname(__file__), 'get_tides.py')
         # Get the project root directory (parent of app directory)
@@ -135,28 +163,25 @@ def index():
             cmd.extend(['--location_name', location_display])
         subprocess.run(cmd, cwd=project_root)
 
-        # PDF is now saved with human-readable location name
-        pdf_filename = os.path.join(project_root, f"tide_calendar_{location_filename}_{year}_{month:02d}.pdf")
-
-        # Check if the PDF file exists
-        if not os.path.exists(pdf_filename):
+        # Check if the PDF file was created
+        if not os.path.exists(pdf_full_path):
             # log an error message
-            logging.error(f"File {pdf_filename} does not exist.")
+            logging.error(f"File {pdf_full_path} does not exist.")
             return render_template('tide_station_not_found.html', message="Error: PDF file not found.")
 
         # Check if the PDF file is empty
-        if os.path.getsize(pdf_filename) == 0:
+        if os.path.getsize(pdf_full_path) == 0:
             # log an error message
-            logging.error(f"File {pdf_filename} is empty.")
+            logging.error(f"File {pdf_full_path} is empty.")
             return render_template('tide_station_not_found.html', message="Error: PDF file is empty.")
 
         # Create a response object to set the cookie (place_name already fetched above)
-        response = make_response(send_file(pdf_filename, as_attachment=True))
+        response = make_response(send_file(pdf_full_path, as_attachment=True))
         if place_name:
             response.set_cookie('last_place_name', place_name)
 
-        # Clean up old PDF files (older than 1 hour)
-        cleanup_old_pdfs(project_root, max_age_hours=1)
+        # Clean up old PDF files (older than 30 days to keep cache useful)
+        cleanup_old_pdfs(PDF_OUTPUT_DIR, max_age_hours=720)  # 30 days
 
         return response
 
