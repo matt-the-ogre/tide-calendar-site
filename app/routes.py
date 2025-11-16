@@ -69,31 +69,38 @@ def sanitize_filename(text):
     return safe or "unknown"
 
 def cleanup_previous_month_pdfs(directory):
-    """Delete all PDF files from the previous month to keep cache directory clean."""
+    """Delete all PDF files from previous months to keep cache directory clean."""
     try:
-        from datetime import datetime, timedelta
+        from datetime import datetime
+        import re
 
-        # Calculate previous month
+        # Get current year and month
         today = datetime.now()
-        first_of_current_month = today.replace(day=1)
-        last_month = first_of_current_month - timedelta(days=1)
-        previous_month_str = f"_{last_month.year}_{last_month.month:02d}.pdf"
+        current_year = today.year
+        current_month = today.month
 
         pdf_pattern = os.path.join(directory, "tide_calendar_*.pdf")
         deleted_count = 0
 
         for pdf_file in glob.glob(pdf_pattern):
             try:
-                # Check if this PDF is from the previous month
-                if previous_month_str in pdf_file:
-                    os.remove(pdf_file)
-                    deleted_count += 1
-                    logging.info(f"Cleaned up previous month PDF: {pdf_file}")
-            except OSError as e:
-                logging.warning(f"Could not delete PDF {pdf_file}: {e}")
+                # Extract year and month from filename using regex
+                # Pattern: tide_calendar_<location>_<YYYY>_<MM>.pdf
+                match = re.search(r'_(\d{4})_(\d{2})\.pdf$', pdf_file)
+                if match:
+                    pdf_year = int(match.group(1))
+                    pdf_month = int(match.group(2))
+
+                    # Delete if PDF is from a previous month (earlier year or earlier month in same year)
+                    if pdf_year < current_year or (pdf_year == current_year and pdf_month < current_month):
+                        os.remove(pdf_file)
+                        deleted_count += 1
+                        logging.info(f"Cleaned up old PDF: {pdf_file} ({pdf_year}-{pdf_month:02d})")
+            except (OSError, ValueError) as e:
+                logging.warning(f"Could not process PDF {pdf_file}: {e}")
 
         if deleted_count > 0:
-            logging.info(f"Cleaned up {deleted_count} PDF(s) from previous month")
+            logging.info(f"Cleaned up {deleted_count} PDF(s) from previous months")
 
     except Exception as e:
         logging.error(f"Error during previous month PDF cleanup: {e}")
