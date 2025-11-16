@@ -238,12 +238,17 @@ class CHSAdapter(TideAdapter):
     Adapter for Canadian Hydrographic Service IWLS API (Canadian tide predictions).
 
     Station IDs: 4-6 digit numeric codes (typically 5 digits, e.g., 07735 for Vancouver)
-    API Endpoint: https://api-iwls.dfo-mpo.gc.ca/api/v1
+    API Endpoint: https://api-iwls.dfo-mpo.gc.ca/api/v1 (legacy) or
+                  https://api.iwls-sine.azure.cloud-nuage.dfo-mpo.gc.ca/api/v1 (new Azure)
     Time Series Code: wlp-hilo (water level predictions - high/low)
     Times: Returned in UTC, formatted as YYYY-MM-DD HH:MM
     """
 
-    BASE_URL = "https://api-iwls.dfo-mpo.gc.ca/api/v1"
+    # Try new Azure endpoint first, fallback to legacy
+    BASE_URLS = [
+        "https://api.iwls-sine.azure.cloud-nuage.dfo-mpo.gc.ca/api/v1",
+        "https://api-iwls.dfo-mpo.gc.ca/api/v1"
+    ]
 
     def validate_station(self, station_id: str) -> bool:
         """
@@ -289,40 +294,47 @@ class CHSAdapter(TideAdapter):
         from_date = f"{year}-{month:02d}-01T00:00:00Z"
         to_date = f"{year}-{month:02d}-{last_day}T23:59:59Z"
 
-        # CHS API endpoint for high/low predictions
-        endpoint = f"{self.BASE_URL}/stations/{station_id}/data"
-
         params = {
             "time-series-code": "wlp-hilo",
             "from": from_date,
             "to": to_date
         }
 
-        try:
-            # Make the API request with User-Agent header
-            headers = {
-                'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
-            }
-            self.logger.debug(f"Requesting CHS data for station {station_id}, {year}-{month:02d}")
-            self.logger.debug(f"CHS API endpoint: {endpoint}")
-            self.logger.debug(f"CHS API params: {params}")
-            response = requests.get(endpoint, params=params, headers=headers, timeout=30)
+        headers = {
+            'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
+        }
 
-            self.logger.debug(f"CHS API response status: {response.status_code}")
-            if response.status_code != 200:
-                self.logger.error(f"CHS API request failed with status {response.status_code}: {response.text[:500]}")
-                return None
+        # Try each base URL until we get a successful response
+        for base_url in self.BASE_URLS:
+            endpoint = f"{base_url}/stations/{station_id}/data"
 
-            self.logger.debug(f"CHS API response length: {len(response.text)} characters")
-            # Parse JSON response
-            return self.parse_response(response.text)
+            try:
+                self.logger.debug(f"Trying CHS API endpoint: {endpoint}")
+                self.logger.debug(f"CHS API params: {params}")
+                response = requests.get(endpoint, params=params, headers=headers, timeout=30)
 
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"CHS API request failed: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"Unexpected error in CHS API request: {e}")
-            return None
+                self.logger.debug(f"CHS API response status: {response.status_code}")
+
+                if response.status_code == 200:
+                    self.logger.info(f"Successfully fetched data from {base_url}")
+                    self.logger.debug(f"CHS API response length: {len(response.text)} characters")
+                    # Parse JSON response
+                    return self.parse_response(response.text)
+                else:
+                    self.logger.warning(f"CHS API endpoint {base_url} returned status {response.status_code}, trying next endpoint")
+                    self.logger.debug(f"Response: {response.text[:200]}")
+                    continue
+
+            except requests.exceptions.RequestException as e:
+                self.logger.warning(f"CHS API request to {base_url} failed: {e}, trying next endpoint")
+                continue
+            except Exception as e:
+                self.logger.warning(f"Unexpected error with {base_url}: {e}, trying next endpoint")
+                continue
+
+        # If we get here, all endpoints failed
+        self.logger.error(f"All CHS API endpoints failed for station {station_id}")
+        return None
 
     def parse_response(self, response_data: str) -> Optional[str]:
         """
@@ -357,13 +369,28 @@ class CHSAdapter(TideAdapter):
             data = json.loads(response_data)
 
             self.logger.debug(f"CHS response keys: {list(data.keys())}")
+            self.logger.debug(f"CHS response type: {type(data)}")
 
-            if 'data' not in data or not data['data']:
-                self.logger.error("CHS response contains no data")
-                self.logger.error(f"CHS response sample: {response_data[:500]}")
+            # Handle different possible response formats
+            predictions = None
+
+            if isinstance(data, list):
+                # Response is directly an array
+                self.logger.info("CHS response is a direct array")
+                predictions = data
+            elif isinstance(data, dict):
+                # Try different possible keys for the data array
+                for key in ['data', 'predictions', 'results', 'items']:
+                    if key in data and data[key]:
+                        self.logger.info(f"Found predictions in key '{key}'")
+                        predictions = data[key]
+                        break
+
+            if not predictions:
+                self.logger.error("CHS response contains no prediction data")
+                self.logger.error(f"CHS response keys: {list(data.keys()) if isinstance(data, dict) else 'N/A (not a dict)'}")
+                self.logger.error(f"CHS response sample: {response_data[:1000]}")
                 return None
-
-            predictions = data['data']
 
             # Build standardized CSV output
             output_lines = ["Date Time,Prediction,Type"]
