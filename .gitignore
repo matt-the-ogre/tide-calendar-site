@@ -14,6 +14,11 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Virtual environments
+venv/
+env/
+ENV/
+
 # Database files
 data/
 *.db
