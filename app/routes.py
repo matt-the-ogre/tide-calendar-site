@@ -228,11 +228,11 @@ def api_search_stations():
 
     try:
         # Use country-specific search if country parameter is provided
-        if country and country.upper() in ['USA', 'CANADA']:
-            results = search_stations_by_country(query, country.upper(), limit=10)
+        if country and country in ['USA', 'Canada']:
+            results = search_stations_by_country(query, country, limit=10)
         else:
-            # If no country or "All Countries", search all stations
-            results = search_stations_by_name(query, limit=10)
+            # If no country or "All Countries", search all stations (include country field)
+            results = search_stations_by_country(query, None, limit=10)
         return jsonify(results)
     except Exception as e:
         logging.error(f"Error in search API: {e}")
@@ -245,11 +245,11 @@ def api_popular_stations():
 
     try:
         # Use country-specific query if country parameter is provided
-        if country and country.upper() in ['USA', 'CANADA']:
-            results = get_popular_stations_by_country(country.upper(), limit=TOP_STATIONS_COUNT)
+        if country and country in ['USA', 'Canada']:
+            results = get_popular_stations_by_country(country, limit=TOP_STATIONS_COUNT)
         else:
-            # If no country or "All Countries", get from all stations
-            results = get_popular_stations(limit=TOP_STATIONS_COUNT)
+            # If no country or "All Countries", get from all stations (include country field)
+            results = get_popular_stations_by_country(None, limit=TOP_STATIONS_COUNT)
         return jsonify(results)
     except Exception as e:
         logging.error(f"Error in popular stations API: {e}")
