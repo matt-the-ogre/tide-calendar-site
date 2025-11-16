@@ -1,0 +1,799 @@
+
+======================================================================
+TIDE STATIONS VALIDATION REPORT
+======================================================================
+MODE: LIVE (CSV updated)
+
+Total Stations Tested: 2910
+Valid Stations:        2132 (73.3%)
+Invalid Stations:      778 (26.7%)
+
+======================================================================
+INVALID STATIONS (to be removed)
+======================================================================
+Station ID      Place Name                               Reason         
+----------------------------------------------------------------------
+1495000         Esperanza, Antarctica                    No prediction  
+1612479         Mokuoloe, Kaneone Bay, Oahu Is. (Backu   No prediction  
+1612702         Laiemaloo, Oahu Island, HI               No prediction  
+2627000         Ponta Delgada, Azores, Portugal          No prediction  
+2630000         Praia, Cape Verde Islands, Cape Verde    No prediction  
+7641400         Lagos, Nigeria, Nigeria                  No prediction  
+7691360         Dakar, Senegal, Senegal                  No prediction  
+8311018         Waddington, NY                           HTTP 400       
+8311030         Ogdensburg, NY                           HTTP 400       
+8311060         Alexandria Bay, NY                       HTTP 400       
+8311062         Alexandria Bay, NY                       HTTP 400       
+8311070         Clayton, NY                              HTTP 400       
+8414821         Iron Point, Fox Isl, Thorofare, ME       No prediction  
+8417087         Phipps Pt., ME                           No prediction  
+8417144         Augusta, Mcrr Bridge, Kennebec River,    No prediction  
+8419751         Appledore Island, ME                     No prediction  
+8422272         Adams Point, Durham, NH                  No prediction  
+8422301         Bracketts Point, NH                      No prediction  
+8423005         Atlantic Terminals T14A, NH              No prediction  
+8447819         Monomoy Island - East, MA                No prediction  
+8448151         Tarpaulin Cove, Naushon Is., MA          No prediction  
+8448533         Cape Higgon North, Vineyard Snd, MA      No prediction  
+8449375         Surfside, Nantucket, MA                  No prediction  
+8449383         Coast Guard St, Nantucket, MA            No prediction  
+8453572         Warwick Point, RI                        No prediction  
+8459449         Vails Beach, Block Is. Sound, RI         No prediction  
+8459479         Sandy Point, Block Is, Sound, RI         No prediction  
+8465748         New Haven, CT                            No prediction  
+8469057         Mianus, CT                               No prediction  
+8510321         Montauk Point Light, NY                  No prediction  
+8519024         Fort Wadsworth, Staten Island, NY        No prediction  
+8530345         Garfield Passaic River, NJ               No prediction  
+8530464         Berrys Creek, No. 3, NJ                  No prediction  
+8530502         Berrys Creek, No. 7, NJ                  No prediction  
+8530538         Cromakill Creek, NJ                      No prediction  
+8530576         Mill Creek, Hackensack River, NJ         No prediction  
+8530802         Jersey City Pa-Rr Ferry, NJ              No prediction  
+8531630         Compton Creek, Sandy Hook Bay, NJ        No prediction  
+8533542         Waretown (Backup), NJ                    No prediction  
+8534320         Great Bay Special Project, NJ            No prediction  
+8534469         Reed Bay,West Side, NJ                   No prediction  
+8534772         Ventnor City (Ngs), NJ                   No prediction  
+8534773         Ventnor Offshore 2, NJ                   No prediction  
+8534774         Ventnor Offshore 5 Mi., NJ               No prediction  
+8534779         Steelmanville 2, Patcong River, NJ       No prediction  
+8534780         Steelmanville 3, Patcong River, NJ       No prediction  
+8534781         Steelmanville 4, Patcong River, NJ       No prediction  
+8534782         Steelmanville 5, Patcong River, NJ       No prediction  
+8534884         Tuckahoe 2, Tuckahoe River, NJ           No prediction  
+8534885         Tuckahoe 3, Tuckahoe River, NJ           No prediction  
+8535445         Great Sound, NJ                          No prediction  
+8535555         Jenkins Sound, NJ                        No prediction  
+8536831         Oranoaken Creek, NJ                      No prediction  
+8536840         Brandywine Shoal Lighthouse, NJ          No prediction  
+8536889         Bivale, NJ                               No prediction  
+8536915         Fortescue, Delaware Bay, NJ              No prediction  
+8536999         Dividing Creek, Del Bay, NJ              No prediction  
+8537103         Husted Lnd., NJ                          No prediction  
+8537201         Upper Cedar Creek, NJ                    No prediction  
+8537363         Bayside, NJ                              No prediction  
+8537589         Silver Lake Fork, NJ                     No prediction  
+8537689         Upper Hope Creek, NJ                     No prediction  
+8538055         Mill Creek, Pennsneck, NJ                No prediction  
+8538086         Kates Creek Meadow, NJ                   No prediction  
+8538095         Winslow Farms, Salem R., NJ              No prediction  
+8538414         New Bridge, Oldmans Creek, NJ            No prediction  
+8538479         Sunset Beach, Big Timber Creek, NJ       No prediction  
+8538568         Woodbury Creek, NJ                       No prediction  
+8538779         Pavonia, NJ                              No prediction  
+8538831         Cinnaminson, NJ                          No prediction  
+8539494         Blacks Creek, Delaware River, NJ         No prediction  
+8539808         Sylvan Glen, Crosswicks Creek, NJ        No prediction  
+8542426         Wannamaker Bridge 2 (Backup), PA         No prediction  
+8543025         Tinicum 2, Darby Creek, PA               No prediction  
+8543111         Tinicum 1, Darby Creek, PA               No prediction  
+8545534         Philadelphia (Temporary Adr), PA         No prediction  
+8554501         Elbow Of Cross Ledge Light, DE           No prediction  
+8555461         Fourteen Foot Bank Light, DE             No prediction  
+8557125         Harbor Of Refuge Light, DE               No prediction  
+8558101         White Oak Point, Rehoboth Bay, DE        No prediction  
+8558695         Indian River Inlet, Test Gage 5, DE      No prediction  
+8558788         Millsboro Bridge, Indian River, DE       No prediction  
+8558789         Oak Orchard, Indian River, DE            No prediction  
+8559885         Little Assawoman, Fenwick Isl., DE       No prediction  
+8570435         Nps #1, Sinepuxent Bay, MD               No prediction  
+8570509         Old Ferry Landing, MD                    No prediction  
+8570616         Nps #2, Sinepuxent Bay, MD               No prediction  
+8570819         Nps #3, Chincoteague Bay, MD             No prediction  
+8571073         Daymarker #2, Smith Island, MD           No prediction  
+8571266         Rumbley, Manokin River, MD               No prediction  
+8571289         Channel Light #6,Little Deal Is, MD      No prediction  
+8571477         Nanticoke, MD                            No prediction  
+8571890         Cambridge, MD                            No prediction  
+8574071         Harve De Grace (Backup), MD              No prediction  
+8574726         Bear Creek Marina, MD                    No prediction  
+8574848         Curtis Creek (Opr 514), MD               No prediction  
+8575510         Annapolis, Naval Radio Station, MD       No prediction  
+8577385         Navy Seaplane Basin Boathouse, MD        No prediction  
+8630316         Harbor Of Refuge, Chincoteague, VA       No prediction  
+8630441         Wallops Island, VA                       No prediction  
+8631935         Delmarva Gps Buoy, VA                    No prediction  
+8632201         Kiptopeke Beach (Backup), VA             No prediction  
+8636581         Windmill Point (Backup), VA              No prediction  
+8636749         Fishing Bay, VA                          No prediction  
+8637289         New Point, VA                            No prediction  
+8637589         New Pt.Comfort Shoal, (Backup), VA       No prediction  
+8637590         New Point, Comfort Shoal, VA             No prediction  
+8637722         York Spit Light, VA                      No prediction  
+8638864         Edl Gage Ches Bay Br Tunnel Test, VA     No prediction  
+8638865         Ches. Bay Test Facility, VA              No prediction  
+8638866         Ches Bay Br Test Fac (Backup), VA        No prediction  
+8638868         Well D, Ches Bay Br Tunnel Test, VA      No prediction  
+8638869         Well J, Ches Bay Br Tunnel Test, VA      No prediction  
+8638905         Lynnhaven Fishing Pier, VA               No prediction  
+8638942         Carters Point #1, VA                     No prediction  
+8638946         Carters Point #2, VA                     No prediction  
+8638978         Cavalier Yacht Club,Linkhorn Bay, VA     No prediction  
+8638979         Chesapeake Light, VA                     No prediction  
+8639519         Bells Mill Creek, VA                     No prediction  
+8639908         Munden Point, North Landing River, VA    No prediction  
+8650249         South Shore Knotts Island, NC            No prediction  
+8650946         Elizabeth City, NC                       No prediction  
+8651097         Chowan River, E Of Harrellsville, NC     No prediction  
+8651371         Duck, (Inshore), NC                      No prediction  
+8651538         Frog Island, NC                          No prediction  
+8651687         Point Harbor, NC                         No prediction  
+8651817         Edenhouse Point, NC                      No prediction  
+8651986         Albemarle Sound, South Shore, NC         No prediction  
+8652232         Manteo, Shallowbag Bay, NC               No prediction  
+8652715         Pea Island #2, NC                        No prediction  
+8652827         North Fork Alligator River Nc 94, NC     No prediction  
+8652905         Lake Worth, NC                           No prediction  
+8653084         East Lake, Buck Island, NC               No prediction  
+8653305         Long Shoal Lt., NC                       No prediction  
+8653365         Washington, Tar River, NC                No prediction  
+8653395         Belhaven, Pungo River, NC                No prediction  
+8653717         Bayview, Pamlico River, NC               No prediction  
+8653795         Swanquarter, NC                          No prediction  
+8653901         Gull Shoal, NC                           No prediction  
+8653960         Avon, NC                                 No prediction  
+8654572         Ocracoke Island, NC                      No prediction  
+8654812         New Bern, Trent River, NC                No prediction  
+8654875         River Dunes, NC                          No prediction  
+8655353         Portsmouth, NC                           No prediction  
+8655875         Sea Level, NC                            No prediction  
+8656486         N.C.A.R. State Fisheries, NC             No prediction  
+8656612         Calico Jacks Marina, Harker'S Island,    No prediction  
+8658681         Reaves Pt. Ch., Cape Fear River, NC      No prediction  
+8659898         Sunset Beach Bridge, NC                  No prediction  
+8659942         Colkins Neck, Little River, NC           No prediction  
+8659944         Calabash Creek Bridge, NC                No prediction  
+8659960         Bird Island, Little River Inlet, NC      No prediction  
+8660271         North Myrtle Beach, SC                   No prediction  
+8660754         Carolina Forest, SC                      No prediction  
+8661000         Myrtle Beach, SC                         No prediction  
+8664561         Cainhoy, Wando River, SC                 No prediction  
+8666102         Secessionvhlle Creek, SC                 No prediction  
+8666135         Combahee River, 17A, SC                  No prediction  
+8666653         Folly River South (Test Float), SC       No prediction  
+8667034         Combahee River At Railroad Bridge, SC    No prediction  
+8667623         Scott Creek, Edisto Island, SC           No prediction  
+8669246         Brighton Beach, SC                       Request timeo  
+8670893         Palmer Johnson Shipyard, Wilmington R.   No prediction  
+8671029         Tybee Marina, Tybee Creek, GA            No prediction  
+8674599         North Blackbeard Is, Sapelo Snd, GA      No prediction  
+8675623         Sapelo Island (Outside), GA              No prediction  
+8679909         Range "A" Light Tower, GA                No prediction  
+8720008         Platform Off Tiger Island, FL            No prediction  
+8720012         Cut 2N Front Range, St Marys River Ent   No prediction  
+8720224         Mayport, St Johns River, FL              No prediction  
+8720244         Mill Cove, FL                            No prediction  
+8720268         Jacksonville,Acosta Bridge, FL           No prediction  
+8720623         Anastasia Island, FL                     No prediction  
+8720805         Moccasin Landing, FL                     No prediction  
+8720841         Shell Bluff, Crescent Lake, FL           No prediction  
+8720855         Crescent City, FL                        No prediction  
+8721020         Daytona Beach (Ocean), FL                No prediction  
+8721136         North Turnbull Bay, FL                   No prediction  
+8721191         Edgewater, Indian River, FL              No prediction  
+8721374         Allenhurst,Haulover Canal, FL            No prediction  
+8721456         Titusville, Indian River, FL             No prediction  
+8721608         Canaveral Harbor Entrance, FL            No prediction  
+8721749         Pineda, Indian River, FL                 No prediction  
+8721832         Melbourne, Indian River, FL              No prediction  
+8721874         Palm Bay, Indian River, FL               No prediction  
+8722208         North Beach Causeway, FL                 No prediction  
+8722338         Jensen Beach, Indian River, FL           No prediction  
+8722482         Nw Fork,Loxahatchee River, FL            No prediction  
+8722487         Tequesta, North, FL                      No prediction  
+8722488         Tequesta, Loxahatchee River, FL          No prediction  
+8723574         Manatee Creek, Barnes Sound, FL          No prediction  
+8723582         Basin Hills,Key Largo, FL                No prediction  
+8723613         Jewfish Creek, Barnes Sound, FL          No prediction  
+8723678         Sunset Cove, Key Largo, FL               No prediction  
+8723688         Rock Harbor Inside, FL                   No prediction  
+8723692         Pt. Charles, Gage 'D',Key Largo, FL      No prediction  
+8723693         Gage A, Point Charles, Key Largo, FL     No prediction  
+8723741         Tavernier (Inside), Florida Bay, FL      No prediction  
+8724305         Cudjoe Key East Side, FL                 No prediction  
+8724363         Sugarloaf Shores West, FL                No prediction  
+8724375         Sugarloaf Beach (Inside), FL             No prediction  
+8724377         Sugarloaf Shores North, FL               No prediction  
+8724487         Mud Keys, FL                             No prediction  
+8724639         West Jetty Navaid, FL                    No prediction  
+8724646         Western Dry Rocks, FL                    No prediction  
+8724951         Panther Key, FL                          No prediction  
+8724962         Fakahatchee River Entrance, FL           No prediction  
+8724970         Faka Union Bay, FL                       No prediction  
+8724971         David Key, Barfield Bay, FL              No prediction  
+8724975         Blackwater River Entrance, FL            No prediction  
+8724979         Big Marco River, U.S. 92, FL             No prediction  
+8724992         Addison Bay, FL                          No prediction  
+8725024         Henderson Creek, FL                      No prediction  
+8725079         Dollar Bay, North, FL                    No prediction  
+8725171         Outer Clam Bay, FL                       No prediction  
+8725222         Water Turkey Bay, FL                     No prediction  
+8725259         Little Hickory Bay, FL                   No prediction  
+8725269         Imperial River Entrance, FL              No prediction  
+8725271         Imperial River, Headwaters, FL           No prediction  
+8725272         Fish Trap Bay, FL                        No prediction  
+8725331         Ostego Bay, Estero Bay, FL               No prediction  
+8725368         Hurricane Bay, San Carlos Island, FL     No prediction  
+8725665         Little Gasparilla Island, FL             No prediction  
+8725691         South Lemon Bay, FL                      No prediction  
+8725781         Shell Creek, Peace River, FL             No prediction  
+8725782         Shell Creek, Seaboard Rr, FL             No prediction  
+8725835         Liverrpool, Peace River, FL              No prediction  
+8725899         Nokomis, Venice Inlet, FL                No prediction  
+8725902         Shakett Creek, FL                        No prediction  
+8725916         Casey Key, FL                            No prediction  
+8725943         Blackburn Point, FL                      No prediction  
+8725985         Siesta Key, FL                           No prediction  
+8726045         Hayden Roberts Bay, FL                   No prediction  
+8726089         Longboat Key, FL                         No prediction  
+8726159         Whitfield Estates, Sarasota Bay, FL      No prediction  
+8726232         Perico Island, FL                        No prediction  
+8726233         Palma Sola Bay, South, FL                No prediction  
+8726249         Palma Sola Bay North, FL                 No prediction  
+8726254         Perico Bayou, FL                         No prediction  
+8726273         Desoto Point, FL                         No prediction  
+8726277         Fort Hamer, FL                           No prediction  
+8726353         Bishop Harbor, FL                        No prediction  
+8726425         Cockroach Bay, FL                        No prediction  
+8726428         Tierra Verde, FL                         No prediction  
+8726430         St Petersburg Beach South End, FL        No prediction  
+8726467         Marsh Branch, Ruskin, FL                 No prediction  
+8726492         Mangrove Point Inside, FL                No prediction  
+8726522         St. Petersburg, (Temp Adr), FL           No prediction  
+8726572         The Kitchen, FL                          No prediction  
+8726573         Gadsden Point, Tampa Bay, FL             No prediction  
+8726575         Reddington Long Pier, FL                 No prediction  
+8726601         Indian Rocks Beach, FL                   No prediction  
+8726604         Long Shoal, Macdill Afb, FL              No prediction  
+8726614         Alafia River North, FL                   No prediction  
+8726632         Archie Creek, FL                         No prediction  
+8726668         Tampa, Hooker Point, Hillsborough Bay,   No prediction  
+8726685         Twenty-Second St. Causeway, FL           No prediction  
+8726693         Hillsborough River Entrance, FL          No prediction  
+8726696         Palm River Entrance, FL                  No prediction  
+8726699         Palm River, FL                           No prediction  
+8726711         West Tampa, Hillsborough River, FL       No prediction  
+8726739         Dick Creek, FL                           No prediction  
+8726768         Double Branch, FL                        No prediction  
+8726774         Caladesi Island, Inside, FL              No prediction  
+8726808         Honeymoon Island, South, FL              No prediction  
+8726809         Honneymoon Island, Inside, FL            No prediction  
+8726819         Ozona, FL                                No prediction  
+8726833         Sutherland Bayou, Palm Harbor, FL        No prediction  
+8726834         Honeymoon Island, North Point, FL        No prediction  
+8726853         Indian Bluff Island, FL                  No prediction  
+8726892         Spring Bayou, Tarpon Springs, FL         No prediction  
+8726899         Kreamer Bayou, FL                        No prediction  
+8726904         Howard Park, FL                          No prediction  
+8726906         River Village, Anclote River, FL         No prediction  
+8726908         North Fork, Anclote River, FL            No prediction  
+8726976         Baileys Bluff Inside, FL                 No prediction  
+8726978         Baileys Bluff Gulfside, FL               No prediction  
+8726988         Fillmans Creek, New Port Richey, FL      No prediction  
+8726996         Cross Bayou, New Port Richey, FL         No prediction  
+8727003         Oyster Creek New Port Richey, FL         No prediction  
+8727021         Salt Springs Run Port Richey, FL         No prediction  
+8727086         Fillmans Bayou, FL                       No prediction  
+8727188         Raccoon Point, FL                        No prediction  
+8727411         Yankeetown, Withlacoochee River, FL      No prediction  
+8727433         Lows Bay, FL                             No prediction  
+8727471         Waccasassa River, FL                     No prediction  
+8727512         Fowler Bluff, Suwannee River, FL         No prediction  
+8727558         Suwannee River Entrance, FL              No prediction  
+8727604         Shired Island, FL                        No prediction  
+8727705         Sink Creek, FL                           No prediction  
+8727751         Dallus Creek, FL                         No prediction  
+8727809         Dekle Beach, FL                          No prediction  
+8727892         Fenholloway River, FL                    No prediction  
+8728151         St. Marks City, FL                       No prediction  
+8728171         Wakulla River, FL                        No prediction  
+8728255         Alligator Harbor, FL                     No prediction  
+8728258         Fiddlers Point, FL                       No prediction  
+8728261         Alligator Point, Sw Cape, FL             No prediction  
+8728311         St. Teresa Beach, FL                     No prediction  
+8728351         Ochlockonee River State Park, FL         No prediction  
+8728366         Mcintyre, Ochlockonee River, FL          No prediction  
+8728706         Apalachicola River North Bloody Bluff    No prediction  
+8728715         Apalachicola River, North, FL            No prediction  
+8728941         North Prong, Wetappo Creek, FL           No prediction  
+8728942         Cape San Blas, FL                        No prediction  
+8728949         Richardson Hammock, St. Joseph Bay, FL   No prediction  
+8728995         Mexico Beach, FL                         No prediction  
+8729022         St. Andrew Sound, East End, FL           No prediction  
+8729039         Parker Branch, Laird Bayou, East Bay,    No prediction  
+8729052         St Andrew Sound, FL                      No prediction  
+8729063         Callaway Bayou, East Bay, FL             No prediction  
+8729071         Mill Bayou, North Bay, FL                No prediction  
+8729083         Dupont Bridge, East Bay, FL              No prediction  
+8729085         Pearl Bayou, East Bay, FL                No prediction  
+8729101         Southport, North Bay, FL                 No prediction  
+8729105         Beacon Beach, St Andrew Bay, FL          No prediction  
+8729107         Massalina Bayou, St. Andrew Bay, FL      No prediction  
+8729117         South Of Davis Point, St. Andrew Bay,    No prediction  
+8729119         Shell Island, St. Andrews Bay, FL        No prediction  
+8729141         St. Andrews State Park, Grand Lagoon,    No prediction  
+8729149         St. Andrew State Park, FL                No prediction  
+8729154         Burnt Mill Creek, West Bay, FL           No prediction  
+8729155         Grand Lagoon, West End, FL               No prediction  
+8729169         Shell Point, West Bay, FL                No prediction  
+8729179         Crooked Creek, West Bay, FL              No prediction  
+8729189         Panama City Beach, FL                    No prediction  
+8729329         Choctawhatchee River, FL                 No prediction  
+8729332         Jolly Bay, Choctawhatchee Bay, FL        No prediction  
+8729333         La Grange Bayou, FL                      No prediction  
+8729364         Allaquay Bayou, FL                       No prediction  
+8729381         Basin Creek, FL                          No prediction  
+8729387         Basin Bayou, Choctawhatchee Bay, FL      No prediction  
+8729435         Big Hammock Pt, Choctawhatchee Bay, FL   No prediction  
+8729505         Old Pass Lagoon, FL                      No prediction  
+8729548         Camp Pinchot, FL                         No prediction  
+8729554         Fort Walton Beach, Santa Rosa Sound, F   No prediction  
+8729567         Cinco Bayou, FL                          No prediction  
+8729598         Hulbert Field, FL                        No prediction  
+8729679         Santa Rosa Sound, East End, FL           No prediction  
+8729681         Navarre Beach, FL                        No prediction  
+8729738         Upper Blackwater River, FL               No prediction  
+8729757         Milton, FL                               No prediction  
+8729793         Mullatto Bayou, FL                       No prediction  
+8729808         Little Sabine Bay, FL                    No prediction  
+8729849         Bayou Chico, FL                          No prediction  
+8729851         Chemstrand Pier, FL                      No prediction  
+8729871         Warrington, Bayou Grande, FL             No prediction  
+8729882         Fort Pickens, Pensacola Bay, FL          No prediction  
+8729889         Head Of Bayou Grande, FL                 No prediction  
+8729938         Tarklin Bay, FL                          No prediction  
+8729943         Hurst Hammock, Perdido River, FL         No prediction  
+8729949         North Perdido River, FL                  No prediction  
+8729974         Perdido Key, Old River, FL               No prediction  
+8735184         Dauphin Island (Temp), AL                No prediction  
+8735587         North Point, Dauphin Island, AL          No prediction  
+8740175         B.H. Fish Camp, Bayou Heron, MS          No prediction  
+8740965         Ms Chemical Co., Bayou Casotte, MS       No prediction  
+8741414         Escatawpa, Pascagoula R., MS             No prediction  
+8741429         L&N Bridge, Pascagoula River, MS         No prediction  
+8741798         Gautier, MS                              No prediction  
+8742523         North Shore, MS                          No prediction  
+8742947         Eastern Old Fort Bayou, MS               No prediction  
+8743181         Old Fort Bayou, Ocean Springs Marina,    No prediction  
+8743301         Bayou Talla, Back Bay Of Biloxi, MS      No prediction  
+8743495         Ocean Springs, Old Fort Bayou, MS        No prediction  
+8743639         Bayou Poito, Back Bay Of Biloxi, MS      No prediction  
+8743812         Deer Island, MS                          No prediction  
+8743838         Langley Point, MS                        No prediction  
+8744284         Keesler Afb, Back Bay Of Biloxi, MS      No prediction  
+8744391         Cedar Lake,Tchoutacabouffa River, MS     No prediction  
+8744663         Tchoutacabouffa River Entrance, MS       No prediction  
+8744671         Popps Ferry, Back Bay Of Biloxi, MS      No prediction  
+8744934         Biloxi River, Lower End, MS              No prediction  
+8745555         Landon, MS                               No prediction  
+8746487         Eastern Wolf River, MS                   No prediction  
+8746724         Johnson Bayou, MS                        No prediction  
+8746737         Cuevas, Eastern Bayou Portage, MS        No prediction  
+8746908         Delisle, Delisle Bayou, MS               No prediction  
+8746943         Henderson Avenue Bridge, Bayou Portage   No prediction  
+8747038         Henderson Avenue Bridge, Wolf River, M   No prediction  
+8747131         Mallini Bayou North, MS                  No prediction  
+8747145         Mallini Bayou South, MS                  No prediction  
+8747398         North Shore, Bay Of St. Louis, MS        No prediction  
+8747739         Jourdan River Entrance, MS               No prediction  
+8747819         Watts Bayou, Jourdan River, MS           No prediction  
+8747934         Cutoff Bayou, MS                         No prediction  
+8747961         Rotten Bayou, MS                         No prediction  
+8748005         Breath Bayou, Jourdan River, MS          No prediction  
+8748087         Lower Jourdan River, MS                  No prediction  
+8748145         Bayou La Croix, MS                       No prediction  
+8748318         Bayou Phillip, MS                        No prediction  
+8748371         Jourdan River, MS                        No prediction  
+8748469         Bayou La Croix West, MS                  No prediction  
+8748568         Jourdan River West, MS                   No prediction  
+8760550         South Pass, LA                           No prediction  
+8760781         Shell Oil, East Bay, LA                  No prediction  
+8760783         Southwest Pass, LA                       No prediction  
+8760849         Venice, Grand Pass, LA                   No prediction  
+8761193         Empire, Mississippi River, LA            No prediction  
+8761198         Chevron Station 289, Pelican Island, L   No prediction  
+8761207         Empire, Doullut Canal, LA                No prediction  
+8761385         Vicinity Of Uno Chef Menteur, LA         No prediction  
+8761414         Billet Bay Community, Billet Bay, LA     No prediction  
+8761426         Greens Ditch, Lake St. Catherine, LA     No prediction  
+8761484         Lease Vb #4, Bayou Dulac, LA             No prediction  
+8761494         West Point A La Hache, Miss. River, LA   No prediction  
+8761534         Big Point, Lake Pontchartrain, LA        No prediction  
+8761602         Lake Judge Perez, Hermitage Bayo, LA     No prediction  
+8761679         St. Marys Point, Barataria Bay, LA       No prediction  
+8761699         S.N.G. Co., Lacombe Bayou, LA            No prediction  
+8761720         Grand Isle, LA                           No prediction  
+8761727         Alliance, Mississippi River, LA          No prediction  
+8761799         M.V. Petroleum Dock, Bayou St Denis, L   No prediction  
+8761955         Carrollton, LA                           No prediction  
+8761959         Equitable Petroleum Dock, Turtle Bay,    No prediction  
+8761962         Texaco Gas Exploration Dock, Bay Rambo   No prediction  
+8762079         Fourchon (Lumcon), LA                    No prediction  
+8762231         Salvador Wma, Lake Salvador, LA          No prediction  
+8762273         East End, Pass Manchac, LA               No prediction  
+8762419         U.S. Highway 51, Pass Manchac, LA        No prediction  
+8762482         West Bank 1, Bayou Gauche, LA            No prediction  
+8762483         I-10 Bonnet Carre Floodway, LA           No prediction  
+8762571         Pt. Au Chien Wma, St Louis Canal, LA     No prediction  
+8762582         Timbalier Island, Timbalier Bay, LA      No prediction  
+8762731         Point Barre, Humble Canal, LA            No prediction  
+8762788         Carthage Bluff Ldg, Amite River, LA      No prediction  
+8762938         Texaco Tb#3, Bayou Petit Caillou, LA     No prediction  
+8763027         La Highway 57, Bayou Dulac, LA           No prediction  
+8763153         Superior Oil, Four Island Bayou, LA      No prediction  
+8763921         Doiron Landing, LA                       No prediction  
+8763986         Morgan City, LA                          No prediction  
+8764101         Deer Island, LA                          No prediction  
+8764311         Eugene Island, LA                        No prediction  
+8764361         Wax Lake Outlet, LA                      No prediction  
+8764632         Salt Point, LA                           No prediction  
+8765171         New Iberia, LA                           No prediction  
+8765258         Cypremort Point, LA                      No prediction  
+8766503         Rollover Bayou, LA                       No prediction  
+8766769         Lake Arthur, LA                          No prediction  
+8770501         Annie'S Landing, San Jacinto River, TX   No prediction  
+8770590         Sabine Pass, TX                          No prediction  
+8770597         Orange, TX                               No prediction  
+8771021         Trinity River Channel Platform, TX       No prediction  
+8771081         Sabine Offshore, TX                      No prediction  
+8771904         Galveston Offshore, TX                   No prediction  
+8773156         Palacios, TX                             No prediction  
+8773385         Matagorda Peninsula, TX                  No prediction  
+8773963         North Matagorda, TX                      No prediction  
+8775238         Port Aransas (Special Project), TX       No prediction  
+8775351         Corpus Christi, TX                       No prediction  
+8776139         S. Bird Island, TX                       No prediction  
+8776604         Baffin Bay, TX                           No prediction  
+8776639         Riviera Beach, Baffin Bay, TX            No prediction  
+8776687         Yarbrough Pass, TX                       No prediction  
+8777562         El Toro, TX                              No prediction  
+8777812         Rincon Del San Jose, TX                  No prediction  
+8778490         Port Mansfield, TX                       No prediction  
+8779040         Green Is #1, West Side, TX               No prediction  
+8779571         Cameron Co. Fishing Pier, TX             No prediction  
+8779751         Padre Island, South End, TX              No prediction  
+8779753         South Padre Is., (Modified Bulb), TX     No prediction  
+8779977         Brownsville, TX                          No prediction  
+9014070         Algonac, MI                              HTTP 400       
+9014080         St. Clair State Police, MI               HTTP 400       
+9014081         St. Clair, MI                            HTTP 400       
+9014084         Marysville, MI                           HTTP 400       
+9014087         Dry Dock, MI                             HTTP 400       
+9014090         Mouth Of The Black River, MI             HTTP 400       
+9014091         Mouth Of The Black River, MI             HTTP 400       
+9014095         Port Huron, North Of Blue Water Bridge   HTTP 400       
+9014096         Dunn Paper, MI                           HTTP 400       
+9014098         Fort Gratiot, MI                         HTTP 400       
+9014099         Fort Gratiot, MI                         HTTP 400       
+9034051         Grosse Pointe Yc, MI                     HTTP 400       
+9034052         St Clair Shores, MI                      HTTP 400       
+9034055         Point Huron, MI                          HTTP 400       
+9034057         New Baltimore, Lake St. Clair, MI        HTTP 400       
+9034058         Minnich Dock, MI                         HTTP 400       
+9044020         Gibraltar, MI                            HTTP 400       
+9044030         Wyandotte, MI                            HTTP 400       
+9044035         Fort Wayne, MI                           HTTP 400       
+9044036         Fort Wayne, MI                           HTTP 400       
+9044049         Windmill Point, MI                       HTTP 400       
+9052000         Cape Vincent, NY                         HTTP 400       
+9052001         Tibbetts Point, NY                       HTTP 400       
+9052012         Sackets Harbor, NY                       HTTP 400       
+9052015         Stony Island, NY                         HTTP 400       
+9052025         Port Ontario, Lake Ontario, NY           HTTP 400       
+9052030         Oswego, NY                               HTTP 400       
+9052043         Little Sodus Bay, Lake Ontario, NY       HTTP 400       
+9052058         Rochester, NY                            HTTP 400       
+9052069         Entrance To Sandy Creek, Lake Ontario,   HTTP 400       
+9052076         Olcott, NY                               HTTP 400       
+9052090         Fort Niagara, NY                         HTTP 400       
+9063007         Ashland Ave, NY                          HTTP 400       
+9063009         American Falls, NY                       HTTP 400       
+9063010         American Falls, NY                       HTTP 400       
+9063012         Niagara Intake, NY                       HTTP 400       
+9063013         La Salle Yacht Club, NY                  HTTP 400       
+9063015         Beaver Island State Park, Niagara Rive   HTTP 400       
+9063016         Huntley Station, NY                      HTTP 400       
+9063017         Black Rock Canal, NY                     HTTP 400       
+9063018         Tonawanda Island, NY                     HTTP 400       
+9063019         Peace Bridge, NY                         HTTP 400       
+9063020         Buffalo, NY                              HTTP 400       
+9063028         Sturgeon Point, NY                       HTTP 400       
+9063029         Dunkirk, NY                              HTTP 400       
+9063032         Barcelona, NY                            HTTP 400       
+9063038         Erie, Lake Erie, PA                      HTTP 400       
+9063043         Conneaut, OH                             HTTP 400       
+9063048         Ashtabula, NY                            HTTP 400       
+9063053         Fairport, OH                             HTTP 400       
+9063063         Cleveland, OH                            HTTP 400       
+9063069         Lorain, OH                               HTTP 400       
+9063074         Huron, OH                                HTTP 400       
+9063075         Old Woman Creek Nerrs, OH                HTTP 400       
+9063079         Marblehead, OH                           HTTP 400       
+9063083         Port Clinton, OH                         HTTP 400       
+9063085         Toledo, OH                               HTTP 400       
+9063087         Monroe, MI                               HTTP 400       
+9063090         Fermi Power Plant, MI                    HTTP 400       
+9063091         Cooley Creek, Lake Erie, OH              HTTP 400       
+9063097         Put In Bay, OH                           HTTP 400       
+9063112         Conners Island, Niagara River, NY        HTTP 400       
+9063117         Ontario Street, NY                       HTTP 400       
+9075002         Lakeport, MI                             HTTP 400       
+9075011         Port Sanilac, MI                         HTTP 400       
+9075014         Harbor Beach, MI                         HTTP 400       
+9075024         Port Austin, MI                          HTTP 400       
+9075031         Sebewaing, Lake Huron, MI                HTTP 400       
+9075034         Essexville, MI                           HTTP 400       
+9075035         Essexville, MI                           HTTP 400       
+9075041         Great Lakes Shores Marina, MI            HTTP 400       
+9075045         Point Lookout, MI                        HTTP 400       
+9075056         Oscoda, Lake Huron, MI                   HTTP 400       
+9075057         Black River, MI                          HTTP 400       
+9075059         Harrisville, MI                          HTTP 400       
+9075065         Alpena, MI                               HTTP 400       
+9075073         Rogers City, MI                          HTTP 400       
+9075076         Cheboygan, MI                            HTTP 400       
+9075079         Mackinaw City, MI                        HTTP 400       
+9075080         Mackinaw City, MI                        HTTP 400       
+9075092         Cedarville, MI                           HTTP 400       
+9075098         Detour On Lake Huron, MI                 HTTP 400       
+9075099         De Tour Village, MI                      HTTP 400       
+9076024         Rock Cut, MI                             HTTP 400       
+9076027         West Neebish Island, MI                  HTTP 400       
+9076028         Lookout Station #4, MI                   HTTP 400       
+9076032         Little Rapids, MI                        HTTP 400       
+9076033         Little Rapids, MI                        HTTP 400       
+9076050         Frechette Point, MI                      HTTP 400       
+9076060         U.S. Slip, MI                            HTTP 400       
+9076070         S.W. Pier, St. Marys River, MI           HTTP 400       
+9087005         Petoskey, Lake Michigan, MI              HTTP 400       
+9087010         Traverse City, MI                        HTTP 400       
+9087012         Northport, MI                            HTTP 400       
+9087018         Frankfort, MI                            HTTP 400       
+9087023         Ludington, MI                            HTTP 400       
+9087028         Muskegon, MI                             HTTP 400       
+9087031         Holland, MI                              HTTP 400       
+9087036         St. Joseph, MI                           HTTP 400       
+9087038         Michigan City, IN                        HTTP 400       
+9087042         Indiana Harbor, IN                       HTTP 400       
+9087044         Calumet Harbor, IL                       HTTP 400       
+9087050         Waukegan, IL                             HTTP 400       
+9087057         Milwaukee, WI                            HTTP 400       
+9087058         Milwaukee, Lake Michigan, WI             HTTP 400       
+9087064         Manitowoc, WI                            HTTP 400       
+9087068         Kewaunee, Lake Michigan, WI              HTTP 400       
+9087072         Sturgeon Bay Canal, WI                   HTTP 400       
+9087077         Green Bay East, WI                       HTTP 400       
+9087078         Green Bay, WI                            HTTP 400       
+9087079         Green Bay, WI                            HTTP 400       
+9087088         Menominee, MI                            HTTP 400       
+9087089         Cedar River, MI                          HTTP 400       
+9087090         Escanaba, MI                             HTTP 400       
+9087091         Anderson Point, MI                       HTTP 400       
+9087094         Manistique, MI                           HTTP 400       
+9087096         Port Inland, MI                          HTTP 400       
+9087175         Fish Creek Harbor, Lake Michigan, WI     HTTP 400       
+9099004         Point Iroquois, MI                       HTTP 400       
+9099007         Whitefish Point, Lake Superior, MI       HTTP 400       
+9099010         Grand Marais, MI                         HTTP 400       
+9099013         Munising, MI                             HTTP 400       
+9099016         Marquette, MI                            HTTP 400       
+9099018         Marquette C.G., MI                       HTTP 400       
+9099020         Big Bay, MI                              HTTP 400       
+9099025         Keweenaw [Le], MI                        HTTP 400       
+9099039         Eagle Harbor, MI                         HTTP 400       
+9099041         Keweenaw [Ue], MI                        HTTP 400       
+9099044         Ontonagon, MI                            HTTP 400       
+9099047         Black River, Lake Superior, MI           HTTP 400       
+9099050         Ashland, MI                              HTTP 400       
+9099055         Cornucopia, MI                           HTTP 400       
+9099062         Superior Nerrs, WI                       HTTP 400       
+9099064         Duluth, MN                               HTTP 400       
+9099070         Two Harbor, MN                           HTTP 400       
+9099075         Beaver Bay, MN                           HTTP 400       
+9099090         Grand Marais, Lake Superior, MN          HTTP 400       
+9410025         Oneonta Slough,Tijuana Est., CA          No prediction  
+9410155         Ballast Point, CA                        No prediction  
+9410179         Ocean Beach, Point Loma, CA              No prediction  
+9410302         San Elijo Lagoon, CA                     No prediction  
+9410396         Oceanside Harbor, CA                     No prediction  
+9411013         Mugu Lagoon Bridge, CA                   No prediction  
+9414510         Dumbarton Railroad Bridge, CA            No prediction  
+9414537         Palo Alto, Channel Marker 8, S. F. Bay   No prediction  
+9414585         Upper Coyote Creek, Tributary 3, CA      No prediction  
+9414589         Coyote Creek, Tributary 2, S. F. Bay,    No prediction  
+9414759         Holly Sugar Ref.,Tom Paine Sl., CA       No prediction  
+9414768         Mossdale,San Joaquin River, CA           No prediction  
+9414778         Naglee Bridge,Old River, CA              No prediction  
+9414794         Clifton Court Ferry,Old River, CA        No prediction  
+9414796         Gps Buoy, San Francisco Bay, CA          No prediction  
+9414867         Borden Highway Bridge, San Joaquin Riv   No prediction  
+9415004         Eldorado Pump, San Joaquin River, CA     No prediction  
+9415027         Bacon Island,Middle River, CA            No prediction  
+9415124         Hamilton Afb (Outside), CA               No prediction  
+9415126         Hamilton Afb (Inside), CA                No prediction  
+9415151         Venice Island, Venice Cut, CA            No prediction  
+9415187         San Pablo Bay, CA                        No prediction  
+9415198         Potato Pt,Venice Is,Sn Jqn R, CA         No prediction  
+9415320         Reynolds, Tomales Bay, CA                Request timeo  
+9415352         Isleton,Sacramento River, CA             No prediction  
+9415423         Lakeville, Petaluma River, CA            No prediction  
+9415438         Skaggs Island, Hudeman Slough, CA        No prediction  
+9415477         Sand Point, Tomales Bay, CA              No prediction  
+9415479         Ryer Island, Cache Slough, CA            No prediction  
+9415489         Walnut Grove,Sacramento River, CA        No prediction  
+9415522         Benson Ferry Bridge,Mokelumne R., CA     No prediction  
+9418739         Red Bluff, Humboldt Bay, CA              No prediction  
+9418799         Freshwater Slough, Humboldt Bay, CA      No prediction  
+9418983         Upper Mad River Slough, CA               No prediction  
+9419551         Requa Dock, CA                           No prediction  
+9432771         Cape Arago Lighthouse, OR                No prediction  
+9432796         Isthmus Slough, Coos Bay, OR             No prediction  
+9432895         North Bend, Coos Bay, OR                 No prediction  
+9435827         Depoe Bay, OR                            No prediction  
+9436641         Nestucca Bay, OR                         No prediction  
+9438125         Multnomah Channel, OR                    No prediction  
+9438478         Seaside, OR                              No prediction  
+9439008         Fort Stevens, OR                         No prediction  
+9439135         Beaver, OR                               No prediction  
+9440372         Kalama, Columbia River, WA               No prediction  
+9440521         Cathlamet, Columbia River, WA            No prediction  
+9440571         Altoona, Columbia River, WA              No prediction  
+9440575         Knappton, WA                             No prediction  
+9441644         Taholah, WA                              No prediction  
+9445296         Seabeck, Hood Canal, WA                  No prediction  
+9446491         Arletta, WA                              HTTP 504       
+9446545         Tacoma, WA                               No prediction  
+9447111         Lockheed Shipyard Test Site, WA          No prediction  
+9447112         Lockheed Shipyrd, 6 In Test Well, WA     No prediction  
+9447113         Lockheed Shipyard,4 In Test Well, WA     No prediction  
+9447114         Lockheed Shipyard (Backup), WA           No prediction  
+9447115         Lockheed Shipyard, WA                    No prediction  
+9447239         Sand Point, WA                           No prediction  
+9447729         Marysville, WA                           No prediction  
+9448233         Madronna Beach, Camano Island, WA        No prediction  
+9449747         Point Disney, Waldron Island, WA         No prediction  
+9449808         Johns Island, WA                         No prediction  
+9449896         Fish Creek, WA                           No prediction  
+9449995         Point Colville, Lopez Island, WA         No prediction  
+9450251         Entrance To Windy Cove, AK               No prediction  
+9450286         Dunbar Inlet Gps Tide Buoy, AK           No prediction  
+9450466         Mckenzie Inlet, AK                       No prediction  
+9450467         Polk Inlet, AK                           No prediction  
+9450618         Shinaku Inlet, AK                        No prediction  
+9450623         Big Salt Lake, AK                        No prediction  
+9450642         Northern Carroll Inlet Gps Tide Buoy,    No prediction  
+9450761         Vixen Harbor, Earnest Sound, AK          No prediction  
+9450949         Burnette Inlet, Etolin Island, AK        No prediction  
+9451454         Security Bay Gps Buoy, AK                No prediction  
+9452046         Windham Bay East, Stephens Passage, AK   No prediction  
+9452069         Tracy Arm, Holkham Bay, AK               No prediction  
+9452131         Taku Inlet (Middle), Taku River Entran   No prediction  
+9452141         Annex Creek Entrance, AK                 No prediction  
+9452184         Oliver Inlet, Portage, AK                No prediction  
+9452292         Hawk Inlet, AK                           No prediction  
+9452377         St. James Bay, AK                        No prediction  
+9452378         Boat Harbor, AK                          No prediction  
+9452542         Port Gustavus, AK                        No prediction  
+9452569         Lemesurier Island (Backup), AK           No prediction  
+9452635         Elfin Cove, Port Althorp (Backup), AK    No prediction  
+9453178         Russell Fiord, AK                        No prediction  
+9453196         Disenchantment Bay, AK                   No prediction  
+9453444         Kichyatt Point, AK                       No prediction  
+9453471         Icy Bay Entrance, Zoning Gauge B, AK     No prediction  
+9453472         Icy Bay Entrance, Zoning Gauge A, AK     No prediction  
+9454328         Valdez Narrows, T-19, AK                 No prediction  
+9454381         Bligh Island, T-16, AK                   No prediction  
+9454411         Zaikof Point, AK                         No prediction  
+9454460         Columbia Glacier, AK                     No prediction  
+9454533         Smith Is, Ne End, AK                     No prediction  
+9454729         Pt. Perry, Perry Island, AK              No prediction  
+9454806         Granite Mine, AK                         No prediction  
+9454807         Granite Mine (Backup), AK                No prediction  
+9454818         Blue Fjord, Port Nellie Juan, AK         No prediction  
+9454824         Harriman Fiord, AK                       No prediction  
+9454851         Cochrane Bay, Pr. William Sound, AK      No prediction  
+9454907         Blackstone Bay, Pr. William Sound, AK    No prediction  
+9454948         Whittier (Backup), AK                    No prediction  
+9454951         Kings Bay Inside, Prince William Sound   No prediction  
+9454952         Southern Blackston Bay (Inside), AK      No prediction  
+9455178         Northwest Passage, AK                    No prediction  
+9455427         Perl Island, AK                          No prediction  
+9455557         Homer, AK                                No prediction  
+9455768         West Foreland, AK                        No prediction  
+9455777         Boulder Point, AK                        No prediction  
+9455824         Moose Point, AK                          No prediction  
+9455914         Fire Island (Backup), AK                 No prediction  
+9455921         Anchorage (Backup Adr), AK               No prediction  
+9455982         Eklutna, AK                              No prediction  
+9455983         Knik River, AK                           No prediction  
+9456993         Takli Island, Gage B, AK                 No prediction  
+9457258         Near Island, AK                          No prediction  
+9457393         Dovolno Point, Kizhuyak Bay, AK          No prediction  
+9457512         Sitkalidak Island Gps Tide Buoy, AK      No prediction  
+9457726         Geese Island Gps Tide Buoy, AK           No prediction  
+9457728         Uyak, AK                                 No prediction  
+9458471         Poltava Island, AK                       No prediction  
+9458553         Uqaiushak Island, AK                     No prediction  
+9458705         Kumlik Island (Backup), AK               No prediction  
+9458945         Chignik Lagoon Main Channel, AK          No prediction  
+9462621         Unalaska (Backup), AK                    No prediction  
+9465116         Twin Island, Bristol Bay, AK             No prediction  
+9465123         Pyrite Point, Bristol Bay, AK            No prediction  
+9465173         High Island, Bristol Bay, AK             No prediction  
+9465283         Ne Side Summit Island, Togiak Bay A, A   No prediction  
+9465358         West Side, Togiak Bay (Backup), AK       No prediction  
+9465406         Togiak, AK                               No prediction  
+9465911         Kwigillingok, AK                         No prediction  
+9465953         Kinak Bay, AK                            No prediction  
+9465988         Cape Corwin Gps Tide Buoy, AK            No prediction  
+9466012         Eastern Nunivak Island, AK               No prediction  
+9467274         Mountain Village, AK                     No prediction  
+9468261         Kavalghak Bay, Ak, AK                    No prediction  
+9468283         Akeftapak, St. Lawrence Island, AK       No prediction  
+9468863         Elim, Norton Bay, AK                     No prediction  
+9469460         Lopp Lagoon West, AK                     No prediction  
+9469515         Outside Lopp Lagoon, AK                  No prediction  
+9469541         Little Diomede Island, AK                No prediction  
+9469626         Ikpek Lagoon, AK                         No prediction  
+9469804         Shishmaref Inlet Inside, AK              No prediction  
+9469982         Lagoon At 165 West, AK                   No prediction  
+9490103         Selawik, AK                              No prediction  
+9490286         Riley Channel, Ak, AK                    No prediction  
+9490592         North Hotham Inlet, AK                   No prediction  
+9491247         Kivalina Lagoon, AK                      No prediction  
+9493291         Kasegaluk Lagoon, AK                     No prediction  
+9493300         Point Lay, Ak, AK                        No prediction  
+9494168         Wainwright Inlet, AK                     No prediction  
+9497147         Oliktok, Beaufort Sea, AK                No prediction  
+9497646         Stp (Inside), Prudhoe Bay, AK            No prediction  
+9497649         Prudhoe Bay #2, AK                       No prediction  
+9497651         West Dock, Prudhoe Bay, AK               No prediction  
+9498381         Flaxman Island, Arctic, AK               No prediction  
+9505950         Manzanillo, Mexico                       No prediction  
+9509990         Socorro Island, Mexico                   No prediction  
+9635000         Puerto Quetzal (San Jose), Guatemala     No prediction  
+9635002         Puerto Santo Tomas De Castilla, Guatem   No prediction  
+9648958         Acajutla, El Salvador                    No prediction  
+9650593         Puerto Cortes, Honduras                  No prediction  
+9652734         La Ceiba, Honduras                       No prediction  
+9653601         Cochino Pequeno, Honduras                No prediction  
+9654234         Puerto Castilla, Honduras                No prediction  
+9654601         Isla De Guanaja, Honduras                No prediction  
+9662957         Puerto Corinto, Nicaragua                No prediction  
+9665401         Puerto Cabezas, Nicaragua                No prediction  
+9712712         North Cat Cay, Bahamas, Bwi              No prediction  
+9712714         North Cat Cay, Bahamas, Bahamas          No prediction  
+9731158         Guantanamo Bay, Inner Harbor, Cuba       No prediction  
+9751388         Fish Bay, PR                             No prediction  
+9751456         Hart Bay, St Johns, Vi                   No prediction  
+9812530         Naos Island, Panama Bay, Panama          No prediction  
+9952000         Diego Ramirez Island, Chile              No prediction  
+9962420         Easter Island, Chile                     No prediction  
+9963950         Valparaiso, Chile                        No prediction  
+
+======================================================================
+
+✓ CSV has been updated with 2132 valid stations
+✓ Backup created with timestamp
+
