@@ -168,8 +168,13 @@ class NOAAAdapter(TideAdapter):
         """
         Parse NOAA CSV response and convert to standardized format.
 
-        NOAA returns CSV with headers: Date,Time, Prediction, Type
-        We need to combine Date,Time into "Date Time" column.
+        NOAA API has changed formats over time:
+        - Old format (4 columns): Date,Time, Prediction, Type
+          Example: 2024-06-01,00:17, 3.245, H
+        - New format (3 columns): Date Time,Prediction,Type
+          Example: 2025-11-01 02:42,0.605,H
+
+        This parser handles both formats automatically.
 
         Args:
             response_data: Raw CSV response from NOAA API
@@ -197,21 +202,25 @@ class NOAAAdapter(TideAdapter):
                 if not line.strip():
                     continue
 
-                # NOAA format: Date,Time, Prediction, Type
-                # Example: 2024-06-01,00:17, 3.245, H
                 parts = [p.strip() for p in line.split(',')]
 
                 if len(parts) < 3:
                     self.logger.warning(f"Skipping invalid NOAA data line: {line}")
                     continue
 
-                date = parts[0]
-                time = parts[1]
-                prediction = parts[2]
-                tide_type = parts[3] if len(parts) > 3 else ''
-
-                # Combine date and time
-                date_time = f"{date} {time}"
+                # Detect format based on number of fields
+                if len(parts) >= 4:
+                    # Old format: Date,Time,Prediction,Type (4 columns)
+                    date = parts[0]
+                    time = parts[1]
+                    prediction = parts[2]
+                    tide_type = parts[3]
+                    date_time = f"{date} {time}"
+                else:
+                    # New format: Date Time,Prediction,Type (3 columns)
+                    date_time = parts[0]
+                    prediction = parts[1]
+                    tide_type = parts[2]
 
                 # Standardize type (H or L)
                 tide_type = tide_type.upper().strip()
