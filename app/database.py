@@ -1,6 +1,7 @@
 import sqlite3
 import logging
 import os
+import csv
 from pathlib import Path
 
 # Get the app directory for relative database path
@@ -82,9 +83,6 @@ def log_station_lookup(station_id):
 
 def import_stations_from_csv():
     """Import station data from CSV file if database is empty."""
-    import csv
-    import os
-
     csv_path = os.path.join(os.path.dirname(__file__), 'tide_stations_new.csv')
 
     if not os.path.exists(csv_path):
@@ -233,3 +231,172 @@ def get_station_id_by_place_name(place_name):
     except sqlite3.Error as e:
         logging.error(f"Database error getting station ID for place {place_name}: {e}")
         return None
+
+def get_station_info(station_id):
+    """Get full station metadata including api_source, country, coordinates."""
+    if not station_id:
+        return None
+
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            result = cursor.execute('''
+                SELECT station_id, place_name, country, api_source, latitude, longitude, province
+                FROM tide_station_ids
+                WHERE station_id = ?
+            ''', (station_id,)).fetchone()
+
+            if result:
+                return {
+                    'station_id': result[0],
+                    'place_name': result[1],
+                    'country': result[2] if result[2] else 'USA',
+                    'api_source': result[3] if result[3] else 'NOAA',
+                    'latitude': result[4],
+                    'longitude': result[5],
+                    'province': result[6]
+                }
+
+            return None
+
+    except sqlite3.Error as e:
+        logging.error(f"Database error getting station info for {station_id}: {e}")
+        return None
+
+def import_canadian_stations_from_csv():
+    """Import Canadian tide station data from CSV file."""
+    csv_path = os.path.join(os.path.dirname(__file__), 'canadian_tide_stations.csv')
+
+    if not os.path.exists(csv_path):
+        logging.warning(f"Canadian stations CSV file not found: {csv_path}")
+        return False
+
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            # Check if we already have Canadian stations
+            result = cursor.execute('SELECT COUNT(*) FROM tide_station_ids WHERE country = "Canada"').fetchone()
+            if result[0] > 10:
+                logging.debug(f"Canadian stations already populated (count: {result[0]})")
+                return True
+
+            # Import from CSV
+            imported_count = 0
+            with open(csv_path, 'r', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    station_id = row['station_id']
+                    place_name = row['place_name']
+                    province = row.get('province', '')
+
+                    # Parse coordinates with error handling
+                    try:
+                        latitude = float(row['latitude']) if row.get('latitude') and row['latitude'].strip() else None
+                    except (ValueError, AttributeError) as e:
+                        logging.warning(f"Invalid latitude for station {station_id} ({place_name}): {row.get('latitude')}. Setting to None.")
+                        latitude = None
+
+                    try:
+                        longitude = float(row['longitude']) if row.get('longitude') and row['longitude'].strip() else None
+                    except (ValueError, AttributeError) as e:
+                        logging.warning(f"Invalid longitude for station {station_id} ({place_name}): {row.get('longitude')}. Setting to None.")
+                        longitude = None
+
+                    country = row.get('country', 'Canada')
+                    api_source = row.get('api_source', 'CHS')
+
+                    # Insert or update station
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO tide_station_ids
+                        (station_id, place_name, country, api_source, latitude, longitude, province, lookup_count, last_lookup)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+                    ''', (station_id, place_name, country, api_source, latitude, longitude, province))
+                    imported_count += 1
+
+            conn.commit()
+            logging.info(f"Imported {imported_count} Canadian stations from CSV")
+            return True
+
+    except Exception as e:
+        logging.error(f"Error importing Canadian stations from CSV: {e}")
+        return False
+
+def search_stations_by_country(query, country=None, limit=10):
+    """Search for stations by place name, optionally filtered by country."""
+    if not query or len(query.strip()) < 1:
+        return []
+
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            # Case-insensitive substring search
+            search_query = f"%{query.strip()}%"
+
+            if country:
+                results = cursor.execute('''
+                    SELECT station_id, place_name, country, lookup_count
+                    FROM tide_station_ids
+                    WHERE place_name IS NOT NULL
+                    AND LOWER(place_name) LIKE LOWER(?)
+                    AND country = ?
+                    ORDER BY lookup_count DESC, place_name ASC
+                    LIMIT ?
+                ''', (search_query, country, limit)).fetchall()
+            else:
+                results = cursor.execute('''
+                    SELECT station_id, place_name, country, lookup_count
+                    FROM tide_station_ids
+                    WHERE place_name IS NOT NULL
+                    AND LOWER(place_name) LIKE LOWER(?)
+                    ORDER BY lookup_count DESC, place_name ASC
+                    LIMIT ?
+                ''', (search_query, limit)).fetchall()
+
+            return [{
+                'station_id': row[0],
+                'place_name': row[1],
+                'country': row[2],
+                'lookup_count': row[3]
+            } for row in results]
+
+    except sqlite3.Error as e:
+        logging.error(f"Database error searching stations: {e}")
+        return []
+
+def get_popular_stations_by_country(country=None, limit=16):
+    """Get the most popular tide stations, optionally filtered by country."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            if country:
+                results = cursor.execute('''
+                    SELECT station_id, place_name, country, lookup_count
+                    FROM tide_station_ids
+                    WHERE place_name IS NOT NULL
+                    AND country = ?
+                    ORDER BY lookup_count DESC, place_name ASC
+                    LIMIT ?
+                ''', (country, limit)).fetchall()
+            else:
+                results = cursor.execute('''
+                    SELECT station_id, place_name, country, lookup_count
+                    FROM tide_station_ids
+                    WHERE place_name IS NOT NULL
+                    ORDER BY lookup_count DESC, place_name ASC
+                    LIMIT ?
+                ''', (limit,)).fetchall()
+
+            return [{
+                'station_id': row[0],
+                'place_name': row[1],
+                'country': row[2],
+                'lookup_count': row[3]
+            } for row in results]
+
+    except sqlite3.Error as e:
+        logging.error(f"Database error getting popular stations: {e}")
+        return []

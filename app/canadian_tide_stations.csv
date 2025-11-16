@@ -1,0 +1,25 @@
+station_id,place_name,province,latitude,longitude,country,api_source
+00490,"Halifax, NS",NS,44.666667,-63.583333,Canada,CHS
+07735,"Vancouver, BC",BC,49.287,-123.110,Canada,CHS
+08615,"Tofino, BC",BC,49.153,-125.913,Canada,CHS
+07277,"Victoria, BC",BC,48.424,-123.372,Canada,CHS
+03251,"Québec, QC",QC,46.805,-71.201,Canada,CHS
+04490,"Rimouski, QC",QC,48.479,-68.529,Canada,CHS
+02925,"Point Atkinson, BC",BC,49.334,-123.266,Canada,CHS
+08074,"Prince Rupert, BC",BC,54.315,-130.327,Canada,CHS
+08408,"Campbell River, BC",BC,50.043,-125.244,Canada,CHS
+08545,"Ucluelet, BC",BC,48.942,-125.544,Canada,CHS
+07120,"Patricia Bay, BC",BC,48.655,-123.451,Canada,CHS
+03370,"Québec (Lauzon), QC",QC,46.813,-71.163,Canada,CHS
+04015,"Pointe-au-Père, QC",QC,48.516,-68.474,Canada,CHS
+05cebf1df3d0f4a073c4bb9a8,"St. John's, NL",NL,47.563,-52.707,Canada,CHS
+07917,"Nanaimo, BC",BC,49.167,-123.933,Canada,CHS
+08525,"Bamfield, BC",BC,48.835,-125.136,Canada,CHS
+09850,"Tuktoyaktuk, NT",NT,69.439,-133.021,Canada,CHS
+03800,"Sept-Îles, QC",QC,50.200,-66.382,Canada,CHS
+04085,"Havre-Saint-Pierre, QC",QC,50.239,-63.598,Canada,CHS
+01560,"Charlottetown, PE",PE,46.236,-63.125,Canada,CHS
+01100,"Saint John, NB",NB,45.252,-66.063,Canada,CHS
+00735,"Yarmouth, NS",NS,43.836,-66.121,Canada,CHS
+01205,"North Sydney, NS",NS,46.216,-60.248,Canada,CHS
+02440,"Argentia, NL",NL,47.298,-53.988,Canada,CHS

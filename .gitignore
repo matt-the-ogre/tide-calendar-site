@@ -9,6 +9,11 @@ app/playwright-report/
 app/tide*.pdf
 **/tide*.pdf
 
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
 # Database files
 data/
 *.db
