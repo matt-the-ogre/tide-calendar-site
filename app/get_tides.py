@@ -57,32 +57,76 @@ def convert_tide_data_to_pcal(tide_data_filename, pcal_filename, location_name=N
     with open(tide_data_filename, 'r') as tide_file, open(pcal_filename, 'w') as pcal_file:
         # Skip the header line
         next(tide_file)
-        
-        for line in tide_file:
-            # Parse the tide data
-            date_time, prediction, tide_type = line.strip().split(',')
 
-            # round prediction to one decimal place
-            prediction = round(float(prediction), 1)
+        valid_lines = 0
+        skipped_lines = 0
 
-            date, time = date_time.split()
-            year, month, day = date.split('-')
-            
-            # Convert tide type from single character to full word
-            tide_type_full = "High" if tide_type == "H" else "Low"
-            
-            # Format the date for pcal (mm/dd)
-            pcal_date = f"{int(month)}/{int(day)}"
-            
-            if prediction < 0.3:
-                # add an asterisk to the pcal_date if the tide is less than the prediction value specified above
-                # this indicates the day is special to pcal and it will be colour-coded
-                pcal_date += "*"
-            
-            # Write the event to the pcal file
-            # Including time and tide type in the event description
-            pcal_file.write(f"{pcal_date}  {time} {tide_type_full} {prediction} m\n")
-        
+        for line_num, line in enumerate(tide_file, start=2):  # start=2 because we skipped header
+            # Skip empty lines
+            if not line.strip():
+                continue
+
+            try:
+                # Parse the tide data - expect exactly 3 comma-separated fields
+                parts = line.strip().split(',')
+                if len(parts) != 3:
+                    logging.warning(f"Skipping line {line_num}: Expected 3 fields, got {len(parts)}: {line.strip()}")
+                    skipped_lines += 1
+                    continue
+
+                date_time, prediction_str, tide_type = parts
+
+                # Validate and convert prediction to float
+                try:
+                    prediction = round(float(prediction_str.strip()), 1)
+                except ValueError as e:
+                    logging.error(f"Line {line_num}: Could not convert prediction '{prediction_str}' to float. Line: {line.strip()}")
+                    skipped_lines += 1
+                    continue
+
+                # Parse date and time
+                try:
+                    date, time = date_time.strip().split()
+                    year, month, day = date.split('-')
+                except ValueError as e:
+                    logging.error(f"Line {line_num}: Could not parse date/time '{date_time}'. Line: {line.strip()}")
+                    skipped_lines += 1
+                    continue
+
+                # Validate tide type
+                tide_type = tide_type.strip().upper()
+                if tide_type not in ['H', 'L']:
+                    logging.warning(f"Line {line_num}: Invalid tide type '{tide_type}', defaulting to 'H'. Line: {line.strip()}")
+                    tide_type = 'H'
+
+                # Convert tide type from single character to full word
+                tide_type_full = "High" if tide_type == "H" else "Low"
+
+                # Format the date for pcal (mm/dd)
+                pcal_date = f"{int(month)}/{int(day)}"
+
+                if prediction < 0.3:
+                    # add an asterisk to the pcal_date if the tide is less than the prediction value specified above
+                    # this indicates the day is special to pcal and it will be colour-coded
+                    pcal_date += "*"
+
+                # Write the event to the pcal file
+                # Including time and tide type in the event description
+                pcal_file.write(f"{pcal_date}  {time} {tide_type_full} {prediction} m\n")
+                valid_lines += 1
+
+            except Exception as e:
+                logging.error(f"Line {line_num}: Unexpected error parsing line: {e}. Line: {line.strip()}")
+                skipped_lines += 1
+                continue
+
+        # Log parsing summary
+        logging.info(f"Parsed {valid_lines} valid tide predictions, skipped {skipped_lines} malformed lines")
+
+        if valid_lines == 0:
+            logging.error(f"No valid tide data found in {tide_data_filename}")
+            raise ValueError(f"No valid tide data found in {tide_data_filename}")
+
         # write a blank line at the end of the file
         pcal_file.write("\n")
 
