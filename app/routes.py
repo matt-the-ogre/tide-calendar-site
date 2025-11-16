@@ -68,24 +68,35 @@ def sanitize_filename(text):
 
     return safe or "unknown"
 
-def cleanup_old_pdfs(directory, max_age_hours=1):
-    """Delete PDF files older than max_age_hours from the specified directory."""
+def cleanup_previous_month_pdfs(directory):
+    """Delete all PDF files from the previous month to keep cache directory clean."""
     try:
-        current_time = time.time()
-        max_age_seconds = max_age_hours * 3600
+        from datetime import datetime, timedelta
+
+        # Calculate previous month
+        today = datetime.now()
+        first_of_current_month = today.replace(day=1)
+        last_month = first_of_current_month - timedelta(days=1)
+        previous_month_str = f"_{last_month.year}_{last_month.month:02d}.pdf"
+
         pdf_pattern = os.path.join(directory, "tide_calendar_*.pdf")
+        deleted_count = 0
 
         for pdf_file in glob.glob(pdf_pattern):
             try:
-                file_age = current_time - os.path.getmtime(pdf_file)
-                if file_age > max_age_seconds:
+                # Check if this PDF is from the previous month
+                if previous_month_str in pdf_file:
                     os.remove(pdf_file)
-                    logging.info(f"Cleaned up old PDF: {pdf_file}")
+                    deleted_count += 1
+                    logging.info(f"Cleaned up previous month PDF: {pdf_file}")
             except OSError as e:
-                logging.warning(f"Could not delete old PDF {pdf_file}: {e}")
+                logging.warning(f"Could not delete PDF {pdf_file}: {e}")
+
+        if deleted_count > 0:
+            logging.info(f"Cleaned up {deleted_count} PDF(s) from previous month")
 
     except Exception as e:
-        logging.error(f"Error during PDF cleanup: {e}")
+        logging.error(f"Error during previous month PDF cleanup: {e}")
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -138,6 +149,8 @@ def index():
         # Check if PDF already exists in cache
         if os.path.exists(pdf_full_path) and os.path.getsize(pdf_full_path) > 0:
             logging.info(f"Serving cached PDF: {pdf_full_path}")
+            # Clean up previous month's PDF files to keep cache directory clean
+            cleanup_previous_month_pdfs(PDF_OUTPUT_DIR)
             # Create a response object to set the cookie
             response = make_response(send_file(pdf_full_path, as_attachment=True))
             if place_name:
@@ -180,8 +193,8 @@ def index():
         if place_name:
             response.set_cookie('last_place_name', place_name)
 
-        # Clean up old PDF files (older than 30 days to keep cache useful)
-        cleanup_old_pdfs(PDF_OUTPUT_DIR, max_age_hours=720)  # 30 days
+        # Clean up previous month's PDF files to keep cache directory clean
+        cleanup_previous_month_pdfs(PDF_OUTPUT_DIR)
 
         return response
 
