@@ -49,6 +49,10 @@ Comprehensive testing and quality assurance for the Canadian tide station integr
 - Added schema migration logic to `init_database()`
 - Automatically adds missing columns for multi-country support
 - Updated `import_stations_from_csv()` to set country="USA" and api_source="NOAA"
+- **Fixed critical bug:** Changed `INSERT OR REPLACE` to `INSERT OR IGNORE + UPDATE` pattern
+  - Preserves lookup_count values during CSV imports
+  - Prevents data corruption of popular stations tracking
+  - Applied to both USA and Canadian station imports
 - Maintains backward compatibility with existing databases
 
 ### New Files
@@ -62,6 +66,11 @@ Comprehensive testing and quality assurance for the Canadian tide station integr
 - Offline test suite (no API access required)
 - 31 comprehensive tests covering all components
 - 100% pass rate
+
+**`scripts/test_lookup_count_preservation.py`**
+- Validates lookup_count preservation during CSV re-imports
+- Tests both USA and Canadian stations
+- Confirms bug fix works correctly
 
 **`TEST_RESULTS.md`**
 - Comprehensive test documentation
@@ -115,6 +124,20 @@ The following require manual validation in a production-like environment:
 3. Validate performance metrics
 4. Confirm error handling
 
+## Bug Fixes
+
+### Critical: Lookup Count Preservation
+**Problem:** `INSERT OR REPLACE` was resetting lookup_count to 1 on every CSV import, corrupting popular stations data.
+
+**Fix:**
+- Changed to `INSERT OR IGNORE` (only insert new stations)
+- Added separate `UPDATE` to refresh metadata without touching lookup_count
+- Applied to both `import_stations_from_csv()` and `import_canadian_stations_from_csv()`
+
+**Validation:**
+- New test suite confirms lookup counts are preserved across re-imports
+- All existing tests still pass (31/31)
+
 ## Code Quality
 
 ✅ Proper error handling and logging
@@ -123,6 +146,7 @@ The following require manual validation in a production-like environment:
 ✅ Input validation
 ✅ Database transaction management
 ✅ Backward compatibility maintained
+✅ Critical data corruption bug fixed and tested
 
 ## Next Steps
 
