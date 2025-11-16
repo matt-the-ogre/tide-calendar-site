@@ -51,7 +51,9 @@ test.describe('Smoke Tests', () => {
     await page.fill('#station_search', '9449639');
 
     // Select year and month
-    await page.selectOption('#year', '2025');
+    // Dynamically select the first available year option
+    const firstYearValue = await page.locator('#year option').first().getAttribute('value');
+    await page.selectOption('#year', firstYearValue!);
     await page.selectOption('#month', '01');
 
     // Verify button is clickable (don't actually submit to avoid long PDF generation)
