@@ -15,8 +15,21 @@ RUN mkdir -p /data
 # # Install any needed packages specified in requirements.txt
 # RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the current directory contents into the container at /app
-COPY app /app
+# Copy only runtime application files (not dev tools, tests, or generated files)
+# Core Python application files
+COPY app/__init__.py /app/
+COPY app/run.py /app/
+COPY app/routes.py /app/
+COPY app/get_tides.py /app/
+COPY app/database.py /app/
+
+# Templates and static assets
+COPY app/templates/ /app/templates/
+COPY app/static/ /app/static/
+
+# Required CSV data files (imported at startup)
+COPY app/tide_stations_new.csv /app/
+COPY app/canadian_tide_stations.csv /app/
 
 # Install system dependencies
 RUN apt-get update && \
