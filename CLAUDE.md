@@ -163,3 +163,4 @@ python3 scripts/validate_tide_stations.py
 - SQLite database auto-initializes on application startup via centralized `database.py` module
 - Form validation prevents crashes: validates station ID (numeric), year (2000-2030), month (1-12)
 - Cross-platform compatibility ensured with `sys.executable` instead of hardcoded Python command
+- start new branches from `development` and also verify that `development` is the same or ahead of `main` first.
