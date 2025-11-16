@@ -168,8 +168,13 @@ class NOAAAdapter(TideAdapter):
         """
         Parse NOAA CSV response and convert to standardized format.
 
-        NOAA returns CSV with headers: Date,Time, Prediction, Type
-        We need to combine Date,Time into "Date Time" column.
+        NOAA API has changed formats over time:
+        - Old format (4 columns): Date,Time, Prediction, Type
+          Example: 2024-06-01,00:17, 3.245, H
+        - New format (3 columns): Date Time,Prediction,Type
+          Example: 2025-11-01 02:42,0.605,H
+
+        This parser handles both formats automatically.
 
         Args:
             response_data: Raw CSV response from NOAA API
@@ -197,21 +202,25 @@ class NOAAAdapter(TideAdapter):
                 if not line.strip():
                     continue
 
-                # NOAA format: Date,Time, Prediction, Type
-                # Example: 2024-06-01,00:17, 3.245, H
                 parts = [p.strip() for p in line.split(',')]
 
                 if len(parts) < 3:
                     self.logger.warning(f"Skipping invalid NOAA data line: {line}")
                     continue
 
-                date = parts[0]
-                time = parts[1]
-                prediction = parts[2]
-                tide_type = parts[3] if len(parts) > 3 else ''
-
-                # Combine date and time
-                date_time = f"{date} {time}"
+                # Detect format based on number of fields
+                if len(parts) >= 4:
+                    # Old format: Date,Time,Prediction,Type (4 columns)
+                    date = parts[0]
+                    time = parts[1]
+                    prediction = parts[2]
+                    tide_type = parts[3]
+                    date_time = f"{date} {time}"
+                else:
+                    # New format: Date Time,Prediction,Type (3 columns)
+                    date_time = parts[0]
+                    prediction = parts[1]
+                    tide_type = parts[2]
 
                 # Standardize type (H or L)
                 tide_type = tide_type.upper().strip()
@@ -238,30 +247,116 @@ class CHSAdapter(TideAdapter):
     Adapter for Canadian Hydrographic Service IWLS API (Canadian tide predictions).
 
     Station IDs: 4-6 digit numeric codes (typically 5 digits, e.g., 07735 for Vancouver)
-    API Endpoint: https://api-iwls.dfo-mpo.gc.ca/api/v1
+                 OR UUID strings (e.g., 05cebf1df3d0f4a073c4bb9a8)
+    API Endpoint: https://api-iwls.dfo-mpo.gc.ca/api/v1 (legacy) or
+                  https://api.iwls-sine.azure.cloud-nuage.dfo-mpo.gc.ca/api/v1 (new Azure)
     Time Series Code: wlp-hilo (water level predictions - high/low)
     Times: Returned in UTC, formatted as YYYY-MM-DD HH:MM
+
+    Note: The CHS API requires UUID station IDs in data requests. If a numeric
+    station code is provided, it will be automatically looked up to get the UUID.
     """
 
-    BASE_URL = "https://api-iwls.dfo-mpo.gc.ca/api/v1"
+    # Try both endpoints (new Azure and legacy)
+    BASE_URLS = [
+        "https://api.iwls-sine.azure.cloud-nuage.dfo-mpo.gc.ca/api/v1",
+        "https://api-iwls.dfo-mpo.gc.ca/api/v1"
+    ]
 
     def validate_station(self, station_id: str) -> bool:
         """
         Validate CHS station ID format.
 
-        CHS stations are typically 5-digit numeric codes.
+        CHS stations can be:
+        - 4-6 digit numeric codes (station codes)
+        - UUID strings (alphanumeric, typically 24+ characters)
         """
-        if not station_id or not station_id.isdigit():
+        if not station_id:
             return False
-        # CHS stations are typically 5 digits
-        return 4 <= len(station_id) <= 6
+
+        # Accept UUID format (alphanumeric string, typically 24+ chars)
+        if len(station_id) > 10 and station_id.replace('-', '').isalnum():
+            return True
+
+        # Accept numeric station codes (4-6 digits)
+        if station_id.isdigit() and 4 <= len(station_id) <= 6:
+            return True
+
+        return False
+
+    def _lookup_station_uuid(self, station_code: str) -> Optional[str]:
+        """
+        Look up the UUID for a given station code.
+
+        The CHS API requires UUIDs for data requests, but stations are commonly
+        identified by numeric codes. This method queries the stations endpoint
+        to get the UUID for a given code.
+
+        Args:
+            station_code: Numeric station code (e.g., "07735")
+
+        Returns:
+            UUID string if found, None if lookup fails
+        """
+        import json
+
+        headers = {
+            'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
+        }
+        params = {"code": station_code}
+
+        # Try each base URL for station lookup
+        for base_url in self.BASE_URLS:
+            try:
+                self.logger.debug(f"Looking up UUID for station code {station_code} using {base_url}")
+                response = requests.get(
+                    f"{base_url}/stations",
+                    params=params,
+                    headers=headers,
+                    timeout=30
+                )
+
+                if response.status_code == 200:
+                    # Parse JSON response
+                    stations = json.loads(response.text)
+
+                    # Response should be an array with at least one station
+                    if not stations or len(stations) == 0:
+                        self.logger.warning(f"No station found with code {station_code} at {base_url}")
+                        continue
+
+                    # Get the UUID from the first matching station
+                    station_uuid = stations[0].get('id')
+                    if not station_uuid:
+                        self.logger.warning(f"Station data missing 'id' field at {base_url}")
+                        continue
+
+                    self.logger.info(f"Found UUID {station_uuid} for station code {station_code}")
+                    return station_uuid
+                else:
+                    self.logger.warning(f"Station lookup at {base_url} returned status {response.status_code}")
+                    continue
+
+            except json.JSONDecodeError as e:
+                self.logger.warning(f"Failed to parse station lookup response from {base_url}: {e}")
+                continue
+            except requests.exceptions.RequestException as e:
+                self.logger.warning(f"Network error during station lookup at {base_url}: {e}")
+                continue
+            except Exception as e:
+                self.logger.warning(f"Unexpected error during station lookup at {base_url}: {e}")
+                continue
+
+        # All endpoints failed
+        self.logger.error(f"Failed to lookup UUID for station code {station_code} at all endpoints")
+        return None
 
     def get_predictions(self, station_id: str, year: int, month: int) -> Optional[str]:
         """
         Fetch tide predictions from Canadian Hydrographic Service IWLS API.
 
         Args:
-            station_id: 5-digit CHS station ID
+            station_id: CHS station ID (numeric code or UUID string)
             year: Year for predictions
             month: Month for predictions (1-12)
 
@@ -281,6 +376,21 @@ class CHSAdapter(TideAdapter):
             self.logger.error(f"Year out of range: {year}")
             return None
 
+        # Determine if we need to lookup the UUID
+        # If station_id is a numeric code (4-6 digits), lookup the UUID
+        # If station_id is already a UUID (alphanumeric, >10 chars), use it directly
+        if station_id.isdigit() and 4 <= len(station_id) <= 6:
+            # This is a numeric station code, need to lookup UUID
+            self.logger.debug(f"Station {station_id} is a numeric code, looking up UUID")
+            station_uuid = self._lookup_station_uuid(station_id)
+            if not station_uuid:
+                self.logger.error(f"Failed to lookup UUID for station code {station_id}")
+                return None
+        else:
+            # This is already a UUID
+            station_uuid = station_id
+            self.logger.debug(f"Station {station_id} is already a UUID")
+
         # Calculate date range for the month
         _, last_day = calendar.monthrange(year, month)
 
@@ -289,36 +399,47 @@ class CHSAdapter(TideAdapter):
         from_date = f"{year}-{month:02d}-01T00:00:00Z"
         to_date = f"{year}-{month:02d}-{last_day}T23:59:59Z"
 
-        # CHS API endpoint for high/low predictions
-        endpoint = f"{self.BASE_URL}/stations/{station_id}/data"
-
         params = {
             "time-series-code": "wlp-hilo",
             "from": from_date,
             "to": to_date
         }
 
-        try:
-            # Make the API request with User-Agent header
-            headers = {
-                'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
-            }
-            self.logger.debug(f"Requesting CHS data for station {station_id}, {year}-{month:02d}")
-            response = requests.get(endpoint, params=params, headers=headers, timeout=30)
+        headers = {
+            'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
+        }
 
-            if response.status_code != 200:
-                self.logger.error(f"CHS API request failed with status {response.status_code}: {response.text}")
-                return None
+        # Try each base URL until we get a successful response
+        for base_url in self.BASE_URLS:
+            endpoint = f"{base_url}/stations/{station_uuid}/data"
 
-            # Parse JSON response
-            return self.parse_response(response.text)
+            try:
+                self.logger.debug(f"Trying CHS API endpoint: {endpoint}")
+                self.logger.debug(f"CHS API params: {params}")
+                response = requests.get(endpoint, params=params, headers=headers, timeout=30)
 
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"CHS API request failed: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"Unexpected error in CHS API request: {e}")
-            return None
+                self.logger.debug(f"CHS API response status: {response.status_code}")
+
+                if response.status_code == 200:
+                    self.logger.info(f"Successfully fetched data from {base_url}")
+                    self.logger.debug(f"CHS API response length: {len(response.text)} characters")
+                    # Parse JSON response
+                    return self.parse_response(response.text)
+                else:
+                    self.logger.warning(f"CHS API endpoint {base_url} returned status {response.status_code}, trying next endpoint")
+                    self.logger.debug(f"Response: {response.text[:200]}")
+                    continue
+
+            except requests.exceptions.RequestException as e:
+                self.logger.warning(f"CHS API request to {base_url} failed: {e}, trying next endpoint")
+                continue
+            except Exception as e:
+                self.logger.warning(f"Unexpected error with {base_url}: {e}, trying next endpoint")
+                continue
+
+        # If we get here, all endpoints failed
+        self.logger.error(f"All CHS API endpoints failed for station UUID {station_uuid}")
+        return None
 
     def parse_response(self, response_data: str) -> Optional[str]:
         """
@@ -352,11 +473,30 @@ class CHSAdapter(TideAdapter):
             # Parse JSON response
             data = json.loads(response_data)
 
-            if 'data' not in data or not data['data']:
-                self.logger.error("CHS response contains no data")
-                return None
+            # Log response type first, then check structure
+            self.logger.debug(f"CHS response type: {type(data)}")
 
-            predictions = data['data']
+            # Handle different possible response formats
+            predictions = None
+
+            if isinstance(data, list):
+                # Response is directly an array
+                self.logger.info(f"CHS response is a direct array with {len(data)} items")
+                predictions = data
+            elif isinstance(data, dict):
+                self.logger.debug(f"CHS response keys: {list(data.keys())}")
+                # Try different possible keys for the data array
+                for key in ['data', 'predictions', 'results', 'items']:
+                    if key in data and data[key]:
+                        self.logger.info(f"Found predictions in key '{key}'")
+                        predictions = data[key]
+                        break
+
+            if not predictions:
+                self.logger.error("CHS response contains no prediction data")
+                self.logger.error(f"CHS response keys: {list(data.keys()) if isinstance(data, dict) else 'N/A (not a dict)'}")
+                self.logger.error(f"CHS response sample: {response_data[:1000]}")
+                return None
 
             # Build standardized CSV output
             output_lines = ["Date Time,Prediction,Type"]
@@ -473,7 +613,7 @@ def get_adapter_for_station(station_id: str, api_source: Optional[str] = None) -
     if noaa_adapter.validate_station(station_id):
         return noaa_adapter
 
-    # Try CHS format (5-digit)
+    # Try CHS format (5-digit or UUID)
     chs_adapter = CHSAdapter()
     if chs_adapter.validate_station(station_id):
         return chs_adapter
