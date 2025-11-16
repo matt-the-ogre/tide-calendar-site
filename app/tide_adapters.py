@@ -248,7 +248,8 @@ class CHSAdapter(TideAdapter):
 
     Station IDs: 4-6 digit numeric codes (typically 5 digits, e.g., 07735 for Vancouver)
                  OR UUID strings (e.g., 05cebf1df3d0f4a073c4bb9a8)
-    API Endpoint: https://api-iwls.dfo-mpo.gc.ca/api/v1
+    API Endpoint: https://api-iwls.dfo-mpo.gc.ca/api/v1 (legacy) or
+                  https://api.iwls-sine.azure.cloud-nuage.dfo-mpo.gc.ca/api/v1 (new Azure)
     Time Series Code: wlp-hilo (water level predictions - high/low)
     Times: Returned in UTC, formatted as YYYY-MM-DD HH:MM
 
@@ -256,7 +257,11 @@ class CHSAdapter(TideAdapter):
     station code is provided, it will be automatically looked up to get the UUID.
     """
 
-    BASE_URL = "https://api-iwls.dfo-mpo.gc.ca/api/v1"
+    # Try both endpoints (new Azure and legacy)
+    BASE_URLS = [
+        "https://api.iwls-sine.azure.cloud-nuage.dfo-mpo.gc.ca/api/v1",
+        "https://api-iwls.dfo-mpo.gc.ca/api/v1"
+    ]
 
     def validate_station(self, station_id: str) -> bool:
         """
@@ -295,51 +300,56 @@ class CHSAdapter(TideAdapter):
         """
         import json
 
-        try:
-            # Query stations endpoint with station code
-            params = {"code": station_code}
-            headers = {
-                'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
-            }
+        headers = {
+            'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
+        }
+        params = {"code": station_code}
 
-            self.logger.debug(f"Looking up UUID for station code {station_code}")
-            response = requests.get(
-                f"{self.BASE_URL}/stations",
-                params=params,
-                headers=headers,
-                timeout=30
-            )
+        # Try each base URL for station lookup
+        for base_url in self.BASE_URLS:
+            try:
+                self.logger.debug(f"Looking up UUID for station code {station_code} using {base_url}")
+                response = requests.get(
+                    f"{base_url}/stations",
+                    params=params,
+                    headers=headers,
+                    timeout=30
+                )
 
-            if response.status_code != 200:
-                self.logger.error(f"Station lookup failed with status {response.status_code}: {response.text}")
-                return None
+                if response.status_code == 200:
+                    # Parse JSON response
+                    stations = json.loads(response.text)
 
-            # Parse JSON response
-            stations = json.loads(response.text)
+                    # Response should be an array with at least one station
+                    if not stations or len(stations) == 0:
+                        self.logger.warning(f"No station found with code {station_code} at {base_url}")
+                        continue
 
-            # Response should be an array with at least one station
-            if not stations or len(stations) == 0:
-                self.logger.error(f"No station found with code {station_code}")
-                return None
+                    # Get the UUID from the first matching station
+                    station_uuid = stations[0].get('id')
+                    if not station_uuid:
+                        self.logger.warning(f"Station data missing 'id' field at {base_url}")
+                        continue
 
-            # Get the UUID from the first matching station
-            station_uuid = stations[0].get('id')
-            if not station_uuid:
-                self.logger.error(f"Station data missing 'id' field for code {station_code}")
-                return None
+                    self.logger.info(f"Found UUID {station_uuid} for station code {station_code}")
+                    return station_uuid
+                else:
+                    self.logger.warning(f"Station lookup at {base_url} returned status {response.status_code}")
+                    continue
 
-            self.logger.debug(f"Found UUID {station_uuid} for station code {station_code}")
-            return station_uuid
+            except json.JSONDecodeError as e:
+                self.logger.warning(f"Failed to parse station lookup response from {base_url}: {e}")
+                continue
+            except requests.exceptions.RequestException as e:
+                self.logger.warning(f"Network error during station lookup at {base_url}: {e}")
+                continue
+            except Exception as e:
+                self.logger.warning(f"Unexpected error during station lookup at {base_url}: {e}")
+                continue
 
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Failed to parse station lookup response: {e}")
-            return None
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"Network error during station lookup: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"Unexpected error during station lookup: {e}")
-            return None
+        # All endpoints failed
+        self.logger.error(f"Failed to lookup UUID for station code {station_code} at all endpoints")
+        return None
 
     def get_predictions(self, station_id: str, year: int, month: int) -> Optional[str]:
         """
@@ -367,7 +377,7 @@ class CHSAdapter(TideAdapter):
             return None
 
         # Determine if we need to lookup the UUID
-        # If station_id is a numeric code (5 digits), lookup the UUID
+        # If station_id is a numeric code (4-6 digits), lookup the UUID
         # If station_id is already a UUID (alphanumeric, >10 chars), use it directly
         if station_id.isdigit() and 4 <= len(station_id) <= 6:
             # This is a numeric station code, need to lookup UUID
@@ -379,6 +389,7 @@ class CHSAdapter(TideAdapter):
         else:
             # This is already a UUID
             station_uuid = station_id
+            self.logger.debug(f"Station {station_id} is already a UUID")
 
         # Calculate date range for the month
         _, last_day = calendar.monthrange(year, month)
@@ -388,36 +399,47 @@ class CHSAdapter(TideAdapter):
         from_date = f"{year}-{month:02d}-01T00:00:00Z"
         to_date = f"{year}-{month:02d}-{last_day}T23:59:59Z"
 
-        # CHS API endpoint for high/low predictions (using UUID)
-        endpoint = f"{self.BASE_URL}/stations/{station_uuid}/data"
-
         params = {
             "time-series-code": "wlp-hilo",
             "from": from_date,
             "to": to_date
         }
 
-        try:
-            # Make the API request with User-Agent header
-            headers = {
-                'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
-            }
-            self.logger.debug(f"Requesting CHS data for station UUID {station_uuid}, {year}-{month:02d}")
-            response = requests.get(endpoint, params=params, headers=headers, timeout=30)
+        headers = {
+            'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
+        }
 
-            if response.status_code != 200:
-                self.logger.error(f"CHS API request failed with status {response.status_code}: {response.text}")
-                return None
+        # Try each base URL until we get a successful response
+        for base_url in self.BASE_URLS:
+            endpoint = f"{base_url}/stations/{station_uuid}/data"
 
-            # Parse JSON response
-            return self.parse_response(response.text)
+            try:
+                self.logger.debug(f"Trying CHS API endpoint: {endpoint}")
+                self.logger.debug(f"CHS API params: {params}")
+                response = requests.get(endpoint, params=params, headers=headers, timeout=30)
 
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"CHS API request failed: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"Unexpected error in CHS API request: {e}")
-            return None
+                self.logger.debug(f"CHS API response status: {response.status_code}")
+
+                if response.status_code == 200:
+                    self.logger.info(f"Successfully fetched data from {base_url}")
+                    self.logger.debug(f"CHS API response length: {len(response.text)} characters")
+                    # Parse JSON response
+                    return self.parse_response(response.text)
+                else:
+                    self.logger.warning(f"CHS API endpoint {base_url} returned status {response.status_code}, trying next endpoint")
+                    self.logger.debug(f"Response: {response.text[:200]}")
+                    continue
+
+            except requests.exceptions.RequestException as e:
+                self.logger.warning(f"CHS API request to {base_url} failed: {e}, trying next endpoint")
+                continue
+            except Exception as e:
+                self.logger.warning(f"Unexpected error with {base_url}: {e}, trying next endpoint")
+                continue
+
+        # If we get here, all endpoints failed
+        self.logger.error(f"All CHS API endpoints failed for station UUID {station_uuid}")
+        return None
 
     def parse_response(self, response_data: str) -> Optional[str]:
         """
@@ -451,11 +473,29 @@ class CHSAdapter(TideAdapter):
             # Parse JSON response
             data = json.loads(response_data)
 
-            if 'data' not in data or not data['data']:
-                self.logger.error("CHS response contains no data")
-                return None
+            self.logger.debug(f"CHS response keys: {list(data.keys())}")
+            self.logger.debug(f"CHS response type: {type(data)}")
 
-            predictions = data['data']
+            # Handle different possible response formats
+            predictions = None
+
+            if isinstance(data, list):
+                # Response is directly an array
+                self.logger.info("CHS response is a direct array")
+                predictions = data
+            elif isinstance(data, dict):
+                # Try different possible keys for the data array
+                for key in ['data', 'predictions', 'results', 'items']:
+                    if key in data and data[key]:
+                        self.logger.info(f"Found predictions in key '{key}'")
+                        predictions = data[key]
+                        break
+
+            if not predictions:
+                self.logger.error("CHS response contains no prediction data")
+                self.logger.error(f"CHS response keys: {list(data.keys()) if isinstance(data, dict) else 'N/A (not a dict)'}")
+                self.logger.error(f"CHS response sample: {response_data[:1000]}")
+                return None
 
             # Build standardized CSV output
             output_lines = ["Date Time,Prediction,Type"]
@@ -572,7 +612,7 @@ def get_adapter_for_station(station_id: str, api_source: Optional[str] = None) -
     if noaa_adapter.validate_station(station_id):
         return noaa_adapter
 
-    # Try CHS format (5-digit)
+    # Try CHS format (5-digit or UUID)
     chs_adapter = CHSAdapter()
     if chs_adapter.validate_station(station_id):
         return chs_adapter
