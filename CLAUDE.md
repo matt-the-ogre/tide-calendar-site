@@ -180,3 +180,4 @@ python3 scripts/validate_tide_stations.py
 - Cross-platform compatibility ensured with `sys.executable` instead of hardcoded Python command
 - start new branches from `development` and also verify that `development` is the same or ahead of `main` first.
 - I made a new app on caprover at https://dev.tidecalendar.xyz that is set to sync from the `development` branch on github.  in general, except for hotfixes, we are going to work on `development` first and then PR into `main` from there
+- when adding a new source file required for the docker container check the Dockerfile to make sure it's listed explicitly or implicitly
