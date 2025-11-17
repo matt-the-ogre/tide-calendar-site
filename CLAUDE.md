@@ -84,8 +84,10 @@ TOP_STATIONS_COUNT=10
 
 ### Core Components
 - **Flask Web Application**: Serves tide calendar generation interface with form validation
-- **Tide Data Fetcher**: `get_tides.py` retrieves NOAA tide data and generates PDF calendars
+- **Tide Data Fetcher**: `get_tides.py` retrieves NOAA/CHS tide data and generates PDF calendars
 - **Database Module**: `database.py` centralized SQLite operations for station usage tracking
+- **Canadian Station Sync**: `canadian_station_sync.py` dynamically imports Canadian stations from CHS API
+- **Tide Adapters**: `tide_adapters.py` provides unified interface for NOAA and CHS APIs with retry logic
 - **PDF Generation Pipeline**: Uses `pcal` and `ghostscript` for calendar creation
 
 ### Repository Structure
@@ -95,11 +97,13 @@ TOP_STATIONS_COUNT=10
 │   ├── routes.py          # Web routes, form handling, and input validation
 │   ├── get_tides.py       # Core tide data processing and PDF generation
 │   ├── database.py        # Centralized SQLite database operations
+│   ├── canadian_station_sync.py  # Dynamic Canadian station import from CHS API
+│   ├── tide_adapters.py   # NOAA/CHS API adapters with retry logic
 │   ├── run.py            # Application entry point with database initialization
 │   ├── templates/        # Jinja2 HTML templates
 │   ├── static/          # CSS and static assets
 │   ├── tide_stations_new.csv        # US/NOAA station data (imported at startup)
-│   └── canadian_tide_stations.csv   # Canadian/CHS station data (imported at startup)
+│   └── canadian_tide_stations.csv   # Canadian/CHS station data (CSV fallback only)
 ├── scripts/               # Development and maintenance scripts (NOT deployed)
 │   ├── validate_tide_stations.py    # Validate CSV stations against NOAA API
 │   └── test_canadian_import.py      # Test Canadian station imports
@@ -113,19 +117,30 @@ TOP_STATIONS_COUNT=10
 **Note**: The Docker image only includes files from `/app` that are necessary for runtime. Development tools, tests, scripts, and documentation are excluded via `.dockerignore`, reducing the image size by approximately 55 MB.
 
 ### Key Workflows
-1. **PDF Generation with Caching**:
+1. **Container Startup (Database Initialization)**:
+   - Initialize SQLite database and schema
+   - Import USA stations from `tide_stations_new.csv` (~2100 stations)
+   - **Dynamically import Canadian stations** from CHS IWLS API (~73 active stations)
+     - Filters: `operating: true`, `type: PERMANENT`, has `wlp-hilo` predictions
+     - Logs: "Found X of Y stations operating with wlp-hilo data"
+     - Fallback to `canadian_tide_stations.csv` if API unavailable
+   - Sync database (remove inactive stations)
+2. **PDF Generation with Caching**:
    - User submits form → `routes.py` validates input
    - Check if PDF exists in cache (`/data/calendars/` in production, `app/calendars/` in dev)
    - If cached: serve immediately
    - If not cached: call `get_tides.py` → NOAA/CHS API fetch → pcal conversion → PDF creation → save to cache
-2. **Database Tracking**: Station IDs and lookup counts stored in SQLite via `database.py` module
-3. **Form Validation**: Input validation prevents crashes and provides user-friendly error messages
-4. **Error Handling**: Missing/empty PDFs and invalid inputs trigger custom error templates
+   - **API Retry Logic**: 3 attempts with exponential backoff for 502/503/504 gateway errors
+3. **Database Tracking**: Station IDs and lookup counts stored in SQLite via `database.py` module
+4. **Form Validation**: Input validation prevents crashes and provides user-friendly error messages
+5. **Error Handling**: Missing/empty PDFs and invalid inputs trigger custom error templates
 
 ### Technology Stack
 - **Backend**: Flask with Python 3.9+
 - **External Dependencies**: `pcal` (calendar generation), `ghostscript` (PDF processing)
-- **Data Source**: NOAA CO-OPS API for tide predictions
+- **Data Sources**:
+  - NOAA CO-OPS API for USA tide predictions
+  - CHS IWLS API for Canadian tide predictions and station directory
 - **Database**: SQLite for station tracking
 - **Deployment**: CapRover (Docker-based PaaS with automatic SSL and reverse proxy)
 
@@ -165,3 +180,4 @@ python3 scripts/validate_tide_stations.py
 - Cross-platform compatibility ensured with `sys.executable` instead of hardcoded Python command
 - start new branches from `development` and also verify that `development` is the same or ahead of `main` first.
 - I made a new app on caprover at https://dev.tidecalendar.xyz that is set to sync from the `development` branch on github.  in general, except for hotfixes, we are going to work on `development` first and then PR into `main` from there
+- when adding a new source file required for the docker container check the Dockerfile to make sure it's listed explicitly or implicitly
