@@ -78,6 +78,16 @@ export const SELECTORS = {
   AUTOCOMPLETE_ITEM: '.autocomplete-item',
   AUTOCOMPLETE_ITEM_SELECTED: '.autocomplete-item.selected',
 
+  // Country filter
+  COUNTRY_ALL_RADIO: '#country_all',
+  COUNTRY_USA_RADIO: '#country_usa',
+  COUNTRY_CANADA_RADIO: '#country_canada',
+
+  // Popular stations
+  POPULAR_STATIONS_LIST: '#popular-stations-body',
+  POPULAR_STATION_ITEM: '#popular-stations-body tr',
+  QUICK_GENERATE_BUTTON: '.quick-generate-btn',
+
   // Error page
   ERROR_CONTAINER: '.container',
   ERROR_MESSAGE: '[data-error-message]',
