@@ -53,6 +53,26 @@ export class HomePage extends BasePage {
     return this.page.locator(SELECTORS.EXAMPLE_IMAGE);
   }
 
+  get countryAllRadio(): Locator {
+    return this.page.locator(SELECTORS.COUNTRY_ALL_RADIO);
+  }
+
+  get countryUSARadio(): Locator {
+    return this.page.locator(SELECTORS.COUNTRY_USA_RADIO);
+  }
+
+  get countryCanadaRadio(): Locator {
+    return this.page.locator(SELECTORS.COUNTRY_CANADA_RADIO);
+  }
+
+  get popularStationsList(): Locator {
+    return this.page.locator(SELECTORS.POPULAR_STATIONS_LIST);
+  }
+
+  get popularStationItems(): Locator {
+    return this.page.locator(SELECTORS.POPULAR_STATION_ITEM);
+  }
+
   /**
    * Actions
    */
@@ -268,6 +288,48 @@ export class HomePage extends BasePage {
     const month = await this.monthSelect.inputValue();
 
     return Boolean(stationSearch && year && month);
+  }
+
+  /**
+   * Wait for popular stations list to be loaded
+   */
+  async waitForPopularStationsLoaded(timeout: number = 5000): Promise<void> {
+    await this.page.waitForFunction(() => {
+      const tbody = document.getElementById('popular-stations-body');
+      return tbody && tbody.children.length > 0;
+    }, { timeout });
+  }
+
+  /**
+   * Select country filter radio button
+   */
+  async selectCountryFilter(country: 'all' | 'USA' | 'Canada'): Promise<void> {
+    const radioMap = {
+      'all': this.countryAllRadio,
+      'USA': this.countryUSARadio,
+      'Canada': this.countryCanadaRadio
+    };
+
+    await radioMap[country].check();
+
+    // Wait for popular stations to reload (API call + render)
+    await this.page.waitForTimeout(500);
+  }
+
+  /**
+   * Get count of popular station items
+   */
+  async getPopularStationsCount(): Promise<number> {
+    return await this.popularStationItems.count();
+  }
+
+  /**
+   * Click Generate PDF button for a specific popular station by index
+   */
+  async clickPopularStationGenerateButton(index: number): Promise<void> {
+    const station = this.popularStationItems.nth(index);
+    const generateButton = station.locator('.quick-generate-btn');
+    await generateButton.click();
   }
 
   /**
