@@ -242,9 +242,10 @@
         const currentYear = currentDate.getFullYear();
         const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
 
-        // Populate year dropdown with options from 2025 to 2040
+        // Populate year dropdown with options from current year to current year + 15
         const yearSelect = document.getElementById('year');
-        for (let year = 2025; year <= 2040; year++) {
+        const endYear = currentYear + 15;
+        for (let year = currentYear; year <= endYear; year++) {
             const option = document.createElement('option');
             option.value = year;
             option.textContent = year;

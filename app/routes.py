@@ -130,14 +130,17 @@ def index():
 
         # Validate form inputs
         try:
+            from datetime import datetime
             year = int(year)
             month = int(month)
+            current_year = datetime.utcnow().year
+            max_year = current_year + 15
 
             # Validate ranges
             if not (1 <= month <= 12):
                 raise ValueError("Month must be between 1 and 12")
-            if not (2000 <= year <= 2030):
-                raise ValueError("Year must be between 2000 and 2030")
+            if not (current_year <= year <= max_year):
+                raise ValueError(f"Year must be between {current_year} and {max_year}")
             if not station_id or not station_id.isdigit():
                 raise ValueError("Station ID must be a number (USA: 7 digits, Canada: 5 digits)")
 

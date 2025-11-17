@@ -112,6 +112,7 @@ def fetch_canadian_stations_from_api() -> Tuple[Optional[List[Dict]], str]:
     Fetch all operating Canadian stations with wlp-hilo predictions from CHS API.
 
     Filtering criteria:
+    - dateStart: Current year (filters to stations with data from current year forward)
     - operating: true (station is active)
     - type: "PERMANENT" (exclude temporary/discontinued stations)
     - Has "wlp-hilo" in timeSeries array (high/low tide predictions available)
@@ -121,14 +122,20 @@ def fetch_canadian_stations_from_api() -> Tuple[Optional[List[Dict]], str]:
         Each station dict contains: code, officialName, latitude, longitude, province, place_name
     """
     import json
+    from datetime import datetime
+
+    # Get current year for dateStart parameter (midnight UTC on Jan 1 of current year)
+    current_year = datetime.utcnow().year
+    date_start = f"{current_year}-01-01T00:00:00Z"
 
     # Try each API endpoint
     for base_url in CHS_BASE_URLS:
         try:
             url = f"{base_url}/stations"
-            logging.info(f"Fetching Canadian stations from {base_url}...")
+            params = {"dateStart": date_start}
+            logging.info(f"Fetching Canadian stations from {base_url} (dateStart={date_start})...")
 
-            response = requests.get(url, headers=HEADERS, timeout=30)
+            response = requests.get(url, params=params, headers=HEADERS, timeout=30)
 
             if response.status_code != 200:
                 logging.warning(f"CHS API at {base_url} returned status {response.status_code}")
