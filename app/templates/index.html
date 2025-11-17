@@ -128,13 +128,45 @@
             margin-right: 5px;
         }
 
-        #country_filter {
-            width: 100%;
-            padding: 10px;
+        .country-filter-group {
+            display: flex;
+            gap: 20px;
             margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            flex-wrap: wrap;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
             font-size: 16px;
+            padding: 8px 12px;
+            border: 2px solid #ccc;
+            border-radius: 4px;
+            background-color: white;
+            transition: all 0.3s;
+        }
+
+        .radio-label:hover {
+            border-color: #006064;
+            background-color: #e0f7fa;
+        }
+
+        .radio-label input[type="radio"] {
+            margin-right: 8px;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        .radio-label input[type="radio"]:checked {
+            accent-color: #006064;
+        }
+
+        .radio-label:has(input[type="radio"]:checked) {
+            border-color: #006064;
+            background-color: #b2dfdb;
+            font-weight: 600;
         }
     </style>
 </head>
@@ -147,12 +179,21 @@
         <h2>Generate tide calendars for USA and Canadian stations</h2>
         <p>When you enter a place name and generate the calendar PDF, it will start a download of the PDF file. Save it or print it.</p>
         <form id="tide_form" method="post">
-            <label for="country_filter">Country Filter:</label>
-            <select id="country_filter" name="country_filter">
-                <option value="all">All Countries</option>
-                <option value="USA" selected>USA 🇺🇸</option>
-                <option value="Canada">Canada 🇨🇦</option>
-            </select><br>
+            <label>Country Filter:</label>
+            <div class="country-filter-group">
+                <label class="radio-label">
+                    <input type="radio" name="country_filter" value="all" id="country_all" checked>
+                    All
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="country_filter" value="USA" id="country_usa">
+                    🇺🇸 USA
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="country_filter" value="Canada" id="country_canada">
+                    🇨🇦 Canada
+                </label>
+            </div><br>
 
             <label for="station_id">Tide Station (ID or Place Name):</label>
             <div class="autocomplete-container">
@@ -267,29 +308,35 @@
 
         // Initialize country filter from cookie
         function initializeCountryFilter() {
-            const countryFilter = document.getElementById('country_filter');
             const savedCountry = getCookie('country_preference');
 
+            // Set the saved preference if valid, otherwise default to 'all'
             if (savedCountry && ['all', 'USA', 'Canada'].includes(savedCountry)) {
-                countryFilter.value = savedCountry;
+                const radioButton = document.getElementById(`country_${savedCountry.toLowerCase()}`);
+                if (radioButton) {
+                    radioButton.checked = true;
+                }
             }
 
-            // Save country preference when changed and reload popular stations
-            countryFilter.addEventListener('change', function() {
-                const selectedCountry = this.value;
-                setCookie('country_preference', selectedCountry, 365);
+            // Add event listeners to all radio buttons
+            const radioButtons = document.querySelectorAll('input[name="country_filter"]');
+            radioButtons.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const selectedCountry = this.value;
+                    setCookie('country_preference', selectedCountry, 365);
 
-                // Reload popular stations for the selected country
-                reloadPopularStations();
+                    // Reload popular stations for the selected country
+                    reloadPopularStations();
 
-                // Track country selection
-                if (window.plausible) {
-                    plausible('Country Filter Changed', {
-                        props: {
-                            country: selectedCountry
-                        }
-                    });
-                }
+                    // Track country selection
+                    if (window.plausible) {
+                        plausible('Country Filter Changed', {
+                            props: {
+                                country: selectedCountry
+                            }
+                        });
+                    }
+                });
             });
         }
 
@@ -314,7 +361,8 @@
 
         // Reload popular stations based on country filter
         function reloadPopularStations() {
-            const countryFilter = document.getElementById('country_filter').value;
+            const selectedRadio = document.querySelector('input[name="country_filter"]:checked');
+            const countryFilter = selectedRadio ? selectedRadio.value : 'all';
             const url = countryFilter === 'all'
                 ? '/api/popular_stations'
                 : `/api/popular_stations?country=${countryFilter}`;
@@ -456,14 +504,9 @@
                 }
             });
 
-            function searchPopularStations(query) {
-                return popularStations.filter(station =>
-                    station.place_name.toLowerCase().includes(query.toLowerCase())
-                ).slice(0, 5);
-            }
-
             function searchAPI(query) {
-                const countryFilter = document.getElementById('country_filter').value;
+                const selectedRadio = document.querySelector('input[name="country_filter"]:checked');
+                const countryFilter = selectedRadio ? selectedRadio.value : 'all';
                 const url = countryFilter === 'all'
                     ? `/api/search_stations?q=${encodeURIComponent(query)}`
                     : `/api/search_stations?q=${encodeURIComponent(query)}&country=${countryFilter}`;
