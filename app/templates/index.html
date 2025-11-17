@@ -422,17 +422,10 @@
                     return;
                 }
 
-                // Search popular stations first (client-side)
-                const popularMatches = searchPopularStations(query);
-
-                if (popularMatches.length > 0) {
-                    showDropdown(popularMatches);
-                } else {
-                    // Fallback to API search after a short delay
-                    searchTimeout = setTimeout(() => {
-                        searchAPI(query);
-                    }, 300);
-                }
+                // Always use API search for text queries (provides complete results)
+                searchTimeout = setTimeout(() => {
+                    searchAPI(query);
+                }, 300);
             });
 
             searchInput.addEventListener('keydown', function(e) {
