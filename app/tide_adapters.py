@@ -142,27 +142,56 @@ class NOAAAdapter(TideAdapter):
             "format": "csv",
         }
 
-        try:
-            # Make the API request with User-Agent header
-            headers = {
-                'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
-            }
-            self.logger.debug(f"Requesting NOAA data for station {station_id}, {year}-{month:02d}")
-            response = requests.get(self.BASE_URL, params=params, headers=headers, timeout=30)
+        # Retry logic for handling transient API failures (504 timeouts, network errors)
+        import time
+        max_retries = 3
+        retry_delay = 2  # seconds
 
-            if response.status_code != 200:
-                self.logger.error(f"NOAA API request failed with status {response.status_code}")
+        headers = {
+            'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
+        }
+
+        for attempt in range(max_retries):
+            try:
+                if attempt > 0:
+                    self.logger.info(f"Retry attempt {attempt + 1}/{max_retries} for station {station_id}")
+                    time.sleep(retry_delay * attempt)  # Exponential backoff: 0, 2, 4 seconds
+
+                self.logger.debug(f"Requesting NOAA data for station {station_id}, {year}-{month:02d}")
+                response = requests.get(self.BASE_URL, params=params, headers=headers, timeout=30)
+
+                if response.status_code == 200:
+                    # Parse and validate response
+                    return self.parse_response(response.text)
+                elif response.status_code in [502, 503, 504]:
+                    # Gateway errors - retry
+                    self.logger.warning(f"NOAA API returned {response.status_code} (gateway error), attempt {attempt + 1}/{max_retries}")
+                    if attempt == max_retries - 1:
+                        self.logger.error(f"NOAA API request failed after {max_retries} attempts with status {response.status_code}")
+                        return None
+                    continue
+                else:
+                    # Other errors - don't retry
+                    self.logger.error(f"NOAA API request failed with status {response.status_code}")
+                    return None
+
+            except requests.exceptions.Timeout as e:
+                self.logger.warning(f"NOAA API timeout on attempt {attempt + 1}/{max_retries}: {e}")
+                if attempt == max_retries - 1:
+                    self.logger.error(f"NOAA API request timed out after {max_retries} attempts")
+                    return None
+                continue
+            except requests.exceptions.RequestException as e:
+                self.logger.warning(f"NOAA API request error on attempt {attempt + 1}/{max_retries}: {e}")
+                if attempt == max_retries - 1:
+                    self.logger.error(f"NOAA API request failed after {max_retries} attempts: {e}")
+                    return None
+                continue
+            except Exception as e:
+                self.logger.error(f"Unexpected error in NOAA API request: {e}")
                 return None
 
-            # Parse and validate response
-            return self.parse_response(response.text)
-
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"NOAA API request failed: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"Unexpected error in NOAA API request: {e}")
-            return None
+        return None
 
     def parse_response(self, response_data: str) -> Optional[str]:
         """
@@ -409,33 +438,64 @@ class CHSAdapter(TideAdapter):
             'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
         }
 
+        # Retry logic with exponential backoff for each endpoint
+        import time
+        max_retries = 3
+        retry_delay = 2  # seconds
+
         # Try each base URL until we get a successful response
         for base_url in self.BASE_URLS:
             endpoint = f"{base_url}/stations/{station_uuid}/data"
 
-            try:
-                self.logger.debug(f"Trying CHS API endpoint: {endpoint}")
-                self.logger.debug(f"CHS API params: {params}")
-                response = requests.get(endpoint, params=params, headers=headers, timeout=30)
+            for attempt in range(max_retries):
+                try:
+                    if attempt > 0:
+                        self.logger.info(f"Retry attempt {attempt + 1}/{max_retries} for {base_url}")
+                        time.sleep(retry_delay * attempt)  # Exponential backoff: 0, 2, 4 seconds
 
-                self.logger.debug(f"CHS API response status: {response.status_code}")
+                    self.logger.debug(f"Trying CHS API endpoint: {endpoint}")
+                    self.logger.debug(f"CHS API params: {params}")
+                    response = requests.get(endpoint, params=params, headers=headers, timeout=30)
 
-                if response.status_code == 200:
-                    self.logger.info(f"Successfully fetched data from {base_url}")
-                    self.logger.debug(f"CHS API response length: {len(response.text)} characters")
-                    # Parse JSON response
-                    return self.parse_response(response.text)
-                else:
-                    self.logger.warning(f"CHS API endpoint {base_url} returned status {response.status_code}, trying next endpoint")
-                    self.logger.debug(f"Response: {response.text[:200]}")
-                    continue
+                    self.logger.debug(f"CHS API response status: {response.status_code}")
 
-            except requests.exceptions.RequestException as e:
-                self.logger.warning(f"CHS API request to {base_url} failed: {e}, trying next endpoint")
-                continue
-            except Exception as e:
-                self.logger.warning(f"Unexpected error with {base_url}: {e}, trying next endpoint")
-                continue
+                    if response.status_code == 200:
+                        self.logger.info(f"Successfully fetched data from {base_url}")
+                        self.logger.debug(f"CHS API response length: {len(response.text)} characters")
+                        # Parse JSON response
+                        return self.parse_response(response.text)
+                    elif response.status_code in [502, 503, 504]:
+                        # Gateway errors - retry same endpoint
+                        self.logger.warning(f"CHS API returned {response.status_code} (gateway error), attempt {attempt + 1}/{max_retries}")
+                        if attempt < max_retries - 1:
+                            continue
+                        else:
+                            # Max retries reached for this endpoint, try next endpoint
+                            self.logger.warning(f"CHS API endpoint {base_url} failed after {max_retries} attempts, trying next endpoint")
+                            break
+                    else:
+                        self.logger.warning(f"CHS API endpoint {base_url} returned status {response.status_code}, trying next endpoint")
+                        self.logger.debug(f"Response: {response.text[:200]}")
+                        # Non-gateway errors don't retry, move to next endpoint
+                        break
+
+                except requests.exceptions.Timeout as e:
+                    self.logger.warning(f"CHS API timeout on attempt {attempt + 1}/{max_retries}: {e}")
+                    if attempt < max_retries - 1:
+                        continue
+                    else:
+                        self.logger.warning(f"CHS API endpoint {base_url} timed out after {max_retries} attempts, trying next endpoint")
+                        break
+                except requests.exceptions.RequestException as e:
+                    self.logger.warning(f"CHS API request error on attempt {attempt + 1}/{max_retries}: {e}")
+                    if attempt < max_retries - 1:
+                        continue
+                    else:
+                        self.logger.warning(f"CHS API endpoint {base_url} failed after {max_retries} attempts, trying next endpoint")
+                        break
+                except Exception as e:
+                    self.logger.warning(f"Unexpected error with {base_url}: {e}, trying next endpoint")
+                    break
 
         # If we get here, all endpoints failed
         self.logger.error(f"All CHS API endpoints failed for station UUID {station_uuid}")
