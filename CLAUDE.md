@@ -164,3 +164,4 @@ python3 scripts/validate_tide_stations.py
 - Form validation prevents crashes: validates station ID (numeric), year (2000-2030), month (1-12)
 - Cross-platform compatibility ensured with `sys.executable` instead of hardcoded Python command
 - start new branches from `development` and also verify that `development` is the same or ahead of `main` first.
+- I made a new app on caprover at https://dev.tidecalendar.xyz that is set to sync from the `development` branch on github.  in general, except for hotfixes, we are going to work on `development` first and then PR into `main` from there
