@@ -137,7 +137,8 @@ tide_calendar/
 ## Features
 
 - **Smart Autocomplete**: Search tide stations by place name with intelligent suggestions
-- **Comprehensive Database**: 2,900+ tide stations with proper geographic disambiguation
+- **Comprehensive Database**: 2,900+ USA and Canadian tide stations with proper geographic disambiguation
+- **Country Filter**: Easy radio button selection to filter by USA, Canada, or view all stations
 - **User-Friendly Interface**: Type place names like "Point Roberts, WA" or use station IDs
 - **Remember Last Used**: Automatically remembers your last successful location
 - **PDF Generation**: Creates downloadable monthly tide calendars

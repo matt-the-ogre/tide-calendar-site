@@ -25,8 +25,23 @@ COPY requirements.txt /app
 # Install python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code
-COPY app /app
+# Copy only runtime application files (not dev tools, tests, or generated files)
+# Core Python application files
+COPY app/__init__.py /app/
+COPY app/run.py /app/
+COPY app/routes.py /app/
+COPY app/get_tides.py /app/
+COPY app/database.py /app/
+COPY app/tide_adapters.py /app/
+COPY app/canadian_station_sync.py /app/
+
+# Templates and static assets
+COPY app/templates/ /app/templates/
+COPY app/static/ /app/static/
+
+# Required CSV data files (imported at startup)
+COPY app/tide_stations_new.csv /app/
+COPY app/canadian_tide_stations.csv /app/
 
 # Expose the port the app runs on
 EXPOSE 80

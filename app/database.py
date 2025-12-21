@@ -1,6 +1,7 @@
 import sqlite3
 import logging
 import os
+import csv
 from pathlib import Path
 
 # Get the app directory for relative database path
@@ -33,15 +34,37 @@ def init_database():
                 )
             ''')
 
-            # Check if place_name column exists and add it if not
+            # Schema migration: Add missing columns if they don't exist
             cursor.execute("PRAGMA table_info(tide_station_ids)")
             columns = [column[1] for column in cursor.fetchall()]
+
             if 'place_name' not in columns:
                 cursor.execute('ALTER TABLE tide_station_ids ADD COLUMN place_name TEXT')
                 logging.info("Added place_name column to tide_station_ids table")
+
+            if 'country' not in columns:
+                cursor.execute("ALTER TABLE tide_station_ids ADD COLUMN country TEXT DEFAULT 'USA'")
+                logging.info("Added country column to tide_station_ids table")
+
+            if 'api_source' not in columns:
+                cursor.execute("ALTER TABLE tide_station_ids ADD COLUMN api_source TEXT DEFAULT 'NOAA'")
+                logging.info("Added api_source column to tide_station_ids table")
+
+            if 'latitude' not in columns:
+                cursor.execute('ALTER TABLE tide_station_ids ADD COLUMN latitude REAL')
+                logging.info("Added latitude column to tide_station_ids table")
+
+            if 'longitude' not in columns:
+                cursor.execute('ALTER TABLE tide_station_ids ADD COLUMN longitude REAL')
+                logging.info("Added longitude column to tide_station_ids table")
+
+            if 'province' not in columns:
+                cursor.execute('ALTER TABLE tide_station_ids ADD COLUMN province TEXT')
+                logging.info("Added province column to tide_station_ids table")
+
             conn.commit()
             logging.debug("Database initialized successfully")
-    except sqlite3.Error as e:
+    except (sqlite3.Error, OSError) as e:
         logging.error(f"Database initialization error: {e}")
         raise
 
@@ -81,10 +104,7 @@ def log_station_lookup(station_id):
         return None
 
 def import_stations_from_csv():
-    """Import station data from CSV file if database is empty."""
-    import csv
-    import os
-
+    """Import station data from CSV file and remove stations not in CSV (sync database to CSV)."""
     csv_path = os.path.join(os.path.dirname(__file__), 'tide_stations_new.csv')
 
     if not os.path.exists(csv_path):
@@ -102,21 +122,43 @@ def import_stations_from_csv():
                 logging.debug(f"Station place names already populated (count: {result[0]})")
                 return True
 
-            # Import from CSV
+            # Import from CSV and collect all valid station IDs
             imported_count = 0
+            csv_station_ids = set()
             with open(csv_path, 'r', encoding='utf-8') as csvfile:
                 reader = csv.DictReader(csvfile)
                 for row in reader:
                     station_id = row['station_id']
                     place_name = row['place_name']
+                    csv_station_ids.add(station_id)
 
-                    # Insert or update station
+                    # Insert or update station (USA/NOAA stations)
+                    # Use INSERT OR IGNORE to preserve lookup_count for existing stations
                     cursor.execute('''
-                        INSERT OR REPLACE INTO tide_station_ids
-                        (station_id, place_name, lookup_count, last_lookup)
-                        VALUES (?, ?, 1, CURRENT_TIMESTAMP)
+                        INSERT OR IGNORE INTO tide_station_ids
+                        (station_id, place_name, country, api_source, lookup_count, last_lookup)
+                        VALUES (?, ?, 'USA', 'NOAA', 1, CURRENT_TIMESTAMP)
                     ''', (station_id, place_name))
+
+                    # Update metadata for existing stations without touching lookup_count
+                    cursor.execute('''
+                        UPDATE tide_station_ids
+                        SET place_name = ?, country = 'USA', api_source = 'NOAA'
+                        WHERE station_id = ?
+                    ''', (place_name, station_id))
                     imported_count += 1
+
+            # Remove stations from database that are NOT in the CSV (cleanup invalid stations)
+            # This ensures the database stays in sync with the validated canonical CSV
+            if csv_station_ids:
+                # Build a parameterized query to delete stations not in CSV
+                placeholders = ','.join('?' * len(csv_station_ids))
+                delete_query = f'DELETE FROM tide_station_ids WHERE station_id NOT IN ({placeholders})'
+                cursor.execute(delete_query, tuple(csv_station_ids))
+                deleted_count = cursor.rowcount
+
+                if deleted_count > 0:
+                    logging.info(f"Removed {deleted_count} invalid station(s) not present in CSV")
 
             conn.commit()
             logging.info(f"Imported {imported_count} stations from CSV")
@@ -233,3 +275,192 @@ def get_station_id_by_place_name(place_name):
     except sqlite3.Error as e:
         logging.error(f"Database error getting station ID for place {place_name}: {e}")
         return None
+
+def get_station_info(station_id):
+    """Get full station metadata including api_source, country, coordinates."""
+    if not station_id:
+        return None
+
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            result = cursor.execute('''
+                SELECT station_id, place_name, country, api_source, latitude, longitude, province
+                FROM tide_station_ids
+                WHERE station_id = ?
+            ''', (station_id,)).fetchone()
+
+            if result:
+                return {
+                    'station_id': result[0],
+                    'place_name': result[1],
+                    'country': result[2] if result[2] else 'USA',
+                    'api_source': result[3] if result[3] else 'NOAA',
+                    'latitude': result[4],
+                    'longitude': result[5],
+                    'province': result[6]
+                }
+
+            return None
+
+    except sqlite3.Error as e:
+        logging.error(f"Database error getting station info for {station_id}: {e}")
+        return None
+
+def import_canadian_stations_from_csv():
+    """Import Canadian tide station data from CSV file and remove Canadian stations not in CSV."""
+    csv_path = os.path.join(os.path.dirname(__file__), 'canadian_tide_stations.csv')
+
+    if not os.path.exists(csv_path):
+        logging.warning(f"Canadian stations CSV file not found: {csv_path}")
+        return False
+
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            # Check if we already have Canadian stations
+            result = cursor.execute("SELECT COUNT(*) FROM tide_station_ids WHERE country = 'Canada'").fetchone()
+            if result[0] > 10:
+                logging.debug(f"Canadian stations already populated (count: {result[0]})")
+                return True
+
+            # Import from CSV and collect all valid Canadian station IDs
+            imported_count = 0
+            csv_station_ids = set()
+            with open(csv_path, 'r', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    station_id = row['station_id']
+                    place_name = row['place_name']
+                    province = row.get('province', '')
+                    csv_station_ids.add(station_id)
+
+                    # Parse coordinates with error handling
+                    try:
+                        latitude = float(row['latitude']) if row.get('latitude') and row['latitude'].strip() else None
+                    except (ValueError, AttributeError) as e:
+                        logging.warning(f"Invalid latitude for station {station_id} ({place_name}): {row.get('latitude')}. Setting to None.")
+                        latitude = None
+
+                    try:
+                        longitude = float(row['longitude']) if row.get('longitude') and row['longitude'].strip() else None
+                    except (ValueError, AttributeError) as e:
+                        logging.warning(f"Invalid longitude for station {station_id} ({place_name}): {row.get('longitude')}. Setting to None.")
+                        longitude = None
+
+                    country = row.get('country', 'Canada')
+                    api_source = row.get('api_source', 'CHS')
+
+                    # Insert or update station (Canadian stations)
+                    # Use INSERT OR IGNORE to preserve lookup_count for existing stations
+                    cursor.execute('''
+                        INSERT OR IGNORE INTO tide_station_ids
+                        (station_id, place_name, country, api_source, latitude, longitude, province, lookup_count, last_lookup)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+                    ''', (station_id, place_name, country, api_source, latitude, longitude, province))
+
+                    # Update metadata for existing stations without touching lookup_count
+                    cursor.execute('''
+                        UPDATE tide_station_ids
+                        SET place_name = ?, country = ?, api_source = ?, latitude = ?, longitude = ?, province = ?
+                        WHERE station_id = ?
+                    ''', (place_name, country, api_source, latitude, longitude, province, station_id))
+                    imported_count += 1
+
+            # Remove Canadian stations from database that are NOT in the CSV
+            if csv_station_ids:
+                placeholders = ','.join('?' * len(csv_station_ids))
+                delete_query = f"DELETE FROM tide_station_ids WHERE country = 'Canada' AND station_id NOT IN ({placeholders})"
+                cursor.execute(delete_query, tuple(csv_station_ids))
+                deleted_count = cursor.rowcount
+
+                if deleted_count > 0:
+                    logging.info(f"Removed {deleted_count} invalid Canadian station(s) not present in CSV")
+
+            conn.commit()
+            logging.info(f"Imported {imported_count} Canadian stations from CSV")
+            return True
+
+    except Exception as e:
+        logging.error(f"Error importing Canadian stations from CSV: {e}")
+        return False
+
+def search_stations_by_country(query, country=None, limit=10):
+    """Search for stations by place name, optionally filtered by country."""
+    if not query or len(query.strip()) < 1:
+        return []
+
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            # Case-insensitive substring search
+            search_query = f"%{query.strip()}%"
+
+            if country:
+                results = cursor.execute('''
+                    SELECT station_id, place_name, country, lookup_count
+                    FROM tide_station_ids
+                    WHERE place_name IS NOT NULL
+                    AND LOWER(place_name) LIKE LOWER(?)
+                    AND country = ?
+                    ORDER BY lookup_count DESC, place_name ASC
+                    LIMIT ?
+                ''', (search_query, country, limit)).fetchall()
+            else:
+                results = cursor.execute('''
+                    SELECT station_id, place_name, country, lookup_count
+                    FROM tide_station_ids
+                    WHERE place_name IS NOT NULL
+                    AND LOWER(place_name) LIKE LOWER(?)
+                    ORDER BY lookup_count DESC, place_name ASC
+                    LIMIT ?
+                ''', (search_query, limit)).fetchall()
+
+            return [{
+                'station_id': row[0],
+                'place_name': row[1],
+                'country': row[2],
+                'lookup_count': row[3]
+            } for row in results]
+
+    except sqlite3.Error as e:
+        logging.error(f"Database error searching stations: {e}")
+        return []
+
+def get_popular_stations_by_country(country=None, limit=16):
+    """Get the most popular tide stations, optionally filtered by country."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            if country:
+                results = cursor.execute('''
+                    SELECT station_id, place_name, country, lookup_count
+                    FROM tide_station_ids
+                    WHERE place_name IS NOT NULL
+                    AND country = ?
+                    ORDER BY lookup_count DESC, place_name ASC
+                    LIMIT ?
+                ''', (country, limit)).fetchall()
+            else:
+                results = cursor.execute('''
+                    SELECT station_id, place_name, country, lookup_count
+                    FROM tide_station_ids
+                    WHERE place_name IS NOT NULL
+                    ORDER BY lookup_count DESC, place_name ASC
+                    LIMIT ?
+                ''', (limit,)).fetchall()
+
+            return [{
+                'station_id': row[0],
+                'place_name': row[1],
+                'country': row[2],
+                'lookup_count': row[3]
+            } for row in results]
+
+    except sqlite3.Error as e:
+        logging.error(f"Database error getting popular stations: {e}")
+        return []

@@ -5,28 +5,108 @@ from flask import render_template, request, send_file, make_response, jsonify
 import os
 import glob
 import time
+import re
 
 from app import app
-from app.database import search_stations_by_name, get_popular_stations, get_place_name_by_station_id, get_station_id_by_place_name
+from app.database import search_stations_by_name, get_popular_stations, get_place_name_by_station_id, get_station_id_by_place_name, search_stations_by_country, get_popular_stations_by_country
 
-def cleanup_old_pdfs(directory, max_age_hours=1):
-    """Delete PDF files older than max_age_hours from the specified directory."""
+# Directory for storing generated PDF calendars (matches get_tides.py)
+# Default to app/calendars for local dev, override with PDF_OUTPUT_DIR env var for production
+from pathlib import Path
+APP_DIR = Path(__file__).parent.resolve()
+DEFAULT_PDF_DIR = str(APP_DIR / 'calendars')
+PDF_OUTPUT_DIR = os.getenv('PDF_OUTPUT_DIR', DEFAULT_PDF_DIR)
+
+# Top stations count configuration
+TOP_STATIONS_COUNT = int(os.getenv('TOP_STATIONS_COUNT', '10'))
+
+def extract_location_with_state(place_name):
+    """
+    Extract location with state abbreviation from full place name.
+    Examples:
+        "Point Roberts, WA" -> "Point Roberts, WA"
+        "Seattle, WA" -> "Seattle, WA"
+        "Port Allen, Hanapepe Bay, Kauai Island, HI" -> "Port Allen, HI"
+        "Esperanza, Antarctica" -> "Esperanza, Antarctica"
+    """
+    if not place_name:
+        return None
+
+    parts = [p.strip() for p in place_name.split(',')]
+
+    if len(parts) == 0:
+        return None
+    elif len(parts) == 1:
+        return parts[0]
+    else:
+        # Return first part + last part (city + state/country)
+        return f"{parts[0]}, {parts[-1]}"
+
+def sanitize_filename(text):
+    """
+    Convert location name to safe filename component.
+    Examples:
+        "Point Roberts, WA" -> "Point_Roberts_WA"
+        "Seattle, WA" -> "Seattle_WA"
+    """
+    if not text:
+        return "unknown"
+
+    # Replace problematic characters with underscores
+    safe = re.sub(r'[/\\:*?"<>|,]', '_', text)
+
+    # Replace spaces with underscores
+    safe = safe.replace(' ', '_')
+
+    # Remove multiple consecutive underscores
+    safe = re.sub(r'_+', '_', safe)
+
+    # Remove leading/trailing underscores
+    safe = safe.strip('_')
+
+    # Limit length to avoid filesystem issues
+    max_length = 100
+    if len(safe) > max_length:
+        safe = safe[:max_length].rstrip('_')
+
+    return safe or "unknown"
+
+def cleanup_previous_month_pdfs(directory):
+    """Delete all PDF files from previous months to keep cache directory clean."""
     try:
-        current_time = time.time()
-        max_age_seconds = max_age_hours * 3600
+        from datetime import datetime
+        import re
+
+        # Get current year and month
+        today = datetime.now()
+        current_year = today.year
+        current_month = today.month
+
         pdf_pattern = os.path.join(directory, "tide_calendar_*.pdf")
+        deleted_count = 0
 
         for pdf_file in glob.glob(pdf_pattern):
             try:
-                file_age = current_time - os.path.getmtime(pdf_file)
-                if file_age > max_age_seconds:
-                    os.remove(pdf_file)
-                    logging.info(f"Cleaned up old PDF: {pdf_file}")
-            except OSError as e:
-                logging.warning(f"Could not delete old PDF {pdf_file}: {e}")
+                # Extract year and month from filename using regex
+                # Pattern: tide_calendar_<location>_<YYYY>_<MM>.pdf
+                match = re.search(r'_(\d{4})_(\d{2})\.pdf$', pdf_file)
+                if match:
+                    pdf_year = int(match.group(1))
+                    pdf_month = int(match.group(2))
+
+                    # Delete if PDF is from a previous month (earlier year or earlier month in same year)
+                    if pdf_year < current_year or (pdf_year == current_year and pdf_month < current_month):
+                        os.remove(pdf_file)
+                        deleted_count += 1
+                        logging.info(f"Cleaned up old PDF: {pdf_file} ({pdf_year}-{pdf_month:02d})")
+            except (OSError, ValueError) as e:
+                logging.warning(f"Could not process PDF {pdf_file}: {e}")
+
+        if deleted_count > 0:
+            logging.info(f"Cleaned up {deleted_count} PDF(s) from previous months")
 
     except Exception as e:
-        logging.error(f"Error during PDF cleanup: {e}")
+        logging.error(f"Error during previous month PDF cleanup: {e}")
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -50,52 +130,88 @@ def index():
 
         # Validate form inputs
         try:
+            from datetime import datetime
             year = int(year)
             month = int(month)
+            current_year = datetime.utcnow().year
+            max_year = current_year + 15
 
             # Validate ranges
             if not (1 <= month <= 12):
                 raise ValueError("Month must be between 1 and 12")
-            if not (2000 <= year <= 2030):
-                raise ValueError("Year must be between 2000 and 2030")
+            if not (current_year <= year <= max_year):
+                raise ValueError(f"Year must be between {current_year} and {max_year}")
             if not station_id or not station_id.isdigit():
-                raise ValueError("Station ID must be a number")
+                raise ValueError("Station ID must be a number (USA: 7 digits, Canada: 5 digits)")
 
         except ValueError as e:
             logging.error(f"Form validation error: {str(e)}")
             return render_template('tide_station_not_found.html', message=f"Invalid input: {str(e)}")
 
-        # Call the get_tides.py script with the new argument format
+        # Get the place name for the station ID
+        place_name = get_place_name_by_station_id(station_id)
+
+        # Extract and sanitize location name for filename
+        location_display = extract_location_with_state(place_name)
+        location_filename = sanitize_filename(location_display) if location_display else station_id
+
+        # Construct PDF filename and full path
+        pdf_filename_only = f"tide_calendar_{location_filename}_{year}_{month:02d}.pdf"
+        pdf_full_path = os.path.join(PDF_OUTPUT_DIR, pdf_filename_only)
+
+        # Check if PDF already exists in cache
+        if os.path.exists(pdf_full_path) and os.path.getsize(pdf_full_path) > 0:
+            logging.info(f"Serving cached PDF: {pdf_full_path}")
+            # Clean up previous month's PDF files to keep cache directory clean
+            cleanup_previous_month_pdfs(PDF_OUTPUT_DIR)
+            # Create a response object to set the cookie
+            response = make_response(send_file(pdf_full_path, as_attachment=True))
+            if place_name:
+                response.set_cookie('last_place_name', place_name)
+            return response
+
+        # PDF not in cache, generate it
+        logging.info(f"Generating new PDF for station {station_id}, {year}-{month:02d}")
+
+        # Ensure PDF output directory exists
+        if not os.path.exists(PDF_OUTPUT_DIR):
+            os.makedirs(PDF_OUTPUT_DIR, exist_ok=True)
+            logging.info(f"Created PDF output directory: {PDF_OUTPUT_DIR}")
+
+        # Call the get_tides.py script with location name
         script_path = os.path.join(os.path.dirname(__file__), 'get_tides.py')
         # Get the project root directory (parent of app directory)
         project_root = os.path.dirname(os.path.dirname(__file__))
-        subprocess.run([sys.executable, script_path, '--station_id', station_id, '--year', str(year), '--month', str(month)], cwd=project_root)
 
-        # PDF is saved as "tide_calendar_{station_id}_{year}_{month:02d}.pdf" in project root
-        pdf_filename = os.path.join(project_root, f"tide_calendar_{station_id}_{year}_{month:02d}.pdf")
+        # Pass location_display to get_tides.py for calendar note text
+        cmd = [sys.executable, script_path, '--station_id', station_id, '--year', str(year), '--month', str(month)]
+        if location_display:
+            cmd.extend(['--location_name', location_display])
 
-        # Check if the PDF file exists
-        if not os.path.exists(pdf_filename):
+        # Set PYTHONPATH to include the app directory so imports work
+        env = os.environ.copy()
+        env['PYTHONPATH'] = os.path.dirname(__file__)
+        subprocess.run(cmd, cwd=project_root, env=env)
+
+        # Check if the PDF file was created
+        if not os.path.exists(pdf_full_path):
             # log an error message
-            logging.error(f"File {pdf_filename} does not exist.")
+            logging.error(f"File {pdf_full_path} does not exist.")
             return render_template('tide_station_not_found.html', message="Error: PDF file not found.")
 
         # Check if the PDF file is empty
-        if os.path.getsize(pdf_filename) == 0:
+        if os.path.getsize(pdf_full_path) == 0:
             # log an error message
-            logging.error(f"File {pdf_filename} is empty.")
+            logging.error(f"File {pdf_full_path} is empty.")
             return render_template('tide_station_not_found.html', message="Error: PDF file is empty.")
-        
-        # Get the place name for the station ID to store in cookie
-        place_name = get_place_name_by_station_id(station_id)
 
-        # Create a response object to set the cookie
-        response = make_response(send_file(pdf_filename, as_attachment=True))
+        # Create a response object to set the cookie (place_name already fetched above)
+        response = make_response(send_file(pdf_full_path, as_attachment=True))
         if place_name:
             response.set_cookie('last_place_name', place_name)
 
-        # Clean up old PDF files (older than 1 hour)
-        cleanup_old_pdfs(project_root, max_age_hours=1)
+        # Clean up previous month's PDF files to keep cache directory clean
+        cleanup_previous_month_pdfs(PDF_OUTPUT_DIR)
 
         return response
 
@@ -108,12 +224,18 @@ def index():
 def api_search_stations():
     """API endpoint to search for tide stations by place name."""
     query = request.args.get('q', '').strip()
+    country = request.args.get('country', '').strip()  # Optional country filter
 
     if not query or len(query) < 1:
         return jsonify([])
 
     try:
-        results = search_stations_by_name(query, limit=10)
+        # Use country-specific search if country parameter is provided
+        if country and country in ['USA', 'Canada']:
+            results = search_stations_by_country(query, country, limit=10)
+        else:
+            # If no country or "All Countries", search all stations (include country field)
+            results = search_stations_by_country(query, None, limit=10)
         return jsonify(results)
     except Exception as e:
         logging.error(f"Error in search API: {e}")
@@ -122,9 +244,92 @@ def api_search_stations():
 @app.route('/api/popular_stations')
 def api_popular_stations():
     """API endpoint to get the most popular tide stations."""
+    country = request.args.get('country', '').strip()  # Optional country filter
+
     try:
-        results = get_popular_stations(limit=16)
+        # Use country-specific query if country parameter is provided
+        if country and country in ['USA', 'Canada']:
+            results = get_popular_stations_by_country(country, limit=TOP_STATIONS_COUNT)
+        else:
+            # If no country or "All Countries", get from all stations (include country field)
+            results = get_popular_stations_by_country(None, limit=TOP_STATIONS_COUNT)
         return jsonify(results)
     except Exception as e:
         logging.error(f"Error in popular stations API: {e}")
         return jsonify([]), 500
+
+@app.route('/api/generate_quick', methods=['POST'])
+def api_generate_quick():
+    """API endpoint to quickly generate current month's PDF without logging."""
+    try:
+        from datetime import datetime
+
+        # Get station_id from JSON request
+        data = request.get_json()
+        if not data or 'station_id' not in data:
+            return jsonify({'error': 'station_id is required'}), 400
+
+        station_id = data['station_id'].strip()
+
+        # Validate station_id
+        if not station_id or not station_id.isdigit():
+            return jsonify({'error': 'Invalid station_id (USA: 7 digits, Canada: 5 digits)'}), 400
+
+        # Get current month and year
+        today = datetime.now()
+        year = today.year
+        month = today.month
+
+        # Get the place name for the station ID
+        place_name = get_place_name_by_station_id(station_id)
+
+        # Extract and sanitize location name for filename
+        location_display = extract_location_with_state(place_name)
+        location_filename = sanitize_filename(location_display) if location_display else station_id
+
+        # Construct PDF filename and full path
+        pdf_filename_only = f"tide_calendar_{location_filename}_{year}_{month:02d}.pdf"
+        pdf_full_path = os.path.join(PDF_OUTPUT_DIR, pdf_filename_only)
+
+        # Check if PDF already exists in cache
+        if os.path.exists(pdf_full_path) and os.path.getsize(pdf_full_path) > 0:
+            logging.info(f"Serving cached PDF for quick generate: {pdf_full_path}")
+            return send_file(pdf_full_path, as_attachment=True, download_name=pdf_filename_only)
+
+        # PDF not in cache, generate it
+        logging.info(f"Generating quick PDF for station {station_id}, {year}-{month:02d} (no logging)")
+
+        # Ensure PDF output directory exists
+        if not os.path.exists(PDF_OUTPUT_DIR):
+            os.makedirs(PDF_OUTPUT_DIR, exist_ok=True)
+            logging.info(f"Created PDF output directory: {PDF_OUTPUT_DIR}")
+
+        # Call the get_tides.py script with --skip_logging flag
+        script_path = os.path.join(os.path.dirname(__file__), 'get_tides.py')
+        project_root = os.path.dirname(os.path.dirname(__file__))
+
+        cmd = [sys.executable, script_path, '--station_id', station_id, '--year', str(year), '--month', str(month), '--skip_logging']
+        if location_display:
+            cmd.extend(['--location_name', location_display])
+
+        # Set PYTHONPATH to include the app directory so imports work
+        env = os.environ.copy()
+        env['PYTHONPATH'] = os.path.dirname(__file__)
+        subprocess.run(cmd, cwd=project_root, env=env)
+
+        # Check if the PDF file was created
+        if not os.path.exists(pdf_full_path):
+            logging.error(f"Quick generate failed: File {pdf_full_path} does not exist.")
+            return jsonify({'error': 'PDF file generation failed'}), 500
+
+        # Check if the PDF file is empty
+        if os.path.getsize(pdf_full_path) == 0:
+            logging.error(f"Quick generate failed: File {pdf_full_path} is empty.")
+            return jsonify({'error': 'PDF file is empty'}), 500
+
+        # Return the PDF file
+        return send_file(pdf_full_path, as_attachment=True, download_name=pdf_filename_only)
+
+    except Exception as e:
+        logging.error(f"Error in quick generate API: {e}")
+        return jsonify({'error': str(e)}), 500

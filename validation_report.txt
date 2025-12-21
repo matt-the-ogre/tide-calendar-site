@@ -1,0 +1,687 @@
+2025-11-15 18:15:24,678 - INFO - Testing stations with NOAA API for 2025-11
+2025-11-15 18:15:24,678 - INFO - Reading from: /Users/matthewmanuel/src/tide-calendar-site/app/tide_stations_new.csv
+2025-11-15 18:15:24,678 - INFO - Testing station 1495000: Esperanza, Antarctica
+2025-11-15 18:15:25,087 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:15:25,338 - INFO - Testing station 1611347: Port Allen, Hanapepe Bay, Kauai Island, HI
+2025-11-15 18:15:25,658 - INFO -   ✓ Valid
+2025-11-15 18:15:25,913 - INFO - Testing station 1611400: Nawiliwili, HI
+2025-11-15 18:15:26,715 - INFO -   ✓ Valid
+2025-11-15 18:15:26,969 - INFO - Testing station 1612340: Honolulu, HI
+2025-11-15 18:15:27,300 - INFO -   ✓ Valid
+2025-11-15 18:15:27,554 - INFO - Testing station 1612366: Fort Kamehameha, Bishop Point, Pearl Hbr, HI
+2025-11-15 18:15:28,304 - INFO -   ✓ Valid
+2025-11-15 18:15:28,558 - INFO - Testing station 1612401: Pearl Harbor, HI
+2025-11-15 18:15:28,897 - INFO -   ✓ Valid
+2025-11-15 18:15:29,149 - INFO - Testing station 1612404: Ford Island, Ferry Dock, Pearl Harbor, HI
+2025-11-15 18:15:30,177 - INFO -   ✓ Valid
+2025-11-15 18:15:30,430 - INFO - Testing station 1612479: Mokuoloe, Kaneone Bay, Oahu Is. (Backup), HI
+2025-11-15 18:15:30,719 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:15:30,971 - INFO - Testing station 1612480: Mokuoloe, HI
+2025-11-15 18:15:31,805 - INFO -   ✓ Valid
+2025-11-15 18:15:32,058 - INFO - Testing station 1612702: Laiemaloo, Oahu Island, HI
+2025-11-15 18:15:32,351 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:15:32,603 - INFO - Testing station 1613198: Kaunakakai Harbor, HI
+2025-11-15 18:15:33,212 - INFO -   ✓ Valid
+2025-11-15 18:15:33,467 - INFO - Testing station 1614465: Kaumalapau Harbor, Lanai Island, HI
+2025-11-15 18:15:34,414 - INFO -   ✓ Valid
+2025-11-15 18:15:34,668 - INFO - Testing station 1615680: Kahului, Kahului Harbor, HI
+2025-11-15 18:15:35,068 - INFO -   ✓ Valid
+2025-11-15 18:15:35,323 - INFO - Testing station 1617433: Kawaihae, HI
+2025-11-15 18:15:35,997 - INFO -   ✓ Valid
+2025-11-15 18:15:36,249 - INFO - Testing station 1617760: Hilo, Hilo Bay, Kuhio Bay, HI
+2025-11-15 18:15:36,575 - INFO -   ✓ Valid
+2025-11-15 18:15:36,827 - INFO - Testing station 1619000: Johnston Atoll, United States Of America
+2025-11-15 18:15:37,667 - INFO -   ✓ Valid
+2025-11-15 18:15:37,922 - INFO - Testing station 1619910: Sand Island, Midway Islands, United States Of America
+2025-11-15 18:15:38,309 - INFO -   ✓ Valid
+2025-11-15 18:15:38,563 - INFO - Testing station 1630000: Apra Harbor, Guam, United States Of America
+2025-11-15 18:15:39,411 - INFO -   ✓ Valid
+2025-11-15 18:15:39,666 - INFO - Testing station 1631428: Pago Bay, Guam, United States Of America
+2025-11-15 18:15:39,991 - INFO -   ✓ Valid
+2025-11-15 18:15:40,246 - INFO - Testing station 1633227: Saipan, Gu
+2025-11-15 18:15:40,977 - INFO -   ✓ Valid
+2025-11-15 18:15:41,232 - INFO - Testing station 1732417: Fare Ute Point
+2025-11-15 18:15:41,590 - INFO -   ✓ Valid
+2025-11-15 18:15:41,844 - INFO - Testing station 1770000: Pago Pago, American Samoa, American Samoa
+2025-11-15 18:15:42,617 - INFO -   ✓ Valid
+2025-11-15 18:15:42,870 - INFO - Testing station 1820000: Kwajalein, Marshall Islands, United States Of America
+2025-11-15 18:15:43,209 - INFO -   ✓ Valid
+2025-11-15 18:15:43,461 - INFO - Testing station 1840000: Chuuk, Moen Island, E. Caroline Islands, Fm
+2025-11-15 18:15:44,324 - INFO -   ✓ Valid
+2025-11-15 18:15:44,578 - INFO - Testing station 1890000: Wake Island, Pacific Ocean, United States Of America
+2025-11-15 18:15:44,911 - INFO -   ✓ Valid
+2025-11-15 18:15:45,165 - INFO - Testing station 1910000: Suva, Suva Harbor, Fiji
+2025-11-15 18:15:46,198 - INFO -   ✓ Valid
+2025-11-15 18:15:46,451 - INFO - Testing station 2431000: Diego Garcia, United Kingdom
+2025-11-15 18:15:47,867 - INFO -   ✓ Valid
+2025-11-15 18:15:48,121 - INFO - Testing station 2627000: Ponta Delgada, Azores, Portugal
+2025-11-15 18:15:48,621 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:15:48,876 - INFO - Testing station 2630000: Praia, Cape Verde Islands, Cape Verde
+2025-11-15 18:15:49,175 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:15:49,429 - INFO - Testing station 2695535: Bermuda Biological Station, Bermuda
+2025-11-15 18:15:49,847 - INFO -   ✓ Valid
+2025-11-15 18:15:50,102 - INFO - Testing station 2695540: Bermuda, St. Georges Island, Bermuda
+2025-11-15 18:15:50,724 - INFO -   ✓ Valid
+2025-11-15 18:15:50,979 - INFO - Testing station 7641400: Lagos, Nigeria, Nigeria
+2025-11-15 18:15:51,274 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:15:51,529 - INFO - Testing station 7691360: Dakar, Senegal, Senegal
+2025-11-15 18:15:51,799 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:15:52,053 - INFO - Testing station 8311018: Waddington, NY
+2025-11-15 18:15:52,312 - WARNING -   ✗ Invalid: HTTP 400
+2025-11-15 18:15:52,566 - INFO - Testing station 8311030: Ogdensburg, NY
+2025-11-15 18:15:52,822 - WARNING -   ✗ Invalid: HTTP 400
+2025-11-15 18:15:53,076 - INFO - Testing station 8311060: Alexandria Bay, NY
+2025-11-15 18:15:53,351 - WARNING -   ✗ Invalid: HTTP 400
+2025-11-15 18:15:53,605 - INFO - Testing station 8311062: Alexandria Bay, NY
+2025-11-15 18:15:53,879 - WARNING -   ✗ Invalid: HTTP 400
+2025-11-15 18:15:54,133 - INFO - Testing station 8311070: Clayton, NY
+2025-11-15 18:15:54,393 - WARNING -   ✗ Invalid: HTTP 400
+2025-11-15 18:15:54,647 - INFO - Testing station 8410140: Eastport, ME
+2025-11-15 18:15:55,496 - INFO -   ✓ Valid
+2025-11-15 18:15:55,750 - INFO - Testing station 8410714: Coffin Point, Coffin Neck, ME
+2025-11-15 18:15:56,077 - INFO -   ✓ Valid
+2025-11-15 18:15:56,333 - INFO - Testing station 8410715: Garnet Point, Hersey Neck, ME
+2025-11-15 18:15:57,187 - INFO -   ✓ Valid
+2025-11-15 18:15:57,441 - INFO - Testing station 8410834: Pettegrove Point, Dochet Island, ME
+2025-11-15 18:15:57,809 - INFO -   ✓ Valid
+2025-11-15 18:15:58,064 - INFO - Testing station 8410864: Gravelly Point, Whiting Bay, ME
+2025-11-15 18:15:58,391 - INFO -   ✓ Valid
+2025-11-15 18:15:58,645 - INFO - Testing station 8411060: Cutler Farris Wharf, ME
+2025-11-15 18:15:59,410 - INFO -   ✓ Valid
+2025-11-15 18:15:59,664 - INFO - Testing station 8411250: Cutler Naval Base, ME
+2025-11-15 18:15:59,992 - INFO -   ✓ Valid
+2025-11-15 18:16:00,245 - INFO - Testing station 8412581: Milbridge, ME
+2025-11-15 18:16:01,068 - INFO -   ✓ Valid
+2025-11-15 18:16:01,323 - INFO - Testing station 8413320: Bar Harbor, ME
+2025-11-15 18:16:01,688 - INFO -   ✓ Valid
+2025-11-15 18:16:01,942 - INFO - Testing station 8413801: Ellsworth, ME
+2025-11-15 18:16:02,278 - INFO -   ✓ Valid
+2025-11-15 18:16:02,531 - INFO - Testing station 8413825: Mackerel Cove, Swans Island, ME
+2025-11-15 18:16:03,078 - INFO -   ✓ Valid
+2025-11-15 18:16:03,330 - INFO - Testing station 8414249: Oceanville, Deer Isle, ME
+2025-11-15 18:16:03,690 - INFO -   ✓ Valid
+2025-11-15 18:16:03,945 - INFO - Testing station 8414612: Bangor, ME
+2025-11-15 18:16:04,951 - INFO -   ✓ Valid
+2025-11-15 18:16:05,206 - INFO - Testing station 8414684: Bucksport, ME
+2025-11-15 18:16:05,577 - INFO -   ✓ Valid
+2025-11-15 18:16:05,832 - INFO - Testing station 8414692: Sandy Point, ME
+2025-11-15 18:16:06,709 - INFO -   ✓ Valid
+2025-11-15 18:16:06,964 - INFO - Testing station 8414721: Fort Point, ME
+2025-11-15 18:16:07,321 - INFO -   ✓ Valid
+2025-11-15 18:16:07,572 - INFO - Testing station 8414781: Winterport, Penobscot River, ME
+2025-11-15 18:16:08,435 - INFO -   ✓ Valid
+2025-11-15 18:16:08,687 - INFO - Testing station 8414821: Iron Point, Fox Isl, Thorofare, ME
+2025-11-15 18:16:08,960 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:16:09,215 - INFO - Testing station 8414856: North Haven, ME
+2025-11-15 18:16:10,066 - INFO -   ✓ Valid
+2025-11-15 18:16:10,320 - INFO - Testing station 8414888: Pulpit Harbor, Penobscot Bay, ME
+2025-11-15 18:16:10,642 - INFO -   ✓ Valid
+2025-11-15 18:16:10,897 - INFO - Testing station 8415191: Belfast, Penobscot Bay, ME
+2025-11-15 18:16:11,926 - INFO -   ✓ Valid
+2025-11-15 18:16:12,179 - INFO - Testing station 8415490: Rockland, ME
+2025-11-15 18:16:12,517 - INFO -   ✓ Valid
+2025-11-15 18:16:12,771 - INFO - Testing station 8415709: Thomaston, ME
+2025-11-15 18:16:13,391 - INFO -   ✓ Valid
+2025-11-15 18:16:13,646 - INFO - Testing station 8416731: Walpole, Damariscotta River, ME
+2025-11-15 18:16:14,039 - INFO -   ✓ Valid
+2025-11-15 18:16:14,290 - INFO - Testing station 8416921: Wiscasset, ME
+2025-11-15 18:16:15,115 - INFO -   ✓ Valid
+2025-11-15 18:16:15,369 - INFO - Testing station 8417087: Phipps Pt., ME
+2025-11-15 18:16:15,666 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:16:15,920 - INFO - Testing station 8417134: Gardiner, ME
+2025-11-15 18:16:16,753 - INFO -   ✓ Valid
+2025-11-15 18:16:17,004 - INFO - Testing station 8417144: Augusta, Mcrr Bridge, Kennebec River, ME
+2025-11-15 18:16:17,302 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:16:17,557 - INFO - Testing station 8417177: Hunniwell Point, ME
+2025-11-15 18:16:18,399 - INFO -   ✓ Valid
+2025-11-15 18:16:18,654 - INFO - Testing station 8417208: Richmond, ME
+2025-11-15 18:16:19,063 - INFO -   ✓ Valid
+2025-11-15 18:16:19,315 - INFO - Testing station 8417227: Bath, ME
+2025-11-15 18:16:19,755 - INFO -   ✓ Valid
+2025-11-15 18:16:20,007 - INFO - Testing station 8417821: Cliff Island, Luckse Sound, ME
+2025-11-15 18:16:20,356 - INFO -   ✓ Valid
+2025-11-15 18:16:20,611 - INFO - Testing station 8417874: Doyle Point, Casco Bay, ME
+2025-11-15 18:16:21,562 - INFO -   ✓ Valid
+2025-11-15 18:16:21,817 - INFO - Testing station 8417881: Great Chebeague Island, ME
+2025-11-15 18:16:22,165 - INFO -   ✓ Valid
+2025-11-15 18:16:22,419 - INFO - Testing station 8417941: Long Island, Casco Bay, ME
+2025-11-15 18:16:23,043 - INFO -   ✓ Valid
+2025-11-15 18:16:23,298 - INFO - Testing station 8417948: Prince Point, Yarmouth, ME
+2025-11-15 18:16:23,649 - INFO -   ✓ Valid
+2025-11-15 18:16:23,900 - INFO - Testing station 8417988: Great Diamond Is., Casco Bay, ME
+2025-11-15 18:16:24,703 - INFO -   ✓ Valid
+2025-11-15 18:16:24,958 - INFO - Testing station 8417997: Cushing Island, Casco Bay, ME
+2025-11-15 18:16:25,345 - INFO -   ✓ Valid
+2025-11-15 18:16:25,599 - INFO - Testing station 8418009: Cow Island, Casco Bay, ME
+2025-11-15 18:16:26,781 - INFO -   ✓ Valid
+2025-11-15 18:16:27,032 - INFO - Testing station 8418015: Falmouth Foreside, ME
+2025-11-15 18:16:27,441 - INFO -   ✓ Valid
+2025-11-15 18:16:27,695 - INFO - Testing station 8418031: Portland Head Light Station, ME
+2025-11-15 18:16:28,697 - INFO -   ✓ Valid
+2025-11-15 18:16:28,948 - INFO - Testing station 8418150: Portland, ME
+2025-11-15 18:16:29,332 - INFO -   ✓ Valid
+2025-11-15 18:16:29,584 - INFO - Testing station 8418268: Fore River, Portland, ME
+2025-11-15 18:16:30,278 - INFO -   ✓ Valid
+2025-11-15 18:16:30,533 - INFO - Testing station 8418445: Pine Point, ME
+2025-11-15 18:16:30,860 - INFO -   ✓ Valid
+2025-11-15 18:16:31,114 - INFO - Testing station 8418606: Camp Ellis, Saco River, ME
+2025-11-15 18:16:31,983 - INFO -   ✓ Valid
+2025-11-15 18:16:32,238 - INFO - Testing station 8418828: Biddeford, Saco River, ME
+2025-11-15 18:16:32,613 - INFO -   ✓ Valid
+2025-11-15 18:16:32,865 - INFO - Testing station 8418911: Kennebunkport, Kennebunk River, ME
+2025-11-15 18:16:33,543 - INFO -   ✓ Valid
+2025-11-15 18:16:33,797 - INFO - Testing station 8419317: Wells, ME
+2025-11-15 18:16:34,164 - INFO -   ✓ Valid
+2025-11-15 18:16:34,418 - INFO - Testing station 8419399: Cape Neddick, ME
+2025-11-15 18:16:35,311 - INFO -   ✓ Valid
+2025-11-15 18:16:35,566 - INFO - Testing station 8419528: Fort Point, York Harbor, ME
+2025-11-15 18:16:35,950 - INFO -   ✓ Valid
+2025-11-15 18:16:36,202 - INFO - Testing station 8419688: Gerrish Island, Kittery, ME
+2025-11-15 18:16:36,860 - INFO -   ✓ Valid
+2025-11-15 18:16:37,115 - INFO - Testing station 8419751: Appledore Island, ME
+2025-11-15 18:16:37,388 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:16:37,638 - INFO - Testing station 8419870: Seavey Island, ME
+2025-11-15 18:16:37,971 - INFO -   ✓ Valid
+2025-11-15 18:16:38,224 - INFO - Testing station 8420411: Dover, Cocheco River, NH
+2025-11-15 18:16:38,849 - INFO -   ✓ Valid
+2025-11-15 18:16:39,100 - INFO - Testing station 8422272: Adams Point, Durham, NH
+2025-11-15 18:16:39,372 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:16:39,627 - INFO - Testing station 8422301: Bracketts Point, NH
+2025-11-15 18:16:39,961 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:16:40,216 - INFO - Testing station 8423005: Atlantic Terminals T14A, NH
+2025-11-15 18:16:40,533 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:16:40,788 - INFO - Testing station 8423635: Atlantic Heights, NH
+2025-11-15 18:16:41,882 - INFO -   ✓ Valid
+2025-11-15 18:16:42,136 - INFO - Testing station 8423898: Fort Point, NH
+2025-11-15 18:16:42,519 - INFO -   ✓ Valid
+2025-11-15 18:16:42,772 - INFO - Testing station 8440273: Salisbury Point, Merrimack River, MA
+2025-11-15 18:16:43,551 - INFO -   ✓ Valid
+2025-11-15 18:16:43,806 - INFO - Testing station 8440369: Merrimacport, Merrimack River, MA
+2025-11-15 18:16:44,156 - INFO -   ✓ Valid
+2025-11-15 18:16:44,408 - INFO - Testing station 8440452: Plum Island, Merrimack River Entrance, MA
+2025-11-15 18:16:45,062 - INFO -   ✓ Valid
+2025-11-15 18:16:45,313 - INFO - Testing station 8440466: Newburyport, Merrimack River, MA
+2025-11-15 18:16:45,672 - INFO -   ✓ Valid
+2025-11-15 18:16:45,924 - INFO - Testing station 8440889: Riverside, Merrimack River, MA
+2025-11-15 18:16:46,562 - INFO -   ✓ Valid
+2025-11-15 18:16:46,814 - INFO - Testing station 8441241: Plum Island South, MA
+2025-11-15 18:16:47,148 - INFO -   ✓ Valid
+2025-11-15 18:16:47,403 - INFO - Testing station 8441551: Rockport Harbor, MA
+2025-11-15 18:16:48,318 - INFO -   ✓ Valid
+2025-11-15 18:16:48,569 - INFO - Testing station 8441571: Lobster Cove, Annisquam River, MA
+2025-11-15 18:16:48,911 - INFO -   ✓ Valid
+2025-11-15 18:16:49,165 - INFO - Testing station 8441771: Essex, Essex River, MA
+2025-11-15 18:16:49,779 - INFO -   ✓ Valid
+2025-11-15 18:16:50,033 - INFO - Testing station 8441841: Gloucester Harbor, MA
+2025-11-15 18:16:50,359 - INFO -   ✓ Valid
+2025-11-15 18:16:50,611 - INFO - Testing station 8442417: Beverly, Beverly Harbor, MA
+2025-11-15 18:16:50,948 - INFO -   ✓ Valid
+2025-11-15 18:16:51,200 - INFO - Testing station 8442645: Salem, Salem Harbor, MA
+2025-11-15 18:16:52,146 - INFO -   ✓ Valid
+2025-11-15 18:16:52,400 - INFO - Testing station 8443187: Lynn, Lynn Harbor, MA
+2025-11-15 18:16:52,878 - INFO -   ✓ Valid
+2025-11-15 18:16:53,133 - INFO - Testing station 8443662: Amelia Earhart Dam, Mystic River, MA
+2025-11-15 18:16:53,651 - INFO -   ✓ Valid
+2025-11-15 18:16:53,906 - INFO - Testing station 8443725: Chelsea, MA
+2025-11-15 18:16:54,230 - INFO -   ✓ Valid
+2025-11-15 18:16:54,483 - INFO - Testing station 8443970: Boston, MA
+2025-11-15 18:16:55,451 - INFO -   ✓ Valid
+2025-11-15 18:16:55,704 - INFO - Testing station 8444162: Boston Light, MA
+2025-11-15 18:16:56,109 - INFO -   ✓ Valid
+2025-11-15 18:16:56,360 - INFO - Testing station 8444525: Nut Island, MA
+2025-11-15 18:16:57,036 - INFO -   ✓ Valid
+2025-11-15 18:16:57,290 - INFO - Testing station 8444788: Weymouth Fore River, MA
+2025-11-15 18:16:57,886 - INFO -   ✓ Valid
+2025-11-15 18:16:58,141 - INFO - Testing station 8445138: Scituate, Scituate Harbor, MA
+2025-11-15 18:16:58,654 - INFO -   ✓ Valid
+2025-11-15 18:16:58,908 - INFO - Testing station 8446009: Brant Rock, Green Harbor River, MA
+2025-11-15 18:16:59,258 - INFO -   ✓ Valid
+2025-11-15 18:16:59,513 - INFO - Testing station 8446121: Provincetown, MA
+2025-11-15 18:17:00,559 - INFO -   ✓ Valid
+2025-11-15 18:17:00,814 - INFO - Testing station 8446166: Duxbury, Duxbury Harbor, MA
+2025-11-15 18:17:01,135 - INFO -   ✓ Valid
+2025-11-15 18:17:01,387 - INFO - Testing station 8446493: Plymouth, Plymouth Harbor, MA
+2025-11-15 18:17:02,348 - INFO -   ✓ Valid
+2025-11-15 18:17:02,600 - INFO - Testing station 8447173: Sagamore, Cape Cod Canal (Sta. 115), MA
+2025-11-15 18:17:02,924 - INFO -   ✓ Valid
+2025-11-15 18:17:03,175 - INFO - Testing station 8447180: Sandwich, MA
+2025-11-15 18:17:03,966 - INFO -   ✓ Valid
+2025-11-15 18:17:04,220 - INFO - Testing station 8447191: Bournedale, Cape Cod Canal (Sta. 200), MA
+2025-11-15 18:17:04,615 - INFO -   ✓ Valid
+2025-11-15 18:17:04,865 - INFO - Testing station 8447241: Sesuit Harbor, East Dennis, MA
+2025-11-15 18:17:05,589 - INFO -   ✓ Valid
+2025-11-15 18:17:05,842 - INFO - Testing station 8447259: Bourne Bridge, Cape Cod Canal (Sta. 320), MA
+2025-11-15 18:17:06,214 - INFO -   ✓ Valid
+2025-11-15 18:17:06,467 - INFO - Testing station 8447270: Buzzards Bay, MA
+2025-11-15 18:17:07,114 - INFO -   ✓ Valid
+2025-11-15 18:17:07,369 - INFO - Testing station 8447277: Onset Beach T-12, MA
+2025-11-15 18:17:07,726 - INFO -   ✓ Valid
+2025-11-15 18:17:07,981 - INFO - Testing station 8447281: Steepbrook, MA
+2025-11-15 18:17:08,610 - INFO -   ✓ Valid
+2025-11-15 18:17:08,863 - INFO - Testing station 8447295: Gray Gables, MA
+2025-11-15 18:17:09,186 - INFO -   ✓ Valid
+2025-11-15 18:17:09,441 - INFO - Testing station 8447355: Monument Beach T-8, MA
+2025-11-15 18:17:10,133 - INFO -   ✓ Valid
+2025-11-15 18:17:10,384 - INFO - Testing station 8447368: Great Hill, MA
+2025-11-15 18:17:10,762 - INFO -   ✓ Valid
+2025-11-15 18:17:11,015 - INFO - Testing station 8447385: Marion, Buzzard'S Bay, MA
+2025-11-15 18:17:12,016 - INFO -   ✓ Valid
+2025-11-15 18:17:12,270 - INFO - Testing station 8447386: Fall River, MA
+2025-11-15 18:17:12,636 - INFO -   ✓ Valid
+2025-11-15 18:17:12,887 - INFO - Testing station 8447416: Piney Point, MA
+2025-11-15 18:17:13,694 - INFO -   ✓ Valid
+2025-11-15 18:17:13,948 - INFO - Testing station 8447435: Chatham, MA
+2025-11-15 18:17:14,311 - INFO -   ✓ Valid
+2025-11-15 18:17:14,562 - INFO - Testing station 8447495: Saquatucket Harbor, MA
+2025-11-15 18:17:15,414 - INFO -   ✓ Valid
+2025-11-15 18:17:15,665 - INFO - Testing station 8447504: South Yarmouth, Bass River, MA
+2025-11-15 18:17:16,048 - INFO -   ✓ Valid
+2025-11-15 18:17:16,300 - INFO - Testing station 8447505: Chatham, Stage Harbor, MA
+2025-11-15 18:17:16,933 - INFO -   ✓ Valid
+2025-11-15 18:17:17,188 - INFO - Testing station 8447506: Wychmere Hbr., Harwichport, MA
+2025-11-15 18:17:17,557 - INFO -   ✓ Valid
+2025-11-15 18:17:17,809 - INFO - Testing station 8447531: Mattapoisett, MA
+2025-11-15 18:17:18,206 - INFO -   ✓ Valid
+2025-11-15 18:17:18,458 - INFO - Testing station 8447605: Hyannisport, MA
+2025-11-15 18:17:19,217 - INFO -   ✓ Valid
+2025-11-15 18:17:19,469 - INFO - Testing station 8447636: New Bedford Harbor, MA
+2025-11-15 18:17:19,853 - INFO -   ✓ Valid
+2025-11-15 18:17:20,104 - INFO - Testing station 8447685: Chappaquoit Point, MA
+2025-11-15 18:17:20,884 - INFO -   ✓ Valid
+2025-11-15 18:17:21,135 - INFO - Testing station 8447712: New Bedford, Clarks Point, MA
+2025-11-15 18:17:21,465 - INFO -   ✓ Valid
+2025-11-15 18:17:21,717 - INFO - Testing station 8447819: Monomoy Island - East, MA
+2025-11-15 18:17:22,161 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:17:22,411 - INFO - Testing station 8447842: Round Hill Point, MA
+2025-11-15 18:17:22,828 - INFO -   ✓ Valid
+2025-11-15 18:17:23,083 - INFO - Testing station 8447930: Woods Hole, MA
+2025-11-15 18:17:24,305 - INFO -   ✓ Valid
+2025-11-15 18:17:24,559 - INFO - Testing station 8448151: Tarpaulin Cove, Naushon Is., MA
+2025-11-15 18:17:24,836 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:17:25,087 - INFO - Testing station 8448157: Vineyard Haven, Vineyard Hvn Hbr, MA
+2025-11-15 18:17:26,085 - INFO -   ✓ Valid
+2025-11-15 18:17:26,338 - INFO - Testing station 8448208: Oak Bluffs, Martha'S Vineyard, MA
+2025-11-15 18:17:26,676 - INFO -   ✓ Valid
+2025-11-15 18:17:26,928 - INFO - Testing station 8448248: Penikese Island, MA
+2025-11-15 18:17:27,717 - INFO -   ✓ Valid
+2025-11-15 18:17:27,970 - INFO - Testing station 8448251: Quick'S Hole, MA
+2025-11-15 18:17:28,312 - INFO -   ✓ Valid
+2025-11-15 18:17:28,567 - INFO - Testing station 8448376: Cuttyhunk, MA
+2025-11-15 18:17:29,487 - INFO -   ✓ Valid
+2025-11-15 18:17:29,741 - INFO - Testing station 8448533: Cape Higgon North, Vineyard Snd, MA
+2025-11-15 18:17:30,035 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:17:30,287 - INFO - Testing station 8448558: Edgartown, MA
+2025-11-15 18:17:31,279 - INFO -   ✓ Valid
+2025-11-15 18:17:31,533 - INFO - Testing station 8448725: Menemsha Harbor, Ma, MA
+2025-11-15 18:17:31,910 - INFO -   ✓ Valid
+2025-11-15 18:17:32,160 - INFO - Testing station 8448875: Martha'S Vineyard Gps Buoy, MA
+2025-11-15 18:17:33,235 - INFO -   ✓ Valid
+2025-11-15 18:17:33,488 - INFO - Testing station 8449130: Nantucket Island, MA
+2025-11-15 18:17:33,857 - INFO -   ✓ Valid
+2025-11-15 18:17:34,111 - INFO - Testing station 8449375: Surfside, Nantucket, MA
+2025-11-15 18:17:34,462 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:17:34,713 - INFO - Testing station 8449383: Coast Guard St, Nantucket, MA
+2025-11-15 18:17:35,006 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:17:35,259 - INFO - Testing station 8450768: Sakonnet, RI
+2025-11-15 18:17:35,945 - INFO -   ✓ Valid
+2025-11-15 18:17:36,198 - INFO - Testing station 8450898: Sakonnet River, North End, Bay Oil Pier, RI
+2025-11-15 18:17:36,536 - INFO -   ✓ Valid
+2025-11-15 18:17:36,791 - INFO - Testing station 8450948: Anthony Point, RI
+2025-11-15 18:17:37,145 - INFO -   ✓ Valid
+2025-11-15 18:17:37,401 - INFO - Testing station 8450954: Nannaquaket, RI
+2025-11-15 18:17:37,832 - INFO -   ✓ Valid
+2025-11-15 18:17:38,087 - INFO - Testing station 8451301: The Glen,Sakonnet River, RI
+2025-11-15 18:17:38,465 - INFO -   ✓ Valid
+2025-11-15 18:17:38,719 - INFO - Testing station 8451351: Sachuest, Flint Point, RI
+2025-11-15 18:17:39,743 - INFO -   ✓ Valid
+2025-11-15 18:17:39,996 - INFO - Testing station 8451552: Bristol Ferry, RI
+2025-11-15 18:17:40,365 - INFO -   ✓ Valid
+2025-11-15 18:17:40,618 - INFO - Testing station 8452154: Bristol Highlands, RI
+2025-11-15 18:17:41,552 - INFO -   ✓ Valid
+2025-11-15 18:17:41,806 - INFO - Testing station 8452555: Navy Pier, Prudence Island, RI
+2025-11-15 18:17:42,850 - INFO -   ✓ Valid
+2025-11-15 18:17:43,105 - INFO - Testing station 8452660: Newport, RI
+2025-11-15 18:17:43,555 - INFO -   ✓ Valid
+2025-11-15 18:17:43,808 - INFO - Testing station 8452944: Conimicut Light, RI
+2025-11-15 18:17:44,174 - INFO -   ✓ Valid
+2025-11-15 18:17:44,428 - INFO - Testing station 8453033: Bay Spring, Bullock Cove, RI
+2025-11-15 18:17:45,257 - INFO -   ✓ Valid
+2025-11-15 18:17:45,511 - INFO - Testing station 8453201: Castle Hill, RI
+2025-11-15 18:17:47,125 - INFO -   ✓ Valid
+2025-11-15 18:17:47,377 - INFO - Testing station 8453433: Rumford, Seekonk River, RI
+2025-11-15 18:17:47,731 - INFO -   ✓ Valid
+2025-11-15 18:17:47,983 - INFO - Testing station 8453465: Conanicut Point, RI
+2025-11-15 18:17:48,348 - INFO -   ✓ Valid
+2025-11-15 18:17:48,601 - INFO - Testing station 8453572: Warwick Point, RI
+2025-11-15 18:17:48,901 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:17:49,154 - INFO - Testing station 8453742: West Jamestown, RI
+2025-11-15 18:17:50,197 - INFO -   ✓ Valid
+2025-11-15 18:17:50,452 - INFO - Testing station 8453767: Pawtuxet Cove, Providence River, RI
+2025-11-15 18:17:50,996 - INFO -   ✓ Valid
+2025-11-15 18:17:51,249 - INFO - Testing station 8453999: Beavertail Point, RI
+2025-11-15 18:17:51,949 - INFO -   ✓ Valid
+2025-11-15 18:17:52,201 - INFO - Testing station 8454000: Providence, RI
+2025-11-15 18:17:52,537 - INFO -   ✓ Valid
+2025-11-15 18:17:52,791 - INFO - Testing station 8454049: Quonset Point, RI
+2025-11-15 18:17:53,633 - INFO -   ✓ Valid
+2025-11-15 18:17:53,885 - INFO - Testing station 8454341: Boston Neck, RI
+2025-11-15 18:17:54,248 - INFO -   ✓ Valid
+2025-11-15 18:17:54,502 - INFO - Testing station 8454538: Wickford, Narragansett Bay, RI
+2025-11-15 18:17:55,328 - INFO -   ✓ Valid
+2025-11-15 18:17:55,580 - INFO - Testing station 8454578: East Greenwich, RI
+2025-11-15 18:17:55,937 - INFO -   ✓ Valid
+2025-11-15 18:17:56,188 - INFO - Testing station 8454658: Narragansett Pier, RI
+2025-11-15 18:17:57,089 - INFO -   ✓ Valid
+2025-11-15 18:17:57,342 - INFO - Testing station 8455083: Point Judith, Harbor Of Refuge, RI
+2025-11-15 18:17:57,863 - INFO -   ✓ Valid
+2025-11-15 18:17:58,118 - INFO - Testing station 8455137: Kickamuit River, RI
+2025-11-15 18:17:59,131 - INFO -   ✓ Valid
+2025-11-15 18:17:59,386 - INFO - Testing station 8455189: Westerly Pawcatuck, RI
+2025-11-15 18:18:05,129 - INFO -   ✓ Valid
+2025-11-15 18:18:05,382 - INFO - Testing station 8458022: Weekapaug Point, Block Island Sound, RI
+2025-11-15 18:18:06,089 - INFO -   ✓ Valid
+2025-11-15 18:18:06,343 - INFO - Testing station 8458694: Watch Hill Point, RI
+2025-11-15 18:18:06,771 - INFO -   ✓ Valid
+2025-11-15 18:18:07,024 - INFO - Testing station 8459338: Block Island, RI
+2025-11-15 18:18:07,357 - INFO -   ✓ Valid
+2025-11-15 18:18:07,612 - INFO - Testing station 8459449: Vails Beach, Block Is. Sound, RI
+2025-11-15 18:18:08,184 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:18:08,435 - INFO - Testing station 8459479: Sandy Point, Block Is, Sound, RI
+2025-11-15 18:18:08,903 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:18:09,153 - INFO - Testing station 8459681: Block Island, RI
+2025-11-15 18:18:09,551 - INFO -   ✓ Valid
+2025-11-15 18:18:09,806 - INFO - Testing station 8460751: West Mystic River, CT
+2025-11-15 18:18:10,610 - INFO -   ✓ Valid
+2025-11-15 18:18:10,862 - INFO - Testing station 8461392: Norwich, Thames River, CT
+2025-11-15 18:18:12,275 - INFO -   ✓ Valid
+2025-11-15 18:18:12,529 - INFO - Testing station 8461467: Yale Boathouse, Thames River, CT
+2025-11-15 18:18:12,936 - INFO -   ✓ Valid
+2025-11-15 18:18:13,192 - INFO - Testing station 8461490: New London, CT
+2025-11-15 18:18:13,959 - INFO -   ✓ Valid
+2025-11-15 18:18:14,213 - INFO - Testing station 8461925: Niantic, Niantic River, CT
+2025-11-15 18:18:15,446 - INFO -   ✓ Valid
+2025-11-15 18:18:15,701 - INFO - Testing station 8463348: Tylerville, Connecticut R., CT
+2025-11-15 18:18:16,062 - INFO -   ✓ Valid
+2025-11-15 18:18:16,313 - INFO - Testing station 8463701: Clinton Harbor, CT
+2025-11-15 18:18:17,277 - INFO -   ✓ Valid
+2025-11-15 18:18:17,531 - INFO - Testing station 8463827: Maromas, Connecticut River, CT
+2025-11-15 18:18:17,873 - INFO -   ✓ Valid
+2025-11-15 18:18:18,127 - INFO - Testing station 8463836: Higganum Creek, Connecticut R., CT
+2025-11-15 18:18:19,089 - INFO -   ✓ Valid
+2025-11-15 18:18:19,343 - INFO - Testing station 8464255: Rocky Hill,Connecticut River, CT
+2025-11-15 18:18:19,903 - INFO -   ✓ Valid
+2025-11-15 18:18:20,158 - INFO - Testing station 8464336: Middletown, Connecticut River, CT
+2025-11-15 18:18:20,860 - INFO -   ✓ Valid
+2025-11-15 18:18:21,115 - INFO - Testing station 8464445: Guilford, Guilford Harbor, CT
+2025-11-15 18:18:21,496 - INFO -   ✓ Valid
+2025-11-15 18:18:21,749 - INFO - Testing station 8465692: Lighthouse Point, New Haven Harbor, CT
+2025-11-15 18:18:22,307 - INFO -   ✓ Valid
+2025-11-15 18:18:22,559 - INFO - Testing station 8465705: New Haven, CT
+2025-11-15 18:18:22,969 - INFO -   ✓ Valid
+2025-11-15 18:18:23,219 - INFO - Testing station 8465748: New Haven, CT
+2025-11-15 18:18:24,636 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:18:24,904 - INFO - Testing station 8466375: Gulf Beach, CT
+2025-11-15 18:18:25,709 - INFO -   ✓ Valid
+2025-11-15 18:18:25,964 - INFO - Testing station 8466442: Milford Harbor, CT
+2025-11-15 18:18:26,321 - INFO -   ✓ Valid
+2025-11-15 18:18:26,572 - INFO - Testing station 8466573: Shelton, Housatonic River, CT
+2025-11-15 18:18:27,820 - INFO -   ✓ Valid
+2025-11-15 18:18:28,075 - INFO - Testing station 8466664: Murphy'S Boat Yard, Housatonic River, CT
+2025-11-15 18:18:29,206 - INFO -   ✓ Valid
+2025-11-15 18:18:29,460 - INFO - Testing station 8466791: Sniffens Point, Housatonic River, CT
+2025-11-15 18:18:29,843 - INFO -   ✓ Valid
+2025-11-15 18:18:30,098 - INFO - Testing station 8466797: I-95 Bridge, Housatonic River, CT
+2025-11-15 18:18:31,265 - INFO -   ✓ Valid
+2025-11-15 18:18:31,516 - INFO - Testing station 8467150: Bridgeport, CT
+2025-11-15 18:18:31,911 - INFO -   ✓ Valid
+2025-11-15 18:18:32,166 - INFO - Testing station 8467373: Black Rock Harbor, CT
+2025-11-15 18:18:32,763 - INFO -   ✓ Valid
+2025-11-15 18:18:33,019 - INFO - Testing station 8467726: Southport, Southport Harbor, CT
+2025-11-15 18:18:33,371 - INFO -   ✓ Valid
+2025-11-15 18:18:33,625 - INFO - Testing station 8468191: Saugatuck River, CT
+2025-11-15 18:18:34,002 - INFO -   ✓ Valid
+2025-11-15 18:18:34,257 - INFO - Testing station 8468448: South Norwalk, CT
+2025-11-15 18:18:35,343 - INFO -   ✓ Valid
+2025-11-15 18:18:35,597 - INFO - Testing station 8468609: Rowayton, Fivemile River, CT
+2025-11-15 18:18:35,993 - INFO -   ✓ Valid
+2025-11-15 18:18:36,247 - INFO - Testing station 8468799: Long Neck Point, Long Island Sound, CT
+2025-11-15 18:18:37,259 - INFO -   ✓ Valid
+2025-11-15 18:18:37,512 - INFO - Testing station 8469057: Mianus, CT
+2025-11-15 18:18:37,992 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:18:38,243 - INFO - Testing station 8469198: Stamford Harbor, CT
+2025-11-15 18:18:38,762 - INFO -   ✓ Valid
+2025-11-15 18:18:39,015 - INFO - Testing station 8510321: Montauk Point Light, NY
+2025-11-15 18:18:39,491 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:18:39,746 - INFO - Testing station 8510448: Lake Montauk, NY
+2025-11-15 18:18:40,212 - INFO -   ✓ Valid
+2025-11-15 18:18:40,467 - INFO - Testing station 8510560: Montauk, NY
+2025-11-15 18:18:40,807 - INFO -   ✓ Valid
+2025-11-15 18:18:41,058 - INFO - Testing station 8510719: Silver Eel Pond, NY
+2025-11-15 18:18:42,158 - INFO -   ✓ Valid
+2025-11-15 18:18:42,413 - INFO - Testing station 8511171: Threemile Harbor Entrance, NY
+2025-11-15 18:18:42,988 - INFO -   ✓ Valid
+2025-11-15 18:18:43,243 - INFO - Testing station 8511236: Plum Island Plum Gut Harbor, NY
+2025-11-15 18:18:43,657 - INFO -   ✓ Valid
+2025-11-15 18:18:43,907 - INFO - Testing station 8511629: Sag Harbor, NY
+2025-11-15 18:18:44,270 - INFO -   ✓ Valid
+2025-11-15 18:18:44,523 - INFO - Testing station 8511671: Orient Harbor, NY
+2025-11-15 18:18:45,237 - INFO -   ✓ Valid
+2025-11-15 18:18:45,488 - INFO - Testing station 8511907: Greenport, NY
+2025-11-15 18:18:45,862 - INFO -   ✓ Valid
+2025-11-15 18:18:46,115 - INFO - Testing station 8512354: Shinnecock Inlet Open Coast, NY
+2025-11-15 18:18:46,862 - INFO -   ✓ Valid
+2025-11-15 18:18:47,114 - INFO - Testing station 8512451: Ponquogue Point, NY
+2025-11-15 18:18:47,443 - INFO -   ✓ Valid
+2025-11-15 18:18:47,696 - INFO - Testing station 8512668: Mattituck Inlet, Long Island, NY
+2025-11-15 18:18:48,581 - INFO -   ✓ Valid
+2025-11-15 18:18:48,836 - INFO - Testing station 8512671: Shinnecock Bay, NY
+2025-11-15 18:18:49,218 - INFO -   ✓ Valid
+2025-11-15 18:18:49,469 - INFO - Testing station 8512735: South Jamesport, NY
+2025-11-15 18:18:50,124 - INFO -   ✓ Valid
+2025-11-15 18:18:50,378 - INFO - Testing station 8512769: Shinnecock Yacht Club, Penniman Creek, NY
+2025-11-15 18:18:50,759 - INFO -   ✓ Valid
+2025-11-15 18:18:51,012 - INFO - Testing station 8512987: Northville, NY
+2025-11-15 18:18:51,370 - INFO -   ✓ Valid
+2025-11-15 18:18:51,625 - INFO - Testing station 8513388: Moriches Cgs, Moriches Bay, NY
+2025-11-15 18:18:52,027 - INFO -   ✓ Valid
+2025-11-15 18:18:52,281 - INFO - Testing station 8513398: Moriches Inlet, NY
+2025-11-15 18:18:52,607 - INFO -   ✓ Valid
+2025-11-15 18:18:52,862 - INFO - Testing station 8513825: Smith Point Bridge, Narrow Bay, NY
+2025-11-15 18:18:53,600 - INFO -   ✓ Valid
+2025-11-15 18:18:53,855 - INFO - Testing station 8514322: Patchogue, Patchogue River, NY
+2025-11-15 18:18:54,221 - INFO -   ✓ Valid
+2025-11-15 18:18:54,472 - INFO - Testing station 8514422: Cedar Beach, NY
+2025-11-15 18:18:55,424 - INFO -   ✓ Valid
+2025-11-15 18:18:55,675 - INFO - Testing station 8514560: Port Jefferson, NY
+2025-11-15 18:18:56,914 - INFO -   ✓ Valid
+2025-11-15 18:18:57,168 - INFO - Testing station 8514779: Seaview Ferry Dock, NY
+2025-11-15 18:18:57,486 - INFO -   ✓ Valid
+2025-11-15 18:18:57,737 - INFO - Testing station 8515102: Bayshore, Long Island, NY
+2025-11-15 18:18:58,738 - INFO -   ✓ Valid
+2025-11-15 18:18:58,990 - INFO - Testing station 8515186: Fire Island, NY
+2025-11-15 18:18:59,310 - INFO -   ✓ Valid
+2025-11-15 18:18:59,565 - INFO - Testing station 8515586: Northport, Northport Bay, NY
+2025-11-15 18:18:59,943 - INFO -   ✓ Valid
+2025-11-15 18:19:00,198 - INFO - Testing station 8515786: Eatons Neck, NY
+2025-11-15 18:19:00,655 - INFO -   ✓ Valid
+2025-11-15 18:19:00,909 - INFO - Testing station 8515921: Lloyd Harbor Lighthouse, NY
+2025-11-15 18:19:01,281 - INFO -   ✓ Valid
+2025-11-15 18:19:01,535 - INFO - Testing station 8516061: Cold Spring Harbor, NY
+2025-11-15 18:19:01,872 - INFO -   ✓ Valid
+2025-11-15 18:19:02,123 - INFO - Testing station 8516155: Green Island, NY
+2025-11-15 18:19:02,561 - INFO -   ✓ Valid
+2025-11-15 18:19:02,816 - INFO - Testing station 8516299: Bayville Bridge, Oyster Bay, NY
+2025-11-15 18:19:03,148 - INFO -   ✓ Valid
+2025-11-15 18:19:03,402 - INFO - Testing station 8516402: Point Lookout, NY
+2025-11-15 18:19:04,131 - INFO -   ✓ Valid
+2025-11-15 18:19:04,384 - INFO - Testing station 8516501: Parsonnage Cove, NY
+2025-11-15 18:19:04,981 - INFO -   ✓ Valid
+2025-11-15 18:19:05,236 - INFO - Testing station 8516607: Harry Tappen Marina, NY
+2025-11-15 18:19:06,276 - INFO -   ✓ Valid
+2025-11-15 18:19:06,530 - INFO - Testing station 8516614: Glen Cove Yacht Club, Long Island, NY
+2025-11-15 18:19:06,859 - INFO -   ✓ Valid
+2025-11-15 18:19:07,113 - INFO - Testing station 8516661: Bay Park, Ny, NY
+2025-11-15 18:19:07,715 - INFO -   ✓ Valid
+2025-11-15 18:19:07,970 - INFO - Testing station 8516663: Long Beach, New York, NY
+2025-11-15 18:19:08,354 - INFO -   ✓ Valid
+2025-11-15 18:19:08,606 - INFO - Testing station 8516761: Port Washington, Manhassset Bay, NY
+2025-11-15 18:19:09,579 - INFO -   ✓ Valid
+2025-11-15 18:19:09,833 - INFO - Testing station 8516881: Atlantic Beach, NY
+2025-11-15 18:19:10,206 - INFO -   ✓ Valid
+2025-11-15 18:19:10,458 - INFO - Testing station 8516891: Norton Point, Hook Creek, New York, NY
+2025-11-15 18:19:11,348 - INFO -   ✓ Valid
+2025-11-15 18:19:11,601 - INFO - Testing station 8516945: Kings Point, NY
+2025-11-15 18:19:11,971 - INFO -   ✓ Valid
+2025-11-15 18:19:12,224 - INFO - Testing station 8516990: Willets Point, NY
+2025-11-15 18:19:12,931 - INFO -   ✓ Valid
+2025-11-15 18:19:13,184 - INFO - Testing station 8517125: Whitestone, NY
+2025-11-15 18:19:13,619 - INFO -   ✓ Valid
+2025-11-15 18:19:13,872 - INFO - Testing station 8517137: Beach Channel (Bridge), NY
+2025-11-15 18:19:14,582 - INFO -   ✓ Valid
+2025-11-15 18:19:14,837 - INFO - Testing station 8517201: North Channel, NY
+2025-11-15 18:19:15,230 - INFO -   ✓ Valid
+2025-11-15 18:19:15,484 - INFO - Testing station 8517251: Worlds Fair Marina, NY
+2025-11-15 18:19:16,096 - INFO -   ✓ Valid
+2025-11-15 18:19:16,350 - INFO - Testing station 8517276: College Pt, Ft. Of 110Th St, Li, NY
+2025-11-15 18:19:16,806 - INFO -   ✓ Valid
+2025-11-15 18:19:17,057 - INFO - Testing station 8517401: Wards Is., NY
+2025-11-15 18:19:17,936 - INFO -   ✓ Valid
+2025-11-15 18:19:18,189 - INFO - Testing station 8517732: Wallabout Bay, Bkln Navy Yard, NY
+2025-11-15 18:19:18,578 - INFO -   ✓ Valid
+2025-11-15 18:19:18,830 - INFO - Testing station 8517756: Kingsborough Cc, NY
+2025-11-15 18:19:19,508 - INFO -   ✓ Valid
+2025-11-15 18:19:19,763 - INFO - Testing station 8517811: Gravesend Bay, Norton Pt. Bkln, NY
+2025-11-15 18:19:20,118 - INFO -   ✓ Valid
+2025-11-15 18:19:20,371 - INFO - Testing station 8517847: Brooklyn Bridge, NY
+2025-11-15 18:19:21,260 - INFO -   ✓ Valid
+2025-11-15 18:19:21,515 - INFO - Testing station 8517921: Gowanus Bay, NY
+2025-11-15 18:19:22,589 - INFO -   ✓ Valid
+2025-11-15 18:19:22,840 - INFO - Testing station 8518091: Rye Beach, Amusement Park, NY
+2025-11-15 18:19:23,180 - INFO -   ✓ Valid
+2025-11-15 18:19:23,432 - INFO - Testing station 8518490: New Rochelle, NY
+2025-11-15 18:19:24,696 - INFO -   ✓ Valid
+2025-11-15 18:19:24,950 - INFO - Testing station 8518526: Throgs Neck, NY
+2025-11-15 18:19:25,272 - INFO -   ✓ Valid
+2025-11-15 18:19:25,523 - INFO - Testing station 8518621: Hunts Pt., NY
+2025-11-15 18:19:26,301 - INFO -   ✓ Valid
+2025-11-15 18:19:26,552 - INFO - Testing station 8518639: Port Morris, NY
+2025-11-15 18:19:28,475 - INFO -   ✓ Valid
+2025-11-15 18:19:28,729 - INFO - Testing station 8518643: Randalls Island, NY
+2025-11-15 18:19:29,262 - INFO -   ✓ Valid
+2025-11-15 18:19:29,513 - INFO - Testing station 8518668: Horns Hook, NY
+2025-11-15 18:19:30,063 - INFO -   ✓ Valid
+2025-11-15 18:19:30,316 - INFO - Testing station 8518687: Queensboro Bridge, NY
+2025-11-15 18:19:30,704 - INFO -   ✓ Valid
+2025-11-15 18:19:30,956 - INFO - Testing station 8518695: East 41St Street Pier, NY
+2025-11-15 18:19:32,044 - INFO -   ✓ Valid
+2025-11-15 18:19:32,299 - INFO - Testing station 8518699: Williamsburg Bridge, NY
+2025-11-15 18:19:32,647 - INFO -   ✓ Valid
+2025-11-15 18:19:32,900 - INFO - Testing station 8518750: The Battery, NY
+2025-11-15 18:19:33,749 - INFO -   ✓ Valid
+2025-11-15 18:19:34,004 - INFO - Testing station 8518902: Dyckman Street, NY
+2025-11-15 18:19:34,563 - INFO -   ✓ Valid
+2025-11-15 18:19:34,815 - INFO - Testing station 8518903: Spuyten Duyvil Ck, Ent., Hudson R,, NY
+2025-11-15 18:19:35,290 - INFO -   ✓ Valid
+2025-11-15 18:19:35,542 - INFO - Testing station 8518905: Riverdale, Hudson River, NY
+2025-11-15 18:19:35,906 - INFO -   ✓ Valid
+2025-11-15 18:19:36,158 - INFO - Testing station 8518924: Haverstraw Bay, NY
+2025-11-15 18:19:37,123 - INFO -   ✓ Valid
+2025-11-15 18:19:37,379 - INFO - Testing station 8518934: Beacon, Hudson River, NY
+2025-11-15 18:19:37,718 - INFO -   ✓ Valid
+2025-11-15 18:19:37,971 - INFO - Testing station 8518951: Hyde Park, NY
+2025-11-15 18:19:38,781 - INFO -   ✓ Valid
+2025-11-15 18:19:39,036 - INFO - Testing station 8518962: Turkey Point Hudson River Nerrs, NY
+2025-11-15 18:19:39,363 - INFO -   ✓ Valid
+2025-11-15 18:19:39,615 - INFO - Testing station 8518979: Coxsackie, Hudson River, NY
+2025-11-15 18:19:40,176 - INFO -   ✓ Valid
+2025-11-15 18:19:40,430 - INFO - Testing station 8518995: Albany, Hudson River, NY
+2025-11-15 18:19:40,786 - INFO -   ✓ Valid
+2025-11-15 18:19:41,041 - INFO - Testing station 8519024: Fort Wadsworth, Staten Island, NY
+2025-11-15 18:19:41,568 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:19:41,822 - INFO - Testing station 8519050: Uscg Station Ny, NY
+2025-11-15 18:19:42,189 - INFO -   ✓ Valid
+2025-11-15 18:19:42,440 - INFO - Testing station 8519200: Port Ivory, Arthur Kill, NY
+2025-11-15 18:19:43,028 - INFO -   ✓ Valid
+2025-11-15 18:19:43,283 - INFO - Testing station 8519436: Great Kills Harbor, NY
+2025-11-15 18:19:43,648 - INFO -   ✓ Valid
+2025-11-15 18:19:43,903 - INFO - Testing station 8519483: Bergen Point West Reach, NY
+2025-11-15 18:19:44,925 - INFO -   ✓ Valid
+2025-11-15 18:19:45,180 - INFO - Testing station 8519789: Rossville, Staten Island, NY
+2025-11-15 18:19:45,674 - INFO -   ✓ Valid
+2025-11-15 18:19:45,929 - INFO - Testing station 8530095: Alpine, Hudson River, NJ
+2025-11-15 18:19:46,464 - INFO -   ✓ Valid
+2025-11-15 18:19:46,717 - INFO - Testing station 8530186: New Milford, Hackensack River, NJ
+2025-11-15 18:19:47,301 - INFO -   ✓ Valid
+2025-11-15 18:19:47,555 - INFO - Testing station 8530278: Hackensack, Hackensack River, NJ
+2025-11-15 18:19:48,353 - INFO -   ✓ Valid
+2025-11-15 18:19:48,604 - INFO - Testing station 8530345: Garfield Passaic River, NJ
+2025-11-15 18:19:49,931 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:19:50,183 - INFO - Testing station 8530398: Ridgefield Park Hackensack River, NJ
+2025-11-15 18:19:51,305 - INFO -   ✓ Valid
+2025-11-15 18:19:51,556 - INFO - Testing station 8530403: East Rutherford, Passaic River, NJ
+2025-11-15 18:19:51,917 - INFO -   ✓ Valid
+2025-11-15 18:19:52,172 - INFO - Testing station 8530464: Berrys Creek, No. 3, NJ
+2025-11-15 18:19:52,634 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:19:52,888 - INFO - Testing station 8530502: Berrys Creek, No. 7, NJ
+2025-11-15 18:19:53,373 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:19:53,628 - INFO - Testing station 8530528: Carlstadt, Hackensack River, NJ
+2025-11-15 18:19:54,168 - INFO -   ✓ Valid
+2025-11-15 18:19:54,422 - INFO - Testing station 8530531: North Secaucus, Hack. River, NJ
+2025-11-15 18:19:55,277 - INFO -   ✓ Valid
+2025-11-15 18:19:55,530 - INFO - Testing station 8530538: Cromakill Creek, NJ
+2025-11-15 18:19:55,985 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:19:56,239 - INFO - Testing station 8530576: Mill Creek, Hackensack River, NJ
+2025-11-15 18:20:01,382 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:20:01,636 - INFO - Testing station 8530586: Berrys Creek, Fish Creek, NJ
+2025-11-15 18:20:02,181 - INFO -   ✓ Valid
+2025-11-15 18:20:02,436 - INFO - Testing station 8530591: Belleville, Passaic River, NJ
+2025-11-15 18:20:03,123 - INFO -   ✓ Valid
+2025-11-15 18:20:03,377 - INFO - Testing station 8530645: Union City Hudson River, NJ
+2025-11-15 18:20:04,049 - INFO -   ✓ Valid
+2025-11-15 18:20:04,301 - INFO - Testing station 8530696: Amtrack Rr Swingbridge, Hackensack River, NJ
+2025-11-15 18:20:04,676 - INFO -   ✓ Valid
+2025-11-15 18:20:04,930 - INFO - Testing station 8530743: Point No Point, Passaic River, NJ
+2025-11-15 18:20:06,044 - INFO -   ✓ Valid
+2025-11-15 18:20:06,296 - INFO - Testing station 8530772: Kearny Point, Hackensack River, NJ
+2025-11-15 18:20:07,410 - INFO -   ✓ Valid
+2025-11-15 18:20:07,663 - INFO - Testing station 8530802: Jersey City Pa-Rr Ferry, NJ
+2025-11-15 18:20:14,382 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:20:14,635 - INFO - Testing station 8530882: Port Elizabeth, Newark Bay, NJ
+2025-11-15 18:20:16,097 - INFO -   ✓ Valid
+2025-11-15 18:20:16,351 - INFO - Testing station 8530985: Constable Hook Upper Bay, NJ
+2025-11-15 18:20:17,420 - INFO -   ✓ Valid
+2025-11-15 18:20:17,671 - INFO - Testing station 8531077: Rahway River #1, NJ
+2025-11-15 18:20:19,022 - INFO -   ✓ Valid
+2025-11-15 18:20:19,276 - INFO - Testing station 8531142: Port Reading, NJ
+2025-11-15 18:20:20,292 - INFO -   ✓ Valid
+2025-11-15 18:20:20,546 - INFO - Testing station 8531156: Woodbridge Creek #1, NJ
+2025-11-15 18:20:20,971 - INFO -   ✓ Valid
+2025-11-15 18:20:21,221 - INFO - Testing station 8531223: Cheesequake Creek, NJ
+2025-11-15 18:20:23,515 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:20:23,767 - INFO - Testing station 8531232: South Amboy Raritan River, NJ
+2025-11-15 18:20:27,741 - INFO -   ✓ Valid
+2025-11-15 18:20:27,996 - INFO - Testing station 8531262: Keasbey, Raritan River, NJ
+2025-11-15 18:20:28,402 - INFO -   ✓ Valid
+2025-11-15 18:20:28,654 - INFO - Testing station 8531369: North Old Bridge, South River, NJ
+2025-11-15 18:20:29,843 - INFO -   ✓ Valid
+2025-11-15 18:20:30,095 - INFO - Testing station 8531390: Sayreville, Raritan River, NJ
+2025-11-15 18:20:31,698 - INFO -   ✓ Valid
+2025-11-15 18:20:31,949 - INFO - Testing station 8531463: New Brunswick Raritan River, NJ
+2025-11-15 18:20:33,669 - INFO -   ✓ Valid
+2025-11-15 18:20:33,921 - INFO - Testing station 8531526: Matawan Creek Raritan Bay, NJ
+2025-11-15 18:20:35,031 - INFO -   ✓ Valid
+2025-11-15 18:20:35,287 - INFO - Testing station 8531545: Keyport, Raritan Bay, NJ
+2025-11-15 18:20:36,935 - INFO -   ✓ Valid
+2025-11-15 18:20:37,190 - INFO - Testing station 8531592: Waackaack Ck, Raritan Bay, NJ
+2025-11-15 18:20:40,785 - INFO -   ✓ Valid
+2025-11-15 18:20:41,036 - INFO - Testing station 8531630: Compton Creek, Sandy Hook Bay, NJ
+2025-11-15 18:20:41,481 - WARNING -   ✗ Invalid: No predictions data
+2025-11-15 18:20:41,735 - INFO - Testing station 8531662: Atlantic Highlands, Sandy Hook, NJ
+2025-11-15 18:20:43,734 - INFO -   ✓ Valid
+2025-11-15 18:20:43,986 - INFO - Testing station 8531680: Sandy Hook, NJ
+2025-11-15 18:20:45,971 - INFO -   ✓ Valid
+2025-11-15 18:20:46,224 - INFO - Testing station 8531712: Highlands Bridge, Shrewsbury River, NJ
+2025-11-15 18:20:46,871 - INFO -   ✓ Valid
+2025-11-15 18:20:47,124 - INFO - Testing station 8531753: Oceanic, Navesink River, NJ
+2025-11-15 18:20:48,894 - INFO -   ✓ Valid
+2025-11-15 18:20:49,147 - INFO - Testing station 8531804: Sea Bright, NJ

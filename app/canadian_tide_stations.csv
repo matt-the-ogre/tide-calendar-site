@@ -1,0 +1,11 @@
+station_id,place_name,province,latitude,longitude,country,api_source
+07735,"Vancouver, BC",BC,49.287,-123.110,Canada,CHS
+08615,"Tofino, BC",BC,49.153,-125.913,Canada,CHS
+07277,"Victoria, BC",BC,48.424,-123.372,Canada,CHS
+08074,"Prince Rupert, BC",BC,54.315,-130.327,Canada,CHS
+08408,"Campbell River, BC",BC,50.043,-125.244,Canada,CHS
+08545,"Ucluelet, BC",BC,48.942,-125.544,Canada,CHS
+07120,"Patricia Bay, BC",BC,48.655,-123.451,Canada,CHS
+07917,"Nanaimo, BC",BC,49.167,-123.933,Canada,CHS
+08525,"Bamfield, BC",BC,48.835,-125.136,Canada,CHS
+09850,"Tuktoyaktuk, NT",NT,69.439,-133.021,Canada,CHS

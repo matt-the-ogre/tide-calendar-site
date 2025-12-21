@@ -9,7 +9,20 @@ app/playwright-report/
 app/tide*.pdf
 **/tide*.pdf
 
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+env/
+ENV/
+
 # Database files
 data/
 *.db
 tide_calendar*
+
+# Generated PDF calendars
+app/calendars/
