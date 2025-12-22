@@ -1,6 +1,12 @@
 # Use the official Python image from the Docker Hub
 FROM python:3.9-slim-bullseye
 
+# Build arguments for version info (passed at build time)
+ARG VERSION=unknown
+ARG COMMIT_HASH=unknown
+ARG BRANCH=unknown
+ARG BUILD_TIMESTAMP=unknown
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_APP=run.py
@@ -24,6 +30,7 @@ COPY app/get_tides.py /app/
 COPY app/database.py /app/
 COPY app/tide_adapters.py /app/
 COPY app/canadian_station_sync.py /app/
+COPY app/generate_version_info.py /app/
 
 # Templates and static assets
 COPY app/templates/ /app/templates/
@@ -32,6 +39,9 @@ COPY app/static/ /app/static/
 # Required CSV data files (imported at startup)
 COPY app/tide_stations_new.csv /app/
 COPY app/canadian_tide_stations.csv /app/
+
+# Copy package.json for version info
+COPY package.json /app/
 
 # Install system dependencies
 RUN apt-get update && \
@@ -45,6 +55,9 @@ COPY requirements.txt /app
 
 # Install python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Generate version info JSON from build args
+RUN echo "{\"version\": \"$VERSION\", \"commit_hash\": \"$COMMIT_HASH\", \"branch\": \"$BRANCH\", \"build_timestamp\": \"$BUILD_TIMESTAMP\"}" > /app/version_info.json
 
 # Expose the port the app runs on
 EXPOSE 80
