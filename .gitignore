@@ -25,4 +25,4 @@ data/
 tide_calendar*
 
 # Generated PDF calendars
-app/calendars/
+app/calendars/app/version_info.json

@@ -333,3 +333,60 @@ def api_generate_quick():
     except Exception as e:
         logging.error(f"Error in quick generate API: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint with version and build information."""
+    try:
+        import json
+        from datetime import datetime
+
+        # Load version info from JSON file (generated at build time)
+        version_info_path = os.path.join(os.path.dirname(__file__), 'version_info.json')
+        version_data = {
+            'version': 'unknown',
+            'commit_hash': 'unknown',
+            'branch': 'unknown',
+            'build_timestamp': 'unknown'
+        }
+
+        if os.path.exists(version_info_path):
+            try:
+                with open(version_info_path, 'r') as f:
+                    version_data = json.load(f)
+            except Exception as e:
+                logging.warning(f"Could not load version info: {e}")
+
+        # Check database connectivity
+        db_status = 'ok'
+        try:
+            from app.database import get_popular_stations
+            # Try a simple database query
+            get_popular_stations(limit=1)
+        except Exception as e:
+            db_status = f'error: {str(e)}'
+            logging.error(f"Database health check failed: {e}")
+
+        # Build health response
+        health_response = {
+            'status': 'healthy' if db_status == 'ok' else 'degraded',
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'version': version_data.get('version', 'unknown'),
+            'commit_hash': version_data.get('commit_hash', 'unknown'),
+            'branch': version_data.get('branch', 'unknown'),
+            'build_timestamp': version_data.get('build_timestamp', 'unknown'),
+            'checks': {
+                'database': db_status
+            }
+        }
+
+        status_code = 200 if db_status == 'ok' else 503
+        return jsonify(health_response), status_code
+
+    except Exception as e:
+        logging.error(f"Health check endpoint error: {e}")
+        return jsonify({
+            'status': 'unhealthy',
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'error': str(e)
+        }), 503

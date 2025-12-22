@@ -27,7 +27,7 @@ app/*.txt
 app/*.backup.*
 
 # Git and CI
-.git
+# .git is needed for version info generation at build time
 .github
 .gitignore
 
