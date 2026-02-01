@@ -1,6 +1,7 @@
 node_modules/
 test-results/
 playwright-report/
+.playwright-cli/
 app/node_modules/
 app/test-results/
 app/playwright-report/
