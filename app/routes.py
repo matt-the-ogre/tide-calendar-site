@@ -334,6 +334,16 @@ def api_generate_quick():
         logging.error(f"Error in quick generate API: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/ads.txt')
+def ads_txt():
+    """Serve ads.txt file for ad network verification."""
+    ads_txt_path = os.path.join(os.path.dirname(__file__), 'static', 'ads.txt')
+    if os.path.exists(ads_txt_path):
+        return send_file(ads_txt_path, mimetype='text/plain')
+    else:
+        logging.warning("ads.txt file not found")
+        return "ads.txt not found", 404
+
 @app.route('/health')
 def health_check():
     """Health check endpoint with version and build information."""
