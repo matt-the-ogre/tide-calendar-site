@@ -485,9 +485,7 @@
                 // Rank
                 const rankCell = document.createElement('td');
                 rankCell.textContent = index + 1;
-                rankCell.style.fontWeight = '700';
-                rankCell.style.color = '#F4A261';
-                rankCell.style.fontSize = '1.1em';
+                rankCell.className = 'rank-cell';
                 row.appendChild(rankCell);
 
                 // Country with flag
@@ -498,8 +496,7 @@
                 flagSpan.setAttribute('aria-label', countryName);
                 flagSpan.textContent = flag;
                 countryCell.appendChild(flagSpan);
-                countryCell.style.fontSize = '1.5em';
-                countryCell.style.textAlign = 'center';
+                countryCell.className = 'country-cell';
                 row.appendChild(countryCell);
 
                 // Station Name

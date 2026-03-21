@@ -65,6 +65,19 @@ export class HomePage extends BasePage {
     return this.page.locator(SELECTORS.COUNTRY_CANADA_RADIO);
   }
 
+  /** Visible pill labels wrapping the hidden radio inputs */
+  get countryAllLabel(): Locator {
+    return this.countryAllRadio.locator('xpath=..');
+  }
+
+  get countryUSALabel(): Locator {
+    return this.countryUSARadio.locator('xpath=..');
+  }
+
+  get countryCanadaLabel(): Locator {
+    return this.countryCanadaRadio.locator('xpath=..');
+  }
+
   get popularStationsList(): Locator {
     return this.page.locator(SELECTORS.POPULAR_STATIONS_LIST);
   }
@@ -304,15 +317,13 @@ export class HomePage extends BasePage {
    * Select country filter radio button
    */
   async selectCountryFilter(country: 'all' | 'USA' | 'Canada'): Promise<void> {
-    const radioMap = {
-      'all': this.countryAllRadio,
-      'USA': this.countryUSARadio,
-      'Canada': this.countryCanadaRadio
+    const labelMap = {
+      'all': this.countryAllLabel,
+      'USA': this.countryUSALabel,
+      'Canada': this.countryCanadaLabel
     };
 
-    // Radio inputs are hidden (display:none) with pill-style labels as visible controls
-    // Click the parent label to toggle the radio
-    await radioMap[country].locator('xpath=..').click();
+    await labelMap[country].click();
 
     // Wait for popular stations to reload (API call + render)
     await this.page.waitForTimeout(500);

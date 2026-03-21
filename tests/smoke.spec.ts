@@ -104,16 +104,16 @@ test.describe('Smoke Tests', () => {
   test('country filter radio buttons are visible and functional', async ({ page }) => {
     await homePage.navigateToHome();
 
-    // Verify all three country filter pills are visible (radio inputs are hidden, labels are visible)
-    await expect(homePage.countryAllRadio.locator('xpath=..')).toBeVisible();
-    await expect(homePage.countryUSARadio.locator('xpath=..')).toBeVisible();
-    await expect(homePage.countryCanadaRadio.locator('xpath=..')).toBeVisible();
+    // Verify all three country filter pills are visible
+    await expect(homePage.countryAllLabel).toBeVisible();
+    await expect(homePage.countryUSALabel).toBeVisible();
+    await expect(homePage.countryCanadaLabel).toBeVisible();
 
     // Verify "All" is selected by default
     await expect(homePage.countryAllRadio).toBeChecked();
 
-    // Click USA filter (click label since radio input is hidden)
-    await homePage.countryUSARadio.locator('xpath=..').click();
+    // Click USA filter
+    await homePage.countryUSALabel.click();
     await expect(homePage.countryUSARadio).toBeChecked();
 
     // Wait for popular stations to reload

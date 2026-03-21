@@ -339,12 +339,13 @@ def ads_txt():
     """Serve ads.txt file for ad network verification."""
     return _serve_static_file('ads.txt', 'text/plain')
 
+STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
+
 def _serve_static_file(filename, mimetype):
-    """Serve a static file with existence check."""
-    file_path = os.path.join(os.path.dirname(__file__), 'static', filename)
-    if os.path.exists(file_path):
-        return send_file(file_path, mimetype=mimetype)
-    else:
+    """Serve a static file, returning 404 if missing."""
+    try:
+        return send_file(os.path.join(STATIC_DIR, filename), mimetype=mimetype)
+    except FileNotFoundError:
         logging.warning(f"{filename} file not found")
         return f"{filename} not found", 404
 

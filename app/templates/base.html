@@ -38,15 +38,12 @@
     </footer>
 
     <script>
-        // Email obfuscation
         (function() {
             var user = "sleepy.map1861";
             var domain = "fastmail.com";
             var emailLink = document.getElementById("email-link");
             if (emailLink) emailLink.setAttribute("href", "mailto:" + user + "@" + domain);
         })();
-
-        // Copyright year
         document.getElementById('copyright-year').textContent = new Date().getFullYear();
     </script>
     {% block scripts %}{% endblock %}
