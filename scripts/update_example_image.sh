@@ -10,6 +10,11 @@
 
 set -euo pipefail
 
+# Check required dependencies
+for cmd in pcal gs magick; do
+    command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: '$cmd' not found. Install it first."; exit 1; }
+done
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 APP_DIR="$PROJECT_ROOT/app"
@@ -62,6 +67,10 @@ echo "Converting PDF to WebP..."
 magick -density 200 "${PDF_FILE}[0]" -quality 85 -resize 850x "$OUTPUT_IMAGE"
 
 echo "Updated: $OUTPUT_IMAGE ($(wc -c < "$OUTPUT_IMAGE" | tr -d ' ') bytes)"
+
+# Clean up generated PDF
+rm -f "$PDF_FILE"
+echo "Cleaned up: $PDF_FILE"
 
 echo ""
 echo "Done! Example image updated for $(date -v+1m +"%B %Y" 2>/dev/null || date -d '+1 month' +"%B %Y")."
