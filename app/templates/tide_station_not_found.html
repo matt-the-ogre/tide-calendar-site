@@ -74,10 +74,14 @@
             <a href="https://mattmanuel.ca" target="_blank"><i class="fas fa-globe"></i></a>
             <a href="https://github.com/matt-the-ogre/tide-calendar-site/" target="_blank"><i class="fab fa-github"></i></a>
             </p>
+            <p>&copy; <span id="copyright-year"></span> Matthew Manuel</p>
         </div>
     </footer>
 
     <script type="text/javascript">
+        // Set copyright year
+        document.getElementById('copyright-year').textContent = new Date().getFullYear();
+
         // Track error event in Plausible
         document.addEventListener('DOMContentLoaded', function() {
             var container = document.querySelector('.container');
