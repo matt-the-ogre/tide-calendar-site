@@ -64,7 +64,7 @@ echo "PDF generated: $PDF_FILE ($(wc -c < "$PDF_FILE" | tr -d ' ') bytes)"
 
 # Convert PDF to WebP
 echo "Converting PDF to WebP..."
-magick -density 200 "${PDF_FILE}[0]" -quality 85 -resize 850x "$OUTPUT_IMAGE"
+magick -density 200 "${PDF_FILE}[0]" -background white -flatten -quality 85 -resize 850x "$OUTPUT_IMAGE"
 
 echo "Updated: $OUTPUT_IMAGE ($(wc -c < "$OUTPUT_IMAGE" | tr -d ' ') bytes)"
 
