@@ -3,8 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tide Calendar</title>
+    <title>Tide Calendar Generator — Free Printable Tide Calendars</title>
+    <meta name="description" content="Generate free printable PDF tide calendars for over 2,200 USA and Canadian tide stations. Monthly high and low tide predictions you can print or save.">
+    <meta name="author" content="Matthew Manuel">
+    <link rel="canonical" href="https://tidecalendar.xyz/">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Tide Calendar Generator">
+    <meta property="og:description" content="Generate free printable PDF tide calendars for USA and Canadian tide stations.">
+    <meta property="og:url" content="https://tidecalendar.xyz/">
+    <meta property="og:image" content="https://tidecalendar.xyz/static/tide-calendar-example.webp">
+    <meta property="og:site_name" content="Tide Calendar">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Tide Calendar Generator",
+      "url": "https://tidecalendar.xyz",
+      "description": "Generate free printable PDF tide calendars for over 2,200 USA and Canadian tide stations.",
+      "applicationCategory": "UtilityApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Matthew Manuel",
+        "url": "https://mattmanuel.ca"
+      }
+    }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">

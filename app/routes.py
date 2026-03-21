@@ -344,6 +344,26 @@ def ads_txt():
         logging.warning("ads.txt file not found")
         return "ads.txt not found", 404
 
+@app.route('/robots.txt')
+def robots_txt():
+    """Serve robots.txt for search engine crawlers."""
+    return send_file(os.path.join(os.path.dirname(__file__), 'static', 'robots.txt'), mimetype='text/plain')
+
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    """Serve sitemap.xml for search engine discovery."""
+    return send_file(os.path.join(os.path.dirname(__file__), 'static', 'sitemap.xml'), mimetype='application/xml')
+
+@app.route('/llms.txt')
+def llms_txt():
+    """Serve llms.txt for LLM crawlers."""
+    return send_file(os.path.join(os.path.dirname(__file__), 'static', 'llms.txt'), mimetype='text/plain')
+
+@app.errorhandler(404)
+def page_not_found(e):
+    """Custom 404 error page."""
+    return render_template('404.html'), 404
+
 @app.route('/health')
 def health_check():
     """Health check endpoint with version and build information."""
