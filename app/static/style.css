@@ -70,6 +70,10 @@ a:hover {
     to { opacity: 1; transform: translateY(0); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .container { animation: none; }
+}
+
 /* --- Cards --- */
 .card {
     background: var(--color-white);
@@ -434,6 +438,18 @@ button:focus-visible,
     border-radius: 0 0 var(--radius-md) 0;
 }
 
+/* --- Table Cell Variants --- */
+.rank-cell {
+    font-weight: 700;
+    color: var(--color-sand);
+    font-size: 1.1em;
+}
+
+.country-cell {
+    font-size: 1.5em;
+    text-align: center;
+}
+
 /* --- Quick Generate Buttons --- */
 .quick-generate-btn {
     font-family: var(--font-body);
@@ -556,6 +572,15 @@ button:focus-visible,
 
 .instructions li {
     margin-bottom: 4px;
+}
+
+/* --- Utilities --- */
+.text-center {
+    text-align: center;
+}
+
+.mt-24 {
+    margin-top: 24px;
 }
 
 /* --- Footer --- */
