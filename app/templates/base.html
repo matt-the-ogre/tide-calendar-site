@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Tide Calendar Generator{% endblock %}</title>
+    {% block meta %}
+    <meta name="description" content="Generate free printable PDF tide calendars for over 2,200 USA and Canadian tide stations. Monthly high and low tide predictions you can print or save.">
+    {% endblock %}
+    <meta name="author" content="Matthew Manuel">
+    <link rel="canonical" href="https://tidecalendar.xyz/">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script defer data-domain="tidecalendar.xyz" src="https://plausible.mattmanuel.ca/js/script.file-downloads.outbound-links.pageview-props.revenue.tagged-events.js"></script>
+    <script>window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }</script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4234134774434001"
+         crossorigin="anonymous"></script>
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    {% block body %}{% endblock %}
+
+    <footer>
+        <div class="social-icons">
+            <p>Feedback or a feature suggestion? Contact me here.</p>
+            <p>
+            <a href="https://linkedin.com/in/mattman" target="_blank"><i class="fab fa-linkedin"></i></a>
+            <a id="email-link" href="#"><i class="fas fa-envelope"></i></a>
+            <a href="https://mattmanuel.ca" target="_blank"><i class="fas fa-globe"></i></a>
+            <a href="https://github.com/matt-the-ogre/tide-calendar-site/" target="_blank"><i class="fab fa-github"></i></a>
+            </p>
+            <p>&copy; <span id="copyright-year"></span> Matthew Manuel</p>
+        </div>
+    </footer>
+
+    <script>
+        // Email obfuscation
+        (function() {
+            var user = "sleepy.map1861";
+            var domain = "fastmail.com";
+            var emailLink = document.getElementById("email-link");
+            if (emailLink) emailLink.setAttribute("href", "mailto:" + user + "@" + domain);
+        })();
+
+        // Copyright year
+        document.getElementById('copyright-year').textContent = new Date().getFullYear();
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

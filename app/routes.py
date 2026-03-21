@@ -337,27 +337,31 @@ def api_generate_quick():
 @app.route('/ads.txt')
 def ads_txt():
     """Serve ads.txt file for ad network verification."""
-    ads_txt_path = os.path.join(os.path.dirname(__file__), 'static', 'ads.txt')
-    if os.path.exists(ads_txt_path):
-        return send_file(ads_txt_path, mimetype='text/plain')
+    return _serve_static_file('ads.txt', 'text/plain')
+
+def _serve_static_file(filename, mimetype):
+    """Serve a static file with existence check."""
+    file_path = os.path.join(os.path.dirname(__file__), 'static', filename)
+    if os.path.exists(file_path):
+        return send_file(file_path, mimetype=mimetype)
     else:
-        logging.warning("ads.txt file not found")
-        return "ads.txt not found", 404
+        logging.warning(f"{filename} file not found")
+        return f"{filename} not found", 404
 
 @app.route('/robots.txt')
 def robots_txt():
     """Serve robots.txt for search engine crawlers."""
-    return send_file(os.path.join(os.path.dirname(__file__), 'static', 'robots.txt'), mimetype='text/plain')
+    return _serve_static_file('robots.txt', 'text/plain')
 
 @app.route('/sitemap.xml')
 def sitemap_xml():
     """Serve sitemap.xml for search engine discovery."""
-    return send_file(os.path.join(os.path.dirname(__file__), 'static', 'sitemap.xml'), mimetype='application/xml')
+    return _serve_static_file('sitemap.xml', 'application/xml')
 
 @app.route('/llms.txt')
 def llms_txt():
     """Serve llms.txt for LLM crawlers."""
-    return send_file(os.path.join(os.path.dirname(__file__), 'static', 'llms.txt'), mimetype='text/plain')
+    return _serve_static_file('llms.txt', 'text/plain')
 
 @app.errorhandler(404)
 def page_not_found(e):

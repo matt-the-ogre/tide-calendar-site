@@ -1,32 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error — Tide Calendar Generator</title>
+{% extends "base.html" %}
+
+{% block title %}Error — Tide Calendar Generator{% endblock %}
+
+{% block meta %}
     <meta name="description" content="Generate free printable PDF tide calendars for over 2,200 USA and Canadian tide stations.">
     <meta name="robots" content="noindex">
-    <link rel="canonical" href="https://tidecalendar.xyz/">
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script defer data-domain="tidecalendar.xyz" src="https://plausible.io/js/script.tagged-events.outbound-links.js"></script>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4234134774434001"
-         crossorigin="anonymous"></script>
-    <script type="text/javascript">
-        document.addEventListener("DOMContentLoaded", function() {
-            var user = "sleepy.map1861";
-            var domain = "fastmail.com";
-            var email = user + "@" + domain;
-            var emailLink = document.getElementById("email-link");
-            emailLink.setAttribute("href", "mailto:" + email);
-        });
-    </script>
-</head>
-<body>
+{% endblock %}
+
+{% block body %}
     <div class="container" data-error-message="{{ message | default('Station not found') | replace('\"', '&quot;') }}">
         <h1>Tide Calendar Generator</h1>
 
@@ -67,24 +48,10 @@
             </div>
         </section>
     </div>
+{% endblock %}
 
-    <footer>
-        <div class="social-icons">
-            <p>Feedback or a feature suggestion? Contact me here.</p>
-            <p>
-            <a href="https://linkedin.com/in/mattman" target="_blank"><i class="fab fa-linkedin"></i></a>
-            <a id="email-link" href="#"><i class="fas fa-envelope"></i></a>
-            <a href="https://mattmanuel.ca" target="_blank"><i class="fas fa-globe"></i></a>
-            <a href="https://github.com/matt-the-ogre/tide-calendar-site/" target="_blank"><i class="fab fa-github"></i></a>
-            </p>
-            <p>&copy; <span id="copyright-year"></span> Matthew Manuel</p>
-        </div>
-    </footer>
-
+{% block scripts %}
     <script type="text/javascript">
-        // Set copyright year
-        document.getElementById('copyright-year').textContent = new Date().getFullYear();
-
         // Track error event in Plausible
         document.addEventListener('DOMContentLoaded', function() {
             var container = document.querySelector('.container');
@@ -113,5 +80,4 @@
             }
         });
     </script>
-</body>
-</html>
+{% endblock %}
