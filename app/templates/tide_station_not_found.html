@@ -1,110 +1,56 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tide Calendar</title>
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script defer data-domain="tidecalendar.xyz" src="https://plausible.io/js/script.tagged-events.outbound-links.js"></script>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4234134774434001"
-         crossorigin="anonymous"></script>
-    <script type="text/javascript">
-        document.addEventListener("DOMContentLoaded", function() {
-            var user = "sleepy.map1861";
-            var domain = "fastmail.com";
-            var email = user + "@" + domain;
-            var emailLink = document.getElementById("email-link");
-            emailLink.setAttribute("href", "mailto:" + email);
-        });
-    </script>
+{% extends "base.html" %}
 
-    <style>
-        footer {
-            text-align: center;
-            padding: 20px;
-            background-color: #e0f7fa; /* Match the page background color */
-            margin-top: 30px;
-            width: 100%;
-            bottom: 0;
-        }
+{% block title %}Error — Tide Calendar Generator{% endblock %}
 
-        .social-icons {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-        }
+{% block meta %}
+    <meta name="description" content="Generate free printable PDF tide calendars for over 2,200 USA and Canadian tide stations.">
+    <meta name="robots" content="noindex">
+{% endblock %}
 
-        .social-icons a {
-            color: #006064; /* Dark cyan text color */
-            font-size: 24px;
-            transition: color 0.3s;
-        }
-
-        .social-icons a:hover {
-            color: #004d40; /* Darker cyan on hover */
-        }
-
-        .form-row {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .form-row select {
-            flex: 1;
-        }
-    </style>
-</head>
-<body>
+{% block body %}
     <div class="container" data-error-message="{{ message | default('Station not found') | replace('\"', '&quot;') }}">
         <h1>Tide Calendar Generator</h1>
-        <h2>Generate tide calendars for USA and Canadian stations</h2>
-        <h2>⚠️ Error ⚠️</h2>
-        <p>{{ message | default('It seems that the tide station ID you entered is not found in the database. Please check the ID and try again.') }}</p>
 
-        <div class="instructions">
-            <h2>How to Find Your Tide Station ID</h2>
+        <section class="card">
+            <h2>Generate tide calendars for USA and Canadian stations</h2>
 
-            <h3>🇺🇸 For USA Stations (NOAA)</h3>
-            <p>To find a USA tide station ID, follow these steps:</p>
-            <ol>
-                <li>Visit the <a href="https://tidesandcurrents.noaa.gov/stations.html?type=Water+Levels" target="_blank">NOAA Tide Stations Page</a>.</li>
-                <li>Use the map or the search function to find the tide station closest to your location.</li>
-                <li>Click on the tide station marker to see the station details.</li>
-                <li>Look for the station ID in the station details (usually a 7-digit number).</li>
-            </ol>
+            <div class="error-alert">
+                <span class="error-icon">!</span>
+                <p>{{ message | default('It seems that the tide station ID you entered is not found in the database. Please check the ID and try again.') }}</p>
+            </div>
 
-            <h3>🇨🇦 For Canadian Stations (CHS)</h3>
-            <p>To find a Canadian tide station ID, follow these steps:</p>
-            <ol>
-                <li>Visit the <a href="https://www.tides.gc.ca/en/stations" target="_blank">Canadian Hydrographic Service Stations Page</a>.</li>
-                <li>Use the map or search to find the tide station you need.</li>
-                <li>Click on the station to view details.</li>
-                <li>Look for the station ID (usually a 5-digit number).</li>
-            </ol>
+            <div class="instructions">
+                <h2>How to Find Your Tide Station ID</h2>
 
-            <p><strong>Tip:</strong> You can also use the search feature on our homepage to search by place name instead of entering a station ID!</p>
-        </div>
-        <!-- Add the "Return home" button -->
-        <div style="text-align: center; margin-top: 20px;">
-        <a href="/" class="btn" onclick="if(window.plausible) plausible('Error Page Return')" style="text-decoration: none; background-color: #006064; color: white; padding: 10px 20px; border-radius: 5px; font-size: 16px;">Return home</a>
-        </div>
+                <h3>🇺🇸 For USA Stations (NOAA)</h3>
+                <p>To find a USA tide station ID, follow these steps:</p>
+                <ol>
+                    <li>Visit the <a href="https://tidesandcurrents.noaa.gov/stations.html?type=Water+Levels" target="_blank">NOAA Tide Stations Page</a>.</li>
+                    <li>Use the map or the search function to find the tide station closest to your location.</li>
+                    <li>Click on the tide station marker to see the station details.</li>
+                    <li>Look for the station ID in the station details (usually a 7-digit number).</li>
+                </ol>
+
+                <h3>🇨🇦 For Canadian Stations (CHS)</h3>
+                <p>To find a Canadian tide station ID, follow these steps:</p>
+                <ol>
+                    <li>Visit the <a href="https://www.tides.gc.ca/en/stations" target="_blank">Canadian Hydrographic Service Stations Page</a>.</li>
+                    <li>Use the map or search to find the tide station you need.</li>
+                    <li>Click on the station to view details.</li>
+                    <li>Look for the station ID (usually a 5-digit number).</li>
+                </ol>
+
+                <p><strong>Tip:</strong> You can also use the search feature on our homepage to search by place name instead of entering a station ID!</p>
+            </div>
+
+            <div style="text-align: center; margin-top: 24px;">
+                <a href="/" class="btn-primary btn-primary-inline" onclick="if(window.plausible) plausible('Error Page Return')">Return home</a>
+            </div>
+        </section>
     </div>
+{% endblock %}
 
-    <footer>
-        <div class="social-icons">
-            <p>Feedback or a feature suggestion? Contact me here.</p>
-            <p>
-            <a href="https://linkedin.com/in/mattman" target="_blank"><i class="fab fa-linkedin"></i></a>
-            <a id="email-link" href="#"><i class="fas fa-envelope"></i></a>
-            <a href="https://x.com/mattmanuel" target="_blank"><i class="fab fa-twitter"></i></a>
-            <a href="https://github.com/matt-the-ogre/tide-calendar-site/" target="_blank"><i class="fab fa-github"></i></a>
-            </p>
-        </div>
-    </footer>
-
+{% block scripts %}
     <script type="text/javascript">
         // Track error event in Plausible
         document.addEventListener('DOMContentLoaded', function() {
@@ -134,5 +80,4 @@
             }
         });
     </script>
-</body>
-</html>
+{% endblock %}

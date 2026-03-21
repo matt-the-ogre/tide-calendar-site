@@ -1,0 +1,20 @@
+# Tide Calendar Generator
+> Free printable PDF tide calendars for USA and Canadian tide stations.
+
+## About
+Tide Calendar Generator (tidecalendar.xyz) creates printable monthly PDF calendars showing daily high and low tide predictions. It covers over 2,200 tide stations across the USA (NOAA) and Canada (CHS).
+
+## Features
+- Search by station name or ID
+- Generate PDF calendars for any month
+- Covers USA stations via NOAA CO-OPS API
+- Covers Canadian stations via CHS IWLS API
+- Free, no account required
+
+## Usage
+Visit https://tidecalendar.xyz, search for a tide station, select a month and year, then download the PDF.
+
+## Contact
+- Author: Matthew Manuel
+- Website: https://mattmanuel.ca
+- Source: https://github.com/matt-the-ogre/tide-calendar-site
