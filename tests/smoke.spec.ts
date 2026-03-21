@@ -112,8 +112,8 @@ test.describe('Smoke Tests', () => {
     // Verify "All" is selected by default
     await expect(homePage.countryAllRadio).toBeChecked();
 
-    // Click USA filter
-    await homePage.countryUSARadio.check();
+    // Click USA filter (click label since radio input is hidden)
+    await homePage.countryUSARadio.locator('xpath=..').click();
     await expect(homePage.countryUSARadio).toBeChecked();
 
     // Wait for popular stations to reload

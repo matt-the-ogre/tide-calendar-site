@@ -310,7 +310,9 @@ export class HomePage extends BasePage {
       'Canada': this.countryCanadaRadio
     };
 
-    await radioMap[country].check();
+    // Radio inputs are hidden (display:none) with pill-style labels as visible controls
+    // Click the parent label to toggle the radio
+    await radioMap[country].locator('xpath=..').click();
 
     // Wait for popular stations to reload (API call + render)
     await this.page.waitForTimeout(500);
