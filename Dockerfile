@@ -1,5 +1,5 @@
 # Use the official Python image from the Docker Hub
-FROM python:3.9-slim-bullseye
+FROM python:3.12-slim-bookworm
 
 # Build arguments for version info (passed at build time)
 ARG VERSION=unknown
