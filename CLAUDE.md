@@ -146,7 +146,7 @@ TOP_STATIONS_COUNT=10
 5. **Error Handling**: Missing/empty PDFs and invalid inputs trigger custom error templates
 
 ### Technology Stack
-- **Backend**: Flask with Python 3.9+
+- **Backend**: Flask with Python 3.12+
 - **External Dependencies**: `pcal` (calendar generation), `ghostscript` (PDF processing)
 - **Data Sources**:
   - NOAA CO-OPS API for USA tide predictions
