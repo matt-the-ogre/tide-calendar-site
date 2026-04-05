@@ -257,14 +257,15 @@ if __name__ == "__main__":
 
     # now make a calendar page using `pcal` and the pcal file with the tide events for that month and year
 
-    # -s r1.r2:g1.g2.b1.b2 -- colour of highlighted days
+    # -s r:g:b -- colour of day numerics (0.0:0.0:1.0 = blue)
     # -m -- show the month name
     # -f -- specify the input file
     # -o -- specify the output file
-    # mini-calendars for prev/next month shown by default (lower-right)
+    # -C text -- centered footer text
+    # mini-calendars for prev/next month shown by default (lower-right; -S suppresses)
 
     # Call the shell command to create the calendar page
-    subprocess.run(["pcal", "-f", pcal_filename, "-o", pcal_filename.replace('.txt', '.ps'), "-s 0.0:0.0:1.0", "-m", "-C", "tidecalendar.xyz", str(args.month), str(args.year)])
+    subprocess.run(["pcal", "-f", pcal_filename, "-o", pcal_filename.replace('.txt', '.ps'), "-s", "0.0:0.0:1.0", "-m", "-C", "tidecalendar.xyz", str(args.month), str(args.year)])
 
     # Convert the PostScript file to PDF and save to /data/calendars
     subprocess.run(["ps2pdf", pcal_filename.replace('.txt', '.ps'), pdf_output_path])

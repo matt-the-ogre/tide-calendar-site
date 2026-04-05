@@ -19,5 +19,13 @@
       "Bash(git diff:*)",
       "Bash(git tag:*)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "command": "case \"$CLAUDE_FILE_PATH\" in *.env|*.env.*) echo 'BLOCKED: .env file edits not allowed' >&2; exit 2;; esac"
+      }
+    ]
   }
 }
