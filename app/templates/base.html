@@ -8,6 +8,7 @@
     <meta name="description" content="Generate free printable PDF tide calendars for over 2,200 USA and Canadian tide stations. Monthly high and low tide predictions you can print or save.">
     {% endblock %}
     <meta name="author" content="Matthew Manuel">
+    {% if noindex %}<meta name="robots" content="noindex, nofollow">{% endif %}
     <link rel="canonical" href="https://tidecalendar.xyz/">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
