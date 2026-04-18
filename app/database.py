@@ -62,11 +62,117 @@ def init_database():
                 cursor.execute('ALTER TABLE tide_station_ids ADD COLUMN province TEXT')
                 logging.info("Added province column to tide_station_ids table")
 
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS usage_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    station_id TEXT,
+                    station_name TEXT,
+                    year INTEGER,
+                    month INTEGER,
+                    status TEXT NOT NULL,
+                    error_detail TEXT,
+                    source TEXT DEFAULT 'web'
+                )
+            ''')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_usage_events_timestamp ON usage_events(timestamp)')
+
+            cursor.execute("PRAGMA table_info(usage_events)")
+            usage_cols = [column[1] for column in cursor.fetchall()]
+            if 'source' not in usage_cols:
+                cursor.execute("ALTER TABLE usage_events ADD COLUMN source TEXT DEFAULT 'web'")
+                logging.info("Added source column to usage_events table")
+
+            cursor.execute('''
+                DELETE FROM usage_events
+                WHERE timestamp < datetime('now', '-365 days')
+            ''')
+            if cursor.rowcount > 0:
+                logging.info(f"Pruned {cursor.rowcount} usage_events older than 365 days")
+
             conn.commit()
             logging.debug("Database initialized successfully")
     except (sqlite3.Error, OSError) as e:
         logging.error(f"Database initialization error: {e}")
         raise
+
+def log_usage_event(station_id, station_name, year, month, status, error_detail=None, source='web'):
+    """Record a single usage event. Swallows errors so analytics never break the main flow.
+
+    source: 'web' for the main form, 'quick_api' for /api/generate_quick.
+    """
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute('''
+                INSERT INTO usage_events
+                (station_id, station_name, year, month, status, error_detail, source)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (station_id, station_name, year, month, status, error_detail, source))
+            conn.commit()
+    except sqlite3.Error as e:
+        logging.error(f"Failed to log usage event: {e}")
+
+def get_usage_stats(recent_limit=50, top_limit=10):
+    """Return aggregate usage stats and a list of recent events for the admin surface."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            totals = cursor.execute('''
+                SELECT
+                    COUNT(*) AS total,
+                    SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS success_count,
+                    SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) AS error_count,
+                    SUM(CASE WHEN timestamp >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS last_24h,
+                    SUM(CASE WHEN timestamp >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS last_7d,
+                    SUM(CASE WHEN timestamp >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS last_30d,
+                    SUM(CASE WHEN source = 'web' THEN 1 ELSE 0 END) AS web_count,
+                    SUM(CASE WHEN source = 'quick_api' THEN 1 ELSE 0 END) AS quick_api_count
+                FROM usage_events
+            ''').fetchone()
+
+            top_stations = cursor.execute('''
+                SELECT
+                    station_name,
+                    station_id,
+                    COUNT(*) AS hits
+                FROM usage_events
+                WHERE timestamp >= datetime('now', '-30 days')
+                  AND station_name IS NOT NULL
+                GROUP BY station_id, station_name
+                ORDER BY hits DESC, station_name ASC
+                LIMIT ?
+            ''', (top_limit,)).fetchall()
+
+            recent = cursor.execute('''
+                SELECT timestamp, station_id, station_name, year, month, status, error_detail, source
+                FROM usage_events
+                ORDER BY timestamp DESC
+                LIMIT ?
+            ''', (recent_limit,)).fetchall()
+
+            return {
+                'total': totals['total'] or 0,
+                'success_count': totals['success_count'] or 0,
+                'error_count': totals['error_count'] or 0,
+                'last_24h': totals['last_24h'] or 0,
+                'last_7d': totals['last_7d'] or 0,
+                'last_30d': totals['last_30d'] or 0,
+                'web_count': totals['web_count'] or 0,
+                'quick_api_count': totals['quick_api_count'] or 0,
+                'top_stations': [dict(row) for row in top_stations],
+                'recent_events': [dict(row) for row in recent],
+            }
+    except sqlite3.Error as e:
+        logging.error(f"Failed to fetch usage stats: {e}")
+        return {
+            'total': 0, 'success_count': 0, 'error_count': 0,
+            'last_24h': 0, 'last_7d': 0, 'last_30d': 0,
+            'web_count': 0, 'quick_api_count': 0,
+            'top_stations': [], 'recent_events': [],
+            'error': str(e),
+        }
 
 def log_station_lookup(station_id):
     """Log a station ID lookup, incrementing count if it exists or creating new entry."""

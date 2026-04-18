@@ -8,7 +8,7 @@ import time
 import re
 
 from app import app
-from app.database import search_stations_by_name, get_popular_stations, get_place_name_by_station_id, get_station_id_by_place_name, search_stations_by_country, get_popular_stations_by_country
+from app.database import search_stations_by_name, get_popular_stations, get_place_name_by_station_id, get_station_id_by_place_name, search_stations_by_country, get_popular_stations_by_country, log_usage_event, get_usage_stats
 
 # Directory for storing generated PDF calendars (matches get_tides.py)
 # Default to app/calendars for local dev, override with PDF_OUTPUT_DIR env var for production
@@ -19,6 +19,13 @@ PDF_OUTPUT_DIR = os.getenv('PDF_OUTPUT_DIR', DEFAULT_PDF_DIR)
 
 # Top stations count configuration
 TOP_STATIONS_COUNT = int(os.getenv('TOP_STATIONS_COUNT', '10'))
+
+def _int_or_none(v):
+    """Coerce form value to int for analytics logging; returns None on failure."""
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
 
 def extract_location_with_state(place_name):
     """
@@ -119,11 +126,13 @@ def index():
         if not station_id:
             station_search = request.form.get('station_search', '').strip()
             if not station_search:
+                log_usage_event(None, None, _int_or_none(year), _int_or_none(month), 'error', 'no_station')
                 return render_template('tide_station_not_found.html',
                                      message="No station selected. Please select a tide station from the autocomplete dropdown.")
             # Try to find station ID by place name
             found_station_id = get_station_id_by_place_name(station_search)
             if not found_station_id:
+                log_usage_event(None, None, _int_or_none(year), _int_or_none(month), 'error', 'station_not_found')
                 return render_template('tide_station_not_found.html',
                                      message=f"Could not find tide station for '{station_search}'. Please select from the autocomplete dropdown.")
             station_id = found_station_id
@@ -146,6 +155,7 @@ def index():
 
         except ValueError as e:
             logging.error(f"Form validation error: {str(e)}")
+            log_usage_event(station_id, None, _int_or_none(year), _int_or_none(month), 'error', 'invalid_input')
             return render_template('tide_station_not_found.html', message=f"Invalid input: {str(e)}")
 
         # Get the place name for the station ID
@@ -162,6 +172,7 @@ def index():
         # Check if PDF already exists in cache
         if os.path.exists(pdf_full_path) and os.path.getsize(pdf_full_path) > 0:
             logging.info(f"Serving cached PDF: {pdf_full_path}")
+            log_usage_event(station_id, place_name, year, month, 'success')
             # Clean up previous month's PDF files to keep cache directory clean
             cleanup_previous_month_pdfs(PDF_OUTPUT_DIR)
             # Create a response object to set the cookie
@@ -197,13 +208,17 @@ def index():
         if not os.path.exists(pdf_full_path):
             # log an error message
             logging.error(f"File {pdf_full_path} does not exist.")
+            log_usage_event(station_id, place_name, year, month, 'error', 'pdf_missing')
             return render_template('tide_station_not_found.html', message="Error: PDF file not found.")
 
         # Check if the PDF file is empty
         if os.path.getsize(pdf_full_path) == 0:
             # log an error message
             logging.error(f"File {pdf_full_path} is empty.")
+            log_usage_event(station_id, place_name, year, month, 'error', 'pdf_empty')
             return render_template('tide_station_not_found.html', message="Error: PDF file is empty.")
+
+        log_usage_event(station_id, place_name, year, month, 'success')
 
         # Create a response object to set the cookie (place_name already fetched above)
         response = make_response(send_file(pdf_full_path, as_attachment=True))
@@ -267,12 +282,14 @@ def api_generate_quick():
         # Get station_id from JSON request
         data = request.get_json()
         if not data or 'station_id' not in data:
+            log_usage_event(None, None, None, None, 'error', 'invalid_input', source='quick_api')
             return jsonify({'error': 'station_id is required'}), 400
 
         station_id = data['station_id'].strip()
 
         # Validate station_id
         if not station_id or not station_id.isdigit():
+            log_usage_event(station_id or None, None, None, None, 'error', 'invalid_input', source='quick_api')
             return jsonify({'error': 'Invalid station_id (USA: 7 digits, Canada: 5 digits)'}), 400
 
         # Get current month and year
@@ -294,6 +311,7 @@ def api_generate_quick():
         # Check if PDF already exists in cache
         if os.path.exists(pdf_full_path) and os.path.getsize(pdf_full_path) > 0:
             logging.info(f"Serving cached PDF for quick generate: {pdf_full_path}")
+            log_usage_event(station_id, place_name, year, month, 'success', source='quick_api')
             return send_file(pdf_full_path, as_attachment=True, download_name=pdf_filename_only)
 
         # PDF not in cache, generate it
@@ -320,18 +338,23 @@ def api_generate_quick():
         # Check if the PDF file was created
         if not os.path.exists(pdf_full_path):
             logging.error(f"Quick generate failed: File {pdf_full_path} does not exist.")
+            log_usage_event(station_id, place_name, year, month, 'error', 'pdf_missing', source='quick_api')
             return jsonify({'error': 'PDF file generation failed'}), 500
 
         # Check if the PDF file is empty
         if os.path.getsize(pdf_full_path) == 0:
             logging.error(f"Quick generate failed: File {pdf_full_path} is empty.")
+            log_usage_event(station_id, place_name, year, month, 'error', 'pdf_empty', source='quick_api')
             return jsonify({'error': 'PDF file is empty'}), 500
+
+        log_usage_event(station_id, place_name, year, month, 'success', source='quick_api')
 
         # Return the PDF file
         return send_file(pdf_full_path, as_attachment=True, download_name=pdf_filename_only)
 
     except Exception as e:
         logging.error(f"Error in quick generate API: {e}")
+        log_usage_event(None, None, None, None, 'error', 'exception', source='quick_api')
         return jsonify({'error': str(e)}), 500
 
 @app.route('/ads.txt')
@@ -368,6 +391,38 @@ def llms_txt():
 def page_not_found(e):
     """Custom 404 error page."""
     return render_template('404.html'), 404
+
+@app.route('/admin/analytics')
+def admin_analytics():
+    """Read-only usage dashboard gated by ANALYTICS_TOKEN env var.
+
+    Accepts the token via `Authorization: Bearer <token>` (preferred — kept out
+    of access logs, browser history, and referrer headers) or `?token=<token>`
+    query param (fallback for quick bookmarks).
+
+    Returns 404 for all failure modes (unconfigured, missing token, wrong token)
+    so the endpoint is invisible to scanners. If ANALYTICS_TOKEN is unset, logs
+    a warning server-side so the admin can spot the misconfig in logs.
+    """
+    import hmac
+    expected = os.getenv('ANALYTICS_TOKEN')
+
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        supplied = auth_header[len('Bearer '):]
+    else:
+        supplied = request.args.get('token', '')
+
+    if not expected:
+        if supplied:
+            logging.warning("ANALYTICS_TOKEN not set — /admin/analytics cannot authenticate")
+        return render_template('404.html'), 404
+
+    if not hmac.compare_digest(supplied, expected):
+        return render_template('404.html'), 404
+
+    stats = get_usage_stats(recent_limit=100, top_limit=20)
+    return render_template('admin_analytics.html', stats=stats)
 
 @app.route('/health')
 def health_check():
