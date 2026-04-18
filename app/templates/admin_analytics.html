@@ -21,11 +21,20 @@
         .status-success { color: #087443; font-weight: 500; }
         .status-error { color: #b42318; font-weight: 500; }
         .error-detail { font-family: ui-monospace, monospace; font-size: 0.8rem; color: #666; }
+        .banner-error { background: #fdecec; border: 1px solid #f1b5b5; border-radius: 6px; padding: 0.8rem 1rem; margin: 1rem 0; color: #8a1f1f; }
+        .banner-error code { background: rgba(0,0,0,0.05); padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.85em; }
     </style>
 </head>
 <body>
     <h1>Analytics</h1>
     <p class="muted">Server-side usage events. Refresh to update.</p>
+
+    {% if stats.error %}
+    <div class="banner-error">
+        <strong>Database error:</strong> <code>{{ stats.error }}</code>
+        <br>Stats shown below may be zero or stale. Check server logs.
+    </div>
+    {% endif %}
 
     <div class="cards">
         <div class="card"><div class="label">Total</div><div class="value">{{ stats.total }}</div></div>
@@ -34,6 +43,8 @@
         <div class="card"><div class="label">Last 30d</div><div class="value">{{ stats.last_30d }}</div></div>
         <div class="card"><div class="label">Success</div><div class="value">{{ stats.success_count }}</div></div>
         <div class="card"><div class="label">Errors</div><div class="value">{{ stats.error_count }}</div></div>
+        <div class="card"><div class="label">Web form</div><div class="value">{{ stats.web_count }}</div></div>
+        <div class="card"><div class="label">Quick API</div><div class="value">{{ stats.quick_api_count }}</div></div>
     </div>
 
     <h2>Top stations (last 30 days)</h2>
@@ -57,11 +68,12 @@
     <h2>Recent events</h2>
     {% if stats.recent_events %}
     <table>
-        <thead><tr><th>Timestamp (UTC)</th><th>Station</th><th>Year/Mo</th><th>Status</th><th>Detail</th></tr></thead>
+        <thead><tr><th>Timestamp (UTC)</th><th>Source</th><th>Station</th><th>Year/Mo</th><th>Status</th><th>Detail</th></tr></thead>
         <tbody>
             {% for ev in stats.recent_events %}
             <tr>
                 <td>{{ ev.timestamp }}</td>
+                <td>{{ ev.source or 'web' }}</td>
                 <td>{{ ev.station_name or ev.station_id or '—' }}</td>
                 <td>{% if ev.year and ev.month %}{{ ev.year }}-{{ '%02d'|format(ev.month) }}{% else %}—{% endif %}</td>
                 <td class="status-{{ ev.status }}">{{ ev.status }}</td>

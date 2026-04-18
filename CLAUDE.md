@@ -42,7 +42,7 @@ FLASK_ENV=development  # or production
 FLASK_RUN_PORT=5001  # local dev; production uses port 80
 PDF_OUTPUT_DIR=/data/calendars  # production only; local dev uses app/calendars
 TOP_STATIONS_COUNT=10  # number of popular stations to display (default: 10)
-ANALYTICS_TOKEN=<random-string>  # optional; gates /admin/analytics dashboard. If unset, endpoint returns 503.
+ANALYTICS_TOKEN=<random-string>  # optional; gates /admin/analytics dashboard. Endpoint returns 404 until env var is set AND a matching token is supplied.
 ```
 
 ### CapRover Deployment
@@ -215,4 +215,4 @@ See `docs/performance-benchmarks.md` for detailed performance targets, API laten
 - **subprocess.run gotcha**: When using list args (not `shell=True`), each flag and its value must be separate list elements. `["-s", "0.0:0.0:1.0"]` not `["-s 0.0:0.0:1.0"]`
 - **pcal flags reference**: `-s r:g:b` sets day numeral color, `-S` suppresses mini-calendars (on by default), `-K` repositions mini-cals (prev upper-left, next lower-right), `-C text` adds centered footer, `-m` shows month name
 - **Deploy verification**: After pushing, check `/health` endpoint for matching `commit_hash` to confirm CapRover deploy landed (~60s build time). Compare dev vs prod: `curl -s https://dev.tidecalendar.xyz/health | python3 -m json.tool`
-- **Analytics**: Server-side `usage_events` table logs every form submission to `/` (station_id, station_name, year, month, status, error_detail). No PII. Dashboard at `/admin/analytics?token=$ANALYTICS_TOKEN` — returns 503 if env var unset. Complements client-side Plausible (which misses cached serves, validation errors, and ad-blocked users).
+- **Analytics**: Server-side `usage_events` table logs every request to `/` and `/api/generate_quick` (station_id, station_name, year, month, status, error_detail, source). No PII. `source='web'` for form submissions, `source='quick_api'` for embed/widget traffic. Dashboard at `/admin/analytics?token=$ANALYTICS_TOKEN` — returns 404 on any unauth/unconfigured request (invisible to scanners). Events older than 365 days are pruned on container startup. Complements client-side Plausible (which misses cached serves, validation errors, and ad-blocked users). Tests: `python3 scripts/test_usage_events.py`.

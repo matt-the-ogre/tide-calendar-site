@@ -282,12 +282,14 @@ def api_generate_quick():
         # Get station_id from JSON request
         data = request.get_json()
         if not data or 'station_id' not in data:
+            log_usage_event(None, None, None, None, 'error', 'invalid_input', source='quick_api')
             return jsonify({'error': 'station_id is required'}), 400
 
         station_id = data['station_id'].strip()
 
         # Validate station_id
         if not station_id or not station_id.isdigit():
+            log_usage_event(station_id or None, None, None, None, 'error', 'invalid_input', source='quick_api')
             return jsonify({'error': 'Invalid station_id (USA: 7 digits, Canada: 5 digits)'}), 400
 
         # Get current month and year
@@ -309,6 +311,7 @@ def api_generate_quick():
         # Check if PDF already exists in cache
         if os.path.exists(pdf_full_path) and os.path.getsize(pdf_full_path) > 0:
             logging.info(f"Serving cached PDF for quick generate: {pdf_full_path}")
+            log_usage_event(station_id, place_name, year, month, 'success', source='quick_api')
             return send_file(pdf_full_path, as_attachment=True, download_name=pdf_filename_only)
 
         # PDF not in cache, generate it
@@ -335,18 +338,23 @@ def api_generate_quick():
         # Check if the PDF file was created
         if not os.path.exists(pdf_full_path):
             logging.error(f"Quick generate failed: File {pdf_full_path} does not exist.")
+            log_usage_event(station_id, place_name, year, month, 'error', 'pdf_missing', source='quick_api')
             return jsonify({'error': 'PDF file generation failed'}), 500
 
         # Check if the PDF file is empty
         if os.path.getsize(pdf_full_path) == 0:
             logging.error(f"Quick generate failed: File {pdf_full_path} is empty.")
+            log_usage_event(station_id, place_name, year, month, 'error', 'pdf_empty', source='quick_api')
             return jsonify({'error': 'PDF file is empty'}), 500
+
+        log_usage_event(station_id, place_name, year, month, 'success', source='quick_api')
 
         # Return the PDF file
         return send_file(pdf_full_path, as_attachment=True, download_name=pdf_filename_only)
 
     except Exception as e:
         logging.error(f"Error in quick generate API: {e}")
+        log_usage_event(None, None, None, None, 'error', 'exception', source='quick_api')
         return jsonify({'error': str(e)}), 500
 
 @app.route('/ads.txt')
@@ -386,15 +394,23 @@ def page_not_found(e):
 
 @app.route('/admin/analytics')
 def admin_analytics():
-    """Read-only usage dashboard gated by ANALYTICS_TOKEN env var."""
+    """Read-only usage dashboard gated by ANALYTICS_TOKEN env var.
+
+    Returns 404 for all failure modes (unconfigured, missing token, wrong token)
+    so the endpoint is invisible to scanners. If ANALYTICS_TOKEN is unset, logs
+    a warning server-side so the admin can spot the misconfig in logs.
+    """
     import hmac
     expected = os.getenv('ANALYTICS_TOKEN')
-    if not expected:
-        return jsonify({'error': 'analytics_not_configured'}), 503
-
     supplied = request.args.get('token', '')
+
+    if not expected:
+        if supplied:
+            logging.warning("ANALYTICS_TOKEN not set — /admin/analytics cannot authenticate")
+        return render_template('404.html'), 404
+
     if not hmac.compare_digest(supplied, expected):
-        return jsonify({'error': 'unauthorized'}), 401
+        return render_template('404.html'), 404
 
     stats = get_usage_stats(recent_limit=100, top_limit=20)
     return render_template('admin_analytics.html', stats=stats)
