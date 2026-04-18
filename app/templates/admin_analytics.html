@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Analytics — Tide Calendar</title>
+    <style>
+        body { font-family: -apple-system, system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+        h1 { margin-bottom: 0.2rem; }
+        h2 { margin-top: 2rem; border-bottom: 1px solid #ddd; padding-bottom: 0.3rem; }
+        .muted { color: #666; font-size: 0.9rem; }
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+        .card { background: #f7f7f8; border: 1px solid #e4e4e7; border-radius: 6px; padding: 0.8rem; }
+        .card .label { font-size: 0.75rem; text-transform: uppercase; color: #666; letter-spacing: 0.05em; }
+        .card .value { font-size: 1.8rem; font-weight: 600; margin-top: 0.2rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.9rem; }
+        th, td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid #eee; }
+        th { background: #fafafa; font-weight: 600; }
+        tr:hover td { background: #fafafa; }
+        .status-success { color: #087443; font-weight: 500; }
+        .status-error { color: #b42318; font-weight: 500; }
+        .error-detail { font-family: ui-monospace, monospace; font-size: 0.8rem; color: #666; }
+    </style>
+</head>
+<body>
+    <h1>Analytics</h1>
+    <p class="muted">Server-side usage events. Refresh to update.</p>
+
+    <div class="cards">
+        <div class="card"><div class="label">Total</div><div class="value">{{ stats.total }}</div></div>
+        <div class="card"><div class="label">Last 24h</div><div class="value">{{ stats.last_24h }}</div></div>
+        <div class="card"><div class="label">Last 7d</div><div class="value">{{ stats.last_7d }}</div></div>
+        <div class="card"><div class="label">Last 30d</div><div class="value">{{ stats.last_30d }}</div></div>
+        <div class="card"><div class="label">Success</div><div class="value">{{ stats.success_count }}</div></div>
+        <div class="card"><div class="label">Errors</div><div class="value">{{ stats.error_count }}</div></div>
+    </div>
+
+    <h2>Top stations (last 30 days)</h2>
+    {% if stats.top_stations %}
+    <table>
+        <thead><tr><th>Station</th><th>Station ID</th><th>Requests</th></tr></thead>
+        <tbody>
+            {% for row in stats.top_stations %}
+            <tr>
+                <td>{{ row.station_name }}</td>
+                <td>{{ row.station_id }}</td>
+                <td>{{ row.hits }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No data yet.</p>
+    {% endif %}
+
+    <h2>Recent events</h2>
+    {% if stats.recent_events %}
+    <table>
+        <thead><tr><th>Timestamp (UTC)</th><th>Station</th><th>Year/Mo</th><th>Status</th><th>Detail</th></tr></thead>
+        <tbody>
+            {% for ev in stats.recent_events %}
+            <tr>
+                <td>{{ ev.timestamp }}</td>
+                <td>{{ ev.station_name or ev.station_id or '—' }}</td>
+                <td>{% if ev.year and ev.month %}{{ ev.year }}-{{ '%02d'|format(ev.month) }}{% else %}—{% endif %}</td>
+                <td class="status-{{ ev.status }}">{{ ev.status }}</td>
+                <td class="error-detail">{{ ev.error_detail or '' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No events recorded yet.</p>
+    {% endif %}
+</body>
+</html>
