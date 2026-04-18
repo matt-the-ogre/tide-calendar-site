@@ -396,13 +396,22 @@ def page_not_found(e):
 def admin_analytics():
     """Read-only usage dashboard gated by ANALYTICS_TOKEN env var.
 
+    Accepts the token via `Authorization: Bearer <token>` (preferred — kept out
+    of access logs, browser history, and referrer headers) or `?token=<token>`
+    query param (fallback for quick bookmarks).
+
     Returns 404 for all failure modes (unconfigured, missing token, wrong token)
     so the endpoint is invisible to scanners. If ANALYTICS_TOKEN is unset, logs
     a warning server-side so the admin can spot the misconfig in logs.
     """
     import hmac
     expected = os.getenv('ANALYTICS_TOKEN')
-    supplied = request.args.get('token', '')
+
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        supplied = auth_header[len('Bearer '):]
+    else:
+        supplied = request.args.get('token', '')
 
     if not expected:
         if supplied:

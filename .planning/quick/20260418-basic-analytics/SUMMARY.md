@@ -64,7 +64,7 @@ Behavior:
 
 ## Deploy notes
 
-1. Set `ANALYTICS_TOKEN` in CapRover app config (random string — not committed). Without it the endpoint returns 503.
+1. Set `ANALYTICS_TOKEN` in CapRover app config (random string — not committed). Without it the endpoint returns 404 (invisible to scanners). The dashboard is only reachable once both the env var is set and a matching token is supplied via `Authorization: Bearer <token>` header or `?token=<token>` query param.
 2. New table is created automatically on first request to any route that triggers `init_database()` (happens at container startup via `run.py`).
 3. No migration concerns — `CREATE TABLE IF NOT EXISTS` is idempotent.
 

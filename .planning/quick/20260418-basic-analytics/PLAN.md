@@ -2,7 +2,7 @@
 id: 20260418-basic-analytics
 date: 2026-04-18
 mode: quick
-status: in-progress
+status: complete
 ---
 
 # Basic Analytics
