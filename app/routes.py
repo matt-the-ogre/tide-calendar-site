@@ -143,8 +143,9 @@ def index():
             year = int(year)
             month = int(month)
             current_year = datetime.utcnow().year
-            # NOAA tide predictions are not published beyond 2030.
-            max_year = min(current_year + 15, 2030)
+            # NOAA tide predictions are typically only published a few years
+            # out, so cap requests at current_year + 4.
+            max_year = current_year + 4
 
             # Validate ranges
             if not (1 <= month <= 12):
