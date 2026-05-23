@@ -141,9 +141,11 @@
         const currentYear = currentDate.getFullYear();
         const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
 
-        // Populate year dropdown with options from current year to current year + 15
+        // Populate year dropdown from current year through current year + 4.
+        // NOAA tide predictions are typically only published a few years out,
+        // so anything further fails upstream with "PDF not found".
         const yearSelect = document.getElementById('year');
-        const endYear = currentYear + 15;
+        const endYear = currentYear + 4;
         for (let year = currentYear; year <= endYear; year++) {
             const option = document.createElement('option');
             option.value = year;
