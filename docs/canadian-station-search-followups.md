@@ -102,6 +102,12 @@ search.
 stations including an `alternative_name` column) so the degraded mode closely matches
 normal operation. Could be a small maintenance script under `scripts/`.
 
+**Note:** The stale CSV already causes a pre-existing failure in
+`scripts/test_multi_country_offline.py` ("Get Canadian station info (Halifax) — Wrong
+API source: None") because Halifax is no longer in the curated CSV. Regenerating the
+CSV would fix that test too. (Unrelated to the name-search change; these `scripts/`
+tests are not run by the new CI job.)
+
 **Effort:** Small. **Impact:** Only matters during a CHS API outage.
 
 ---
@@ -142,18 +148,20 @@ make `place_name` carry a structured province consistently (see #1).
 
 ---
 
-## 7. Consolidate duplicate `import_canadian_stations_from_csv()`
+## 7. (Optional) Consolidate the two `import_canadian_stations_from_csv()`
 
-**Problem:** There are two functions with this name — one in
-`app/canadian_station_sync.py` (the active CSV fallback, updated to write
-`alternative_name`) and one in `app/database.py` (not in the startup path, **not**
-updated, so it would insert without `alternative_name`). The dormant duplicate is a
-trap for future maintainers.
+**Status:** The data inconsistency is **resolved** — both functions now write
+`alternative_name`. The `database.py` copy is NOT dead: it is the CSV-only importer
+used by the offline maintenance scripts (`scripts/test_canadian_import.py`,
+`test_multi_country_offline.py`, `test_lookup_count_preservation.py`), while
+`canadian_station_sync.py`'s copy is the API importer (with its own CSV fallback) used
+at runtime startup. They serve different purposes, so they are not strictly duplicates.
 
-**Proposed fix:** Remove the unused `database.py` copy, or unify on one implementation
-and have it write `alternative_name`.
+**Optional cleanup:** If the divergence still feels risky, consolidate the two CSV
+readers into one shared helper that both the offline scripts and the runtime fallback
+call. Low priority.
 
-**Effort:** Small. **Impact:** Code-clarity / avoids a latent inconsistency.
+**Effort:** Small–Medium. **Impact:** Code clarity only (no functional gap remains).
 
 ---
 

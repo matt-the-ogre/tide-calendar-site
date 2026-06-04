@@ -92,6 +92,25 @@ class TestFormatDisplayName(_DBTest):
             self.db.format_display_name("Halifax, NS", "Halifax", "NS"), "Halifax, NS"
         )
 
+    def test_core_name_containing_comma_splits_on_province_only(self):
+        """Some official names themselves contain a comma; only the trailing
+        ', PROV' is the province suffix. Real example: station 07786."""
+        expected = "Sandy Cove (West Vancouver Laboratories, Ettershank Cove), BC"
+        # Explicit province column
+        self.assertEqual(
+            self.db.format_display_name(
+                "West Vancouver Laboratories, Ettershank Cove, BC", "Sandy Cove", "BC"
+            ),
+            expected,
+        )
+        # Province inferred (column empty) -> rpartition fallback splits last comma
+        self.assertEqual(
+            self.db.format_display_name(
+                "West Vancouver Laboratories, Ettershank Cove, BC", "Sandy Cove", ""
+            ),
+            expected,
+        )
+
 
 class TestSearchByAlternativeName(_DBTest):
     def setUp(self):
