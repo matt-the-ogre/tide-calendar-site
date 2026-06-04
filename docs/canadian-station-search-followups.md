@@ -58,8 +58,9 @@ match the official "ḵalpilin" (U+1E35).
 
 **Resolved:** Added `fold_for_search()` in `database.py` (NFKD decomposition + combining-
 mark removal + lowercase) and registered it as a SQLite `fold()` function used by
-`search_stations_by_country()` (`fold(place_name) LIKE fold(?) OR fold(alternative_name)
-LIKE fold(?)`). NFKD turned out to decompose `ḵ`→`k` (plus combining macron) on its own,
+`search_stations_by_country()` (the query is folded in Python, then matched with
+`fold(place_name) LIKE ? OR fold(alternative_name) LIKE ?`). NFKD turned out to decompose
+`ḵ`→`k` (plus combining macron) on its own,
 so no custom character map was needed; the same fold also handles French accents
 (`Bécancour`→`becancour`, `Île`→`ile`). Search-only change — no schema/import/backfill.
 Covered by `TestFoldForSearch` and `TestDiacriticInsensitiveSearch`.

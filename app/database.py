@@ -608,28 +608,29 @@ def search_stations_by_country(query, country=None, limit=10):
 
             # Diacritic/case-insensitive substring search across both the official
             # place name and the CHS alternative/common name so visitors can find a
-            # station by whichever name they know, however they type it.
-            search_query = f"%{query.strip()}%"
+            # station by whichever name they know, however they type it. Fold the
+            # query in Python and apply fold() only to the columns in SQL.
+            folded_query = f"%{fold_for_search(query.strip())}%"
 
             if country:
                 results = cursor.execute('''
                     SELECT station_id, place_name, country, lookup_count, alternative_name, province
                     FROM tide_station_ids
                     WHERE place_name IS NOT NULL
-                    AND (fold(place_name) LIKE fold(?) OR fold(alternative_name) LIKE fold(?))
+                    AND (fold(place_name) LIKE ? OR fold(alternative_name) LIKE ?)
                     AND country = ?
                     ORDER BY lookup_count DESC, place_name ASC
                     LIMIT ?
-                ''', (search_query, search_query, country, limit)).fetchall()
+                ''', (folded_query, folded_query, country, limit)).fetchall()
             else:
                 results = cursor.execute('''
                     SELECT station_id, place_name, country, lookup_count, alternative_name, province
                     FROM tide_station_ids
                     WHERE place_name IS NOT NULL
-                    AND (fold(place_name) LIKE fold(?) OR fold(alternative_name) LIKE fold(?))
+                    AND (fold(place_name) LIKE ? OR fold(alternative_name) LIKE ?)
                     ORDER BY lookup_count DESC, place_name ASC
                     LIMIT ?
-                ''', (search_query, search_query, limit)).fetchall()
+                ''', (folded_query, folded_query, limit)).fetchall()
 
             return [{
                 'station_id': row[0],
