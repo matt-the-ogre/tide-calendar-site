@@ -51,22 +51,18 @@ in sync.
 
 ---
 
-## 2. Diacritic-insensitive search
+## 2. Diacritic-insensitive search ✅ DONE
 
-**Problem:** Search is a plain SQLite `LIKE` substring match, which is not
-Unicode-fold-aware. Typing the plain ASCII "kalpilin" does **not** match the
-official name "ḵalpilin" (the `ḵ` is U+1E35, "k with line below").
+**Was:** Search was a plain `LOWER() LIKE` match, so the ASCII "kalpilin" did not
+match the official "ḵalpilin" (U+1E35).
 
-**Current state:** Users can still find station 07837 by typing "pender" (the common
-name) or "ḵalpilin" exactly, so this is a nice-to-have, not a blocker.
-
-**Proposed fix:** Add a normalized/folded search column (strip diacritics to ASCII,
-e.g. via `unicodedata` NFKD + combining-mark removal, plus a small custom map for
-characters like `ḵ`→`k` that NFKD doesn't decompose) and match against it. Populate
-it on import alongside `place_name`/`alternative_name`.
-
-**Effort:** Medium. **Impact:** Helps users who type the Indigenous name phonetically
-in ASCII.
+**Resolved:** Added `fold_for_search()` in `database.py` (NFKD decomposition + combining-
+mark removal + lowercase) and registered it as a SQLite `fold()` function used by
+`search_stations_by_country()` (`fold(place_name) LIKE fold(?) OR fold(alternative_name)
+LIKE fold(?)`). NFKD turned out to decompose `ḵ`→`k` (plus combining macron) on its own,
+so no custom character map was needed; the same fold also handles French accents
+(`Bécancour`→`becancour`, `Île`→`ile`). Search-only change — no schema/import/backfill.
+Covered by `TestFoldForSearch` and `TestDiacriticInsensitiveSearch`.
 
 ---
 
@@ -112,22 +108,36 @@ tests are not run by the new CI job.)
 
 ---
 
-## 5. Monitor for empty calendars from newly-surfaced stations
+## 5. Empty calendars from newly-surfaced stations ✅ INVESTIGATED + MITIGATED
 
 **Problem:** Relaxing the import filter to "any station with `wlp-hilo`" added ~1,005
-stations. 07837 was verified to have current/forward predictions, but not all of the
-newly-included stations were — a truly-defunct one (only historical data) would now be
-selectable by name and produce an empty calendar. This is handled gracefully (the
-empty-PDF path returns the error template), and was an accepted trade-off, but it
-should be watched.
+stations. Some are inactive and have only historical data, so they are selectable by
+name but yield no calendar for a current/future month.
 
-**Proposed action (operational, no code):** After the prod deploy, watch
-`/admin/analytics` for an uptick in `error_detail = pdf_empty` / `pdf_missing`. That is
-the exact signal that a dead station is now reachable via name search. If a specific
-station recurs, either exclude it or fall back to checking prediction availability for
-the requested month at import/selection time.
+**Findings (audited against the live CHS API, June 2026):**
+- Empty-for-current-month rate is **low single digits** — ~2.4% in a clean bounded
+  sample, ~7% in an earlier partial run → roughly **25–75 of 1,076** stations.
+- Every empty station is an obscure **non-operating, TEMPORARY** point (Tanquary Camp,
+  Diana Bay, Port Leopold, Cape Liverpool, Baychimo…) — Arctic research/survey sites,
+  not places typical visitors search for.
+- **The originally-proposed mitigation — "verify prediction availability at import" — is
+  infeasible.** CHS rate-limits aggressively: even ~1,076 sequential calls at 4/sec fail
+  en masse, and a full check takes 40+ minutes. Running that at container startup would
+  break deploys. (A one-off `~1,076`-request audit literally spent 39 min wall-clock /
+  34s CPU stuck in retry-backoff before being killed.)
 
-**Effort:** Tiny (watch existing analytics). **Impact:** Catches dead stations early.
+**Mitigation applied (this change):** The empty case already degrades gracefully —
+`get_tides.py` writes no PDF, so `routes.py` returns the error template. Replaced the
+generic "PDF file not found." / "PDF file is empty." text with a clear, station- and
+period-specific message explaining the station may be inactive / historical-only and to
+try another station or month (web form and `/api/generate_quick`). `error_detail`
+logging (`pdf_missing` / `pdf_empty`) is unchanged for analytics.
+
+**Optional remaining work:** A periodic *offline* maintenance script (rate-limited, run
+occasionally — not at startup) could flag stations that are persistently empty and stamp
+a DB column to drop them from autocomplete. Low priority given the small, obscure set.
+Watching `/admin/analytics` for `pdf_empty`/`pdf_missing` upticks remains the cheapest
+ongoing signal.
 
 ---
 

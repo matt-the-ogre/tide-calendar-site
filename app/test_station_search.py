@@ -212,5 +212,53 @@ class TestPopularStationsDisplayName(_DBTest):
         self.assertEqual(match[0]["display_name"], "Pender Harbour (ḵalpilin), BC")
 
 
+class TestFoldForSearch(_DBTest):
+    def test_strips_diacritics_and_lowercases(self):
+        self.assertEqual(self.db.fold_for_search("ḵalpilin"), "kalpilin")
+        self.assertEqual(self.db.fold_for_search("Bécancour"), "becancour")
+        self.assertEqual(self.db.fold_for_search("Île-aux-Coudres"), "ile-aux-coudres")
+
+    def test_ascii_unchanged_except_case(self):
+        self.assertEqual(self.db.fold_for_search("Pender Harbour"), "pender harbour")
+
+    def test_empty_and_none(self):
+        self.assertEqual(self.db.fold_for_search(""), "")
+        self.assertEqual(self.db.fold_for_search(None), "")
+
+
+class TestDiacriticInsensitiveSearch(_DBTest):
+    def setUp(self):
+        super().setUp()
+        self._insert(
+            station_id="07837", place_name="ḵalpilin, BC", country="Canada",
+            api_source="CHS", province="BC", alternative_name="Pender Harbour",
+            lookup_count=1,
+        )
+        self._insert(
+            station_id="03353", place_name="Bécancour, QC", country="Canada",
+            api_source="CHS", province="QC", lookup_count=1,
+        )
+
+    def test_ascii_query_matches_diacritic_official_name(self):
+        results = self.db.search_stations_by_country("kalpilin", "Canada", limit=10)
+        self.assertEqual([r["station_id"] for r in results], ["07837"])
+
+    def test_ascii_query_matches_accented_name(self):
+        results = self.db.search_stations_by_country("becancour", "Canada", limit=10)
+        self.assertEqual([r["station_id"] for r in results], ["03353"])
+
+    def test_diacritic_query_still_matches(self):
+        results = self.db.search_stations_by_country("ḵalpilin", "Canada", limit=10)
+        self.assertEqual([r["station_id"] for r in results], ["07837"])
+
+    def test_common_name_still_matches(self):
+        results = self.db.search_stations_by_country("pender", "Canada", limit=10)
+        self.assertEqual([r["station_id"] for r in results], ["07837"])
+
+    def test_all_countries_diacritic_fold(self):
+        results = self.db.search_stations_by_country("becancour", None, limit=10)
+        self.assertEqual([r["station_id"] for r in results], ["03353"])
+
+
 if __name__ == "__main__":
     unittest.main()

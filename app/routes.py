@@ -206,19 +206,31 @@ def index():
         env['PYTHONPATH'] = os.path.dirname(__file__)
         subprocess.run(cmd, cwd=project_root, env=env)
 
+        # Friendly message for the most common failure now that the station list
+        # includes inactive/temporary stations: the station simply has no published
+        # predictions for the requested period (get_tides.py exits without writing a
+        # PDF). Also covers transient tide-service outages.
+        no_data_msg = (
+            f"We couldn't generate a tide calendar for {location_display or station_id} "
+            f"for {year}-{month:02d}. This station may have no published tide predictions "
+            f"for that period (some stations are inactive or have only historical data), "
+            f"or the tide data service may be temporarily unavailable. Please try again, "
+            f"or choose a different station or month."
+        )
+
         # Check if the PDF file was created
         if not os.path.exists(pdf_full_path):
             # log an error message
             logging.error(f"File {pdf_full_path} does not exist.")
             log_usage_event(station_id, place_name, year, month, 'error', 'pdf_missing')
-            return render_template('tide_station_not_found.html', message="Error: PDF file not found.")
+            return render_template('tide_station_not_found.html', message=no_data_msg)
 
         # Check if the PDF file is empty
         if os.path.getsize(pdf_full_path) == 0:
             # log an error message
             logging.error(f"File {pdf_full_path} is empty.")
             log_usage_event(station_id, place_name, year, month, 'error', 'pdf_empty')
-            return render_template('tide_station_not_found.html', message="Error: PDF file is empty.")
+            return render_template('tide_station_not_found.html', message=no_data_msg)
 
         log_usage_event(station_id, place_name, year, month, 'success')
 
@@ -337,17 +349,22 @@ def api_generate_quick():
         env['PYTHONPATH'] = os.path.dirname(__file__)
         subprocess.run(cmd, cwd=project_root, env=env)
 
+        # No predictions for this station/period (or transient tide-service outage).
+        quick_no_data = (f"No tide predictions available for station {station_id} for "
+                         f"{year}-{month:02d}; the station may be inactive or have only "
+                         f"historical data.")
+
         # Check if the PDF file was created
         if not os.path.exists(pdf_full_path):
             logging.error(f"Quick generate failed: File {pdf_full_path} does not exist.")
             log_usage_event(station_id, place_name, year, month, 'error', 'pdf_missing', source='quick_api')
-            return jsonify({'error': 'PDF file generation failed'}), 500
+            return jsonify({'error': quick_no_data}), 500
 
         # Check if the PDF file is empty
         if os.path.getsize(pdf_full_path) == 0:
             logging.error(f"Quick generate failed: File {pdf_full_path} is empty.")
             log_usage_event(station_id, place_name, year, month, 'error', 'pdf_empty', source='quick_api')
-            return jsonify({'error': 'PDF file is empty'}), 500
+            return jsonify({'error': quick_no_data}), 500
 
         log_usage_event(station_id, place_name, year, month, 'success', source='quick_api')
 
