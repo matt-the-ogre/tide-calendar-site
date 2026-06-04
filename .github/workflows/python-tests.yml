@@ -1,0 +1,37 @@
+name: Python Unit Tests
+
+on:
+  push:
+    branches: [ main, development ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  unit-tests:
+    name: Python Unit Tests
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        # Match the Dockerfile base image (python:3.12-slim-bookworm)
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Run app unit tests
+      # Tests import sibling modules (database, canadian_station_sync,
+      # tide_adapters) directly, so run from the app/ directory. They are
+      # fully offline (CHS/NOAA calls are mocked; DB tests use temp files).
+      working-directory: app
+      run: python -m unittest discover -p 'test_*.py' -v
+
+    - name: Run usage_events tests
+      run: python scripts/test_usage_events.py
