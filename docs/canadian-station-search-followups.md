@@ -133,37 +133,38 @@ ongoing signal.
 
 ---
 
-## 6. Harden `format_display_name()` province split
+## 6. Harden `format_display_name()` province split ✅ FIXED
 
-**Problem:** When no explicit province is passed, `format_display_name()` in
-`app/database.py` splits the trailing `", …"` off `place_name` via `rpartition(', ')`
-and treats the tail as the province. This is correct today only because
-`construct_place_name()` always appends `", PROV"` for aliased (Canadian) stations and
-USA stations have no alias (so they return early). If that invariant ever changes, an
-official name containing a comma but no province suffix would be mis-split.
+**Was:** When no explicit province was passed, `format_display_name()` split the trailing
+`", …"` off `place_name` via `rpartition(', ')` and treated the tail as the province —
+correct only because `construct_place_name()` always appends `", PROV"`. A future
+place_name with a comma but no province suffix would have been mis-split.
 
-**Proposed fix:** Constrain the fallback to a province/state-code shape (e.g. a short
-alpha token, or membership in `PROVINCE_CODES`) before treating it as a suffix, or
-make `place_name` carry a structured province consistently (see #1).
-
-**Effort:** Small. **Impact:** Defensive; no known trigger today.
+**Resolved:** The `rpartition` fallback now strips the tail only when it is a
+province/state-code shape (`len(tail) == 2 and tail.isalpha()`, e.g. `", BC"`).
+Otherwise the name is kept whole. Humanized labels like "Greenland" always arrive via
+the explicit `province` arg (the province column is reliably populated since #1), so
+they never depend on the fallback. Covered by
+`TestFormatDisplayName.test_does_not_split_non_province_tail`.
 
 ---
 
-## 7. (Optional) Consolidate the two `import_canadian_stations_from_csv()`
+## 7. (Optional) Consolidate the two `import_canadian_stations_from_csv()` ✅ RESOLVED (keep separate)
 
-**Status:** The data inconsistency is **resolved** — both functions now write
-`alternative_name`. The `database.py` copy is NOT dead: it is the CSV-only importer
-used by the offline maintenance scripts (`scripts/test_canadian_import.py`,
-`test_multi_country_offline.py`, `test_lookup_count_preservation.py`), while
-`canadian_station_sync.py`'s copy is the API importer (with its own CSV fallback) used
-at runtime startup. They serve different purposes, so they are not strictly duplicates.
+**Decision: keep them separate.** They are intentionally different, not accidental
+duplicates:
 
-**Optional cleanup:** If the divergence still feels risky, consolidate the two CSV
-readers into one shared helper that both the offline scripts and the runtime fallback
-call. Low priority.
+| | `database.py` (offline scripts) | `canadian_station_sync.py` (API fallback) |
+|--|--|--|
+| "skip if already populated" guard | yes | no |
+| removes stations not in the CSV (sync) | yes | no |
+| coordinate parsing | graceful (None on bad data) | `float()` (raises) |
 
-**Effort:** Small–Medium. **Impact:** Code clarity only (no functional gap remains).
+Merging them would force reconciling those sync semantics and **change behavior for one
+caller** for only marginal "clarity" gain. The original concern — a data inconsistency —
+is already gone (both write `alternative_name`). Instead of a risky merge, the
+`canadian_station_sync.py` docstring now explains the distinction and cross-references
+the `database.py` importer. No code consolidation.
 
 ---
 
