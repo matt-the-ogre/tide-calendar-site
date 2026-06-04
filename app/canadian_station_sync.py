@@ -107,35 +107,83 @@ def construct_place_name(official_name: str, province: Optional[str], latitude: 
     return f"{official_name}, {inferred_province}"
 
 
+def normalize_station(station: Dict) -> Optional[Dict]:
+    """
+    Normalize a raw CHS station record into our import shape, or return None.
+
+    Inclusion policy: the station must publish high/low tide predictions
+    ("wlp-hilo" time series) and have both a code and an official name. Stations
+    are intentionally NOT filtered on the `operating` or `type` flags — many
+    stations flagged operating=false or type=TEMPORARY (e.g. 07837 "ḵalpilin" /
+    Pender Harbour) still publish full forward tide predictions and are
+    perfectly usable for a calendar. Filtering them out hid ~93% of
+    calendar-capable Canadian stations from name search.
+
+    The CHS `alternativeName` (the familiar common name, e.g. "Pender Harbour"
+    when the official name is the Indigenous "ḵalpilin") is preserved so the
+    autocomplete can match and display it.
+
+    Returns:
+        Normalized dict with keys code, officialName, alternativeName, latitude,
+        longitude, province, place_name — or None if the station is unusable.
+    """
+    if not station:
+        return None
+
+    # Must publish high/low tide predictions to produce a calendar.
+    time_series = station.get('timeSeries', [])
+    if not any(ts.get('code') == 'wlp-hilo' for ts in time_series):
+        return None
+
+    code = station.get('code')
+    official_name = station.get('officialName', '')
+    if not code or not official_name:
+        return None
+
+    latitude = station.get('latitude', 0.0)
+    longitude = station.get('longitude', 0.0)
+    province = extract_province_from_name(official_name)
+    place_name = construct_place_name(official_name, province, latitude, longitude)
+    alternative_name = (station.get('alternativeName') or '').strip()
+
+    return {
+        'code': code,
+        'officialName': official_name,
+        'alternativeName': alternative_name,
+        'latitude': latitude,
+        'longitude': longitude,
+        'province': province or '',
+        'place_name': place_name
+    }
+
+
 def fetch_canadian_stations_from_api() -> Tuple[Optional[List[Dict]], str]:
     """
-    Fetch all operating Canadian stations with wlp-hilo predictions from CHS API.
+    Fetch all Canadian stations with wlp-hilo predictions from the CHS API.
 
-    Filtering criteria:
-    - dateStart: Current year (filters to stations with data from current year forward)
-    - operating: true (station is active)
-    - type: "PERMANENT" (exclude temporary/discontinued stations)
+    Inclusion criteria (see normalize_station):
     - Has "wlp-hilo" in timeSeries array (high/low tide predictions available)
+    - Has a code and an official name
+
+    Note: we deliberately do NOT pass a `dateStart` filter. Empirically the CHS
+    `dateStart` param prunes the list to a small subset that excludes stations
+    which nonetheless have current/forward predictions (07837 is one), so we
+    fetch the full directory and gate purely on prediction availability.
 
     Returns:
         Tuple of (stations_list, endpoint_used) or (None, error_message)
-        Each station dict contains: code, officialName, latitude, longitude, province, place_name
+        Each station dict contains: code, officialName, alternativeName,
+        latitude, longitude, province, place_name
     """
     import json
-    from datetime import datetime
-
-    # Get current year for dateStart parameter (midnight UTC on Jan 1 of current year)
-    current_year = datetime.utcnow().year
-    date_start = f"{current_year}-01-01T00:00:00Z"
 
     # Try each API endpoint
     for base_url in CHS_BASE_URLS:
         try:
             url = f"{base_url}/stations"
-            params = {"dateStart": date_start}
-            logging.info(f"Fetching Canadian stations from {base_url} (dateStart={date_start})...")
+            logging.info(f"Fetching Canadian stations from {base_url}...")
 
-            response = requests.get(url, params=params, headers=HEADERS, timeout=30)
+            response = requests.get(url, headers=HEADERS, timeout=30)
 
             if response.status_code != 200:
                 logging.warning(f"CHS API at {base_url} returned status {response.status_code}")
@@ -145,48 +193,14 @@ def fetch_canadian_stations_from_api() -> Tuple[Optional[List[Dict]], str]:
             all_stations = json.loads(response.text)
             logging.debug(f"Received {len(all_stations)} total stations from API")
 
-            # Filter stations
+            # Normalize + filter (keep any station with wlp-hilo predictions)
             valid_stations = []
             for station in all_stations:
-                # Check if operating
-                if not station.get('operating', False):
-                    continue
+                normalized = normalize_station(station)
+                if normalized is not None:
+                    valid_stations.append(normalized)
 
-                # Check if type is PERMANENT
-                station_type = station.get('type', '')
-                if station_type != 'PERMANENT':
-                    continue
-
-                # Check if has wlp-hilo time series
-                time_series = station.get('timeSeries', [])
-                has_hilo = any(ts.get('code') == 'wlp-hilo' for ts in time_series)
-                if not has_hilo:
-                    continue
-
-                # Extract station data
-                code = station.get('code')
-                official_name = station.get('officialName', '')
-                latitude = station.get('latitude', 0.0)
-                longitude = station.get('longitude', 0.0)
-
-                if not code or not official_name:
-                    logging.warning(f"Station missing code or name: {station}")
-                    continue
-
-                # Extract province and construct place name
-                province = extract_province_from_name(official_name)
-                place_name = construct_place_name(official_name, province, latitude, longitude)
-
-                valid_stations.append({
-                    'code': code,
-                    'officialName': official_name,
-                    'latitude': latitude,
-                    'longitude': longitude,
-                    'province': province or '',
-                    'place_name': place_name
-                })
-
-            logging.info(f"Found {len(valid_stations)} of {len(all_stations)} stations operating with wlp-hilo data")
+            logging.info(f"Found {len(valid_stations)} of {len(all_stations)} stations with wlp-hilo predictions")
             return valid_stations, base_url
 
         except requests.exceptions.RequestException as e:
@@ -236,15 +250,16 @@ def import_canadian_stations_from_csv() -> bool:
             # Import each station
             for station in stations:
                 cursor.execute('''
-                    INSERT INTO tide_station_ids (station_id, place_name, country, api_source, latitude, longitude, province)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO tide_station_ids (station_id, place_name, country, api_source, latitude, longitude, province, alternative_name)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(station_id) DO UPDATE SET
                         place_name = excluded.place_name,
                         country = excluded.country,
                         api_source = excluded.api_source,
                         latitude = excluded.latitude,
                         longitude = excluded.longitude,
-                        province = excluded.province
+                        province = excluded.province,
+                        alternative_name = excluded.alternative_name
                 ''', (
                     station['station_id'],
                     station.get('place_name', ''),
@@ -252,7 +267,8 @@ def import_canadian_stations_from_csv() -> bool:
                     'CHS',
                     float(station.get('latitude', 0)),
                     float(station.get('longitude', 0)),
-                    station.get('province', '')
+                    station.get('province', ''),
+                    station.get('alternative_name') or None
                 ))
 
             conn.commit()
@@ -299,15 +315,16 @@ def import_canadian_stations_from_api() -> bool:
             # Import/update each station
             for station in stations:
                 cursor.execute('''
-                    INSERT INTO tide_station_ids (station_id, place_name, country, api_source, latitude, longitude, province)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO tide_station_ids (station_id, place_name, country, api_source, latitude, longitude, province, alternative_name)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(station_id) DO UPDATE SET
                         place_name = excluded.place_name,
                         country = excluded.country,
                         api_source = excluded.api_source,
                         latitude = excluded.latitude,
                         longitude = excluded.longitude,
-                        province = excluded.province
+                        province = excluded.province,
+                        alternative_name = excluded.alternative_name
                 ''', (
                     station['code'],
                     station['place_name'],
@@ -315,7 +332,8 @@ def import_canadian_stations_from_api() -> bool:
                     'CHS',
                     station['latitude'],
                     station['longitude'],
-                    station['province']
+                    station['province'],
+                    station.get('alternativeName') or None
                 ))
 
             # Sync: Remove Canadian stations not in API response (preserving lookup_count)

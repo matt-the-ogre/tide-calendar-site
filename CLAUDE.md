@@ -133,9 +133,15 @@ ANALYTICS_TOKEN=<random-string>  # gates /admin/analytics dashboard
 1. **Container Startup (Database Initialization)**:
    - Initialize SQLite database and schema
    - Import USA stations from `tide_stations_new.csv` (~2100 stations)
-   - **Dynamically import Canadian stations** from CHS IWLS API (~73 active stations)
-     - Filters: `operating: true`, `type: PERMANENT`, has `wlp-hilo` predictions
-     - Logs: "Found X of Y stations operating with wlp-hilo data"
+   - **Dynamically import Canadian stations** from CHS IWLS API (~1076 stations)
+     - Filter: has `wlp-hilo` predictions (high/low tide data) + a code and official name.
+       The `operating`/`type` flags are intentionally NOT used — many `operating:false`/
+       `TEMPORARY` stations (e.g. 07837 ḵalpilin / Pender Harbour) still publish full
+       forward predictions; gating on them hid ~93% of calendar-capable stations. No
+       `dateStart` param either (it prunes stations that still have current predictions).
+     - Captures CHS `alternativeName` (common name) into the `alternative_name` column so
+       name search/autocomplete matches either name (see `normalize_station`).
+     - Logs: "Found X of Y stations with wlp-hilo predictions"
      - Fallback to `canadian_tide_stations.csv` if API unavailable
    - Sync database (remove inactive stations)
 2. **PDF Generation with Caching**:

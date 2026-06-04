@@ -62,6 +62,10 @@ def init_database():
                 cursor.execute('ALTER TABLE tide_station_ids ADD COLUMN province TEXT')
                 logging.info("Added province column to tide_station_ids table")
 
+            if 'alternative_name' not in columns:
+                cursor.execute('ALTER TABLE tide_station_ids ADD COLUMN alternative_name TEXT')
+                logging.info("Added alternative_name column to tide_station_ids table")
+
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS usage_events (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -493,8 +497,50 @@ def import_canadian_stations_from_csv():
         logging.error(f"Error importing Canadian stations from CSV: {e}")
         return False
 
+def format_display_name(place_name, alternative_name, province=None):
+    """Build a search-friendly display label for the autocomplete dropdown.
+
+    CHS increasingly stores the Indigenous name as the official name and the
+    familiar common name in a separate field (e.g. official "ḵalpilin",
+    alternative "Pender Harbour"). When a distinct common name exists, lead with
+    it and show the official name in parentheses, keeping the province suffix
+    outside the parens:
+
+        "ḵalpilin, BC" + "Pender Harbour"  ->  "Pender Harbour (ḵalpilin), BC"
+
+    Falls back to place_name when there is no alternative name or it merely
+    duplicates the official name (e.g. USA/NOAA stations have no alias).
+    """
+    if not place_name:
+        return place_name
+
+    alt = (alternative_name or '').strip()
+    if not alt:
+        return place_name
+
+    # Split the trailing ", PROV" suffix off the official name, if present, so
+    # the province stays at the end rather than inside the parentheses. Prefer
+    # an explicit province; otherwise split the trailing ", <code>" that
+    # construct_place_name appends (the province column is empty when the
+    # province was inferred from longitude rather than parsed from the name).
+    core, suffix = place_name, ''
+    if province and place_name.endswith(f", {province}"):
+        core = place_name[: -len(f", {province}")]
+        suffix = f", {province}"
+    elif ', ' in place_name:
+        core, _, tail = place_name.rpartition(', ')
+        suffix = f", {tail}"
+
+    # Don't duplicate when the common name already matches the official name.
+    if alt.lower() in (core.strip().lower(), place_name.strip().lower()):
+        return place_name
+
+    return f"{alt} ({core}){suffix}"
+
+
 def search_stations_by_country(query, country=None, limit=10):
-    """Search for stations by place name, optionally filtered by country."""
+    """Search for stations by place name or common (alternative) name,
+    optionally filtered by country."""
     if not query or len(query.strip()) < 1:
         return []
 
@@ -502,34 +548,38 @@ def search_stations_by_country(query, country=None, limit=10):
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
 
-            # Case-insensitive substring search
+            # Case-insensitive substring search across both the official place
+            # name and the CHS alternative/common name so visitors can find a
+            # station by whichever name they know.
             search_query = f"%{query.strip()}%"
 
             if country:
                 results = cursor.execute('''
-                    SELECT station_id, place_name, country, lookup_count
+                    SELECT station_id, place_name, country, lookup_count, alternative_name, province
                     FROM tide_station_ids
                     WHERE place_name IS NOT NULL
-                    AND LOWER(place_name) LIKE LOWER(?)
+                    AND (LOWER(place_name) LIKE LOWER(?) OR LOWER(alternative_name) LIKE LOWER(?))
                     AND country = ?
                     ORDER BY lookup_count DESC, place_name ASC
                     LIMIT ?
-                ''', (search_query, country, limit)).fetchall()
+                ''', (search_query, search_query, country, limit)).fetchall()
             else:
                 results = cursor.execute('''
-                    SELECT station_id, place_name, country, lookup_count
+                    SELECT station_id, place_name, country, lookup_count, alternative_name, province
                     FROM tide_station_ids
                     WHERE place_name IS NOT NULL
-                    AND LOWER(place_name) LIKE LOWER(?)
+                    AND (LOWER(place_name) LIKE LOWER(?) OR LOWER(alternative_name) LIKE LOWER(?))
                     ORDER BY lookup_count DESC, place_name ASC
                     LIMIT ?
-                ''', (search_query, limit)).fetchall()
+                ''', (search_query, search_query, limit)).fetchall()
 
             return [{
                 'station_id': row[0],
                 'place_name': row[1],
                 'country': row[2],
-                'lookup_count': row[3]
+                'lookup_count': row[3],
+                'alternative_name': row[4],
+                'display_name': format_display_name(row[1], row[4], row[5])
             } for row in results]
 
     except sqlite3.Error as e:
@@ -544,7 +594,7 @@ def get_popular_stations_by_country(country=None, limit=16):
 
             if country:
                 results = cursor.execute('''
-                    SELECT station_id, place_name, country, lookup_count
+                    SELECT station_id, place_name, country, lookup_count, alternative_name, province
                     FROM tide_station_ids
                     WHERE place_name IS NOT NULL
                     AND country = ?
@@ -553,7 +603,7 @@ def get_popular_stations_by_country(country=None, limit=16):
                 ''', (country, limit)).fetchall()
             else:
                 results = cursor.execute('''
-                    SELECT station_id, place_name, country, lookup_count
+                    SELECT station_id, place_name, country, lookup_count, alternative_name, province
                     FROM tide_station_ids
                     WHERE place_name IS NOT NULL
                     ORDER BY lookup_count DESC, place_name ASC
@@ -564,7 +614,9 @@ def get_popular_stations_by_country(country=None, limit=16):
                 'station_id': row[0],
                 'place_name': row[1],
                 'country': row[2],
-                'lookup_count': row[3]
+                'lookup_count': row[3],
+                'alternative_name': row[4],
+                'display_name': format_display_name(row[1], row[4], row[5])
             } for row in results]
 
     except sqlite3.Error as e:

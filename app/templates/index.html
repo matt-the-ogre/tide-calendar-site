@@ -400,7 +400,9 @@
                         item.appendChild(flagSpan);
                     }
 
-                    const nameText = document.createTextNode(station.place_name + ' ');
+                    // Prefer the combined "Common (Official), PROV" label when present
+                    const displayName = station.display_name || station.place_name;
+                    const nameText = document.createTextNode(displayName + ' ');
                     item.appendChild(nameText);
 
                     const badge = document.createElement('span');
@@ -409,7 +411,7 @@
                     item.appendChild(badge);
 
                     item.dataset.stationId = station.station_id;
-                    item.dataset.placeName = station.place_name;
+                    item.dataset.placeName = displayName;
 
                     item.addEventListener('click', () => {
                         selectStation(item);
@@ -501,9 +503,10 @@
                 countryCell.className = 'country-cell';
                 row.appendChild(countryCell);
 
-                // Station Name
+                // Station Name (prefer combined "Common (Official), PROV" label)
+                const displayName = station.display_name || station.place_name || 'Unknown';
                 const nameCell = document.createElement('td');
-                nameCell.textContent = station.place_name || 'Unknown';
+                nameCell.textContent = displayName;
                 row.appendChild(nameCell);
 
                 // Station ID
@@ -522,8 +525,8 @@
                 button.className = 'quick-generate-btn';
                 button.textContent = 'Generate PDF';
                 button.dataset.stationId = station.station_id;
-                button.dataset.placeName = station.place_name || 'Unknown';
-                button.addEventListener('click', () => handleQuickGenerate(station.station_id, station.place_name, button));
+                button.dataset.placeName = displayName;
+                button.addEventListener('click', () => handleQuickGenerate(station.station_id, displayName, button));
                 actionCell.appendChild(button);
                 row.appendChild(actionCell);
 
