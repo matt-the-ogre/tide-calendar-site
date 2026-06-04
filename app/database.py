@@ -2,6 +2,7 @@ import sqlite3
 import logging
 import os
 import csv
+import unicodedata
 from pathlib import Path
 
 # Get the app directory for relative database path
@@ -278,36 +279,6 @@ def import_stations_from_csv():
         logging.error(f"Error importing stations from CSV: {e}")
         return False
 
-def search_stations_by_name(query, limit=10):
-    """Search for stations by place name with case-insensitive substring matching."""
-    if not query or len(query.strip()) < 1:
-        return []
-
-    try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-
-            # Case-insensitive substring search
-            search_query = f"%{query.strip()}%"
-            results = cursor.execute('''
-                SELECT station_id, place_name, lookup_count
-                FROM tide_station_ids
-                WHERE place_name IS NOT NULL
-                AND LOWER(place_name) LIKE LOWER(?)
-                ORDER BY lookup_count DESC, place_name ASC
-                LIMIT ?
-            ''', (search_query, limit)).fetchall()
-
-            return [{
-                'station_id': row[0],
-                'place_name': row[1],
-                'lookup_count': row[2]
-            } for row in results]
-
-    except sqlite3.Error as e:
-        logging.error(f"Database error searching stations: {e}")
-        return []
-
 def get_popular_stations(limit=16):
     """Get the most popular tide stations by lookup count."""
     try:
@@ -536,6 +507,21 @@ def import_canadian_stations_from_csv():
         logging.error(f"Error importing Canadian stations from CSV: {e}")
         return False
 
+def fold_for_search(text):
+    """Fold a string to a diacritic-insensitive, lowercase form for matching.
+
+    Uses NFKD decomposition + removal of combining marks, which collapses both
+    Indigenous letters (e.g. "ḵalpilin" -> "kalpilin", since U+1E35 decomposes to
+    k + combining macron) and accented characters (e.g. "Bécancour" -> "becancour",
+    "Île" -> "ile"). Lets a visitor find a station whether or not they reproduce
+    the exact diacritics. Returns '' for falsy input.
+    """
+    if not text:
+        return ''
+    decomposed = unicodedata.normalize('NFKD', text)
+    return ''.join(c for c in decomposed if not unicodedata.combining(c)).lower()
+
+
 def format_display_name(place_name, alternative_name, province=None):
     """Build a search-friendly display label for the autocomplete dropdown.
 
@@ -585,32 +571,36 @@ def search_stations_by_country(query, country=None, limit=10):
 
     try:
         with sqlite3.connect(DB_PATH) as conn:
+            # fold() makes matching case- AND diacritic-insensitive, so e.g.
+            # "kalpilin" matches "ḵalpilin" and "becancour" matches "Bécancour".
+            conn.create_function('fold', 1, fold_for_search, deterministic=True)
             cursor = conn.cursor()
 
-            # Case-insensitive substring search across both the official place
-            # name and the CHS alternative/common name so visitors can find a
-            # station by whichever name they know.
-            search_query = f"%{query.strip()}%"
+            # Diacritic/case-insensitive substring search across both the official
+            # place name and the CHS alternative/common name so visitors can find a
+            # station by whichever name they know, however they type it. Fold the
+            # query in Python and apply fold() only to the columns in SQL.
+            folded_query = f"%{fold_for_search(query.strip())}%"
 
             if country:
                 results = cursor.execute('''
                     SELECT station_id, place_name, country, lookup_count, alternative_name, province
                     FROM tide_station_ids
                     WHERE place_name IS NOT NULL
-                    AND (LOWER(place_name) LIKE LOWER(?) OR LOWER(alternative_name) LIKE LOWER(?))
+                    AND (fold(place_name) LIKE ? OR fold(alternative_name) LIKE ?)
                     AND country = ?
                     ORDER BY lookup_count DESC, place_name ASC
                     LIMIT ?
-                ''', (search_query, search_query, country, limit)).fetchall()
+                ''', (folded_query, folded_query, country, limit)).fetchall()
             else:
                 results = cursor.execute('''
                     SELECT station_id, place_name, country, lookup_count, alternative_name, province
                     FROM tide_station_ids
                     WHERE place_name IS NOT NULL
-                    AND (LOWER(place_name) LIKE LOWER(?) OR LOWER(alternative_name) LIKE LOWER(?))
+                    AND (fold(place_name) LIKE ? OR fold(alternative_name) LIKE ?)
                     ORDER BY lookup_count DESC, place_name ASC
                     LIMIT ?
-                ''', (search_query, search_query, limit)).fetchall()
+                ''', (folded_query, folded_query, limit)).fetchall()
 
             return [{
                 'station_id': row[0],
