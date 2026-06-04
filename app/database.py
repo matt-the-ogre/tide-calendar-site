@@ -539,7 +539,12 @@ def format_display_name(place_name, alternative_name, province=None):
     if not place_name:
         return place_name
 
-    alt = (alternative_name or '').strip()
+    # Lead with the first comma-segment only. CHS alternativeName is often a messy
+    # list of echoes/variants (e.g. "Dumb Bell Bay, DUMB BELL BAY" or "Sugluk,
+    # Salluit, Saglouc"), but the first segment is reliably the primary common name.
+    # The full value stays stored for search, so every variant remains matchable;
+    # only the displayed label is trimmed.
+    alt = (alternative_name or '').split(',')[0].strip()
     if not alt:
         return place_name
 

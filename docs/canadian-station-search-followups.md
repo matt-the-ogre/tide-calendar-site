@@ -61,23 +61,23 @@ Covered by `TestFoldForSearch` and `TestDiacriticInsensitiveSearch`.
 
 ---
 
-## 3. Messy CHS `alternativeName` values
+## 3. Messy CHS `alternativeName` values ✅ FIXED
 
-**Problem:** Some CHS alternate names are duplicated or malformed, which produces
-ugly combined display labels. They are still searchable, just unattractive.
+**Was:** Many CHS alternate names are messy lists of echoes/variants — case echoes
+(`Dumb Bell Bay, DUMB BELL BAY`), exact repeats (`Payne Bay, Payne Bay`), duplicated
+multi-segment (`Parry Passage, B.C., Parry Passage, B.C.`), and genuine multi-name
+lists (`Sugluk, Salluit, Saglouc`). 58 of 163 alternate names contain commas. These
+rendered as ugly labels like `Dumb Bell Bay, DUMB BELL BAY (Alert), NT`.
 
-**Evidence:**
-- 03765 Alert → alt `Dumb Bell Bay, DUMB BELL BAY`
-- 09958 Henslung Cove → alt `Parry Passage, B.C., Parry Passage, B.C.`
+**Resolved:** Rather than scrub the stored value, **decouple search from display** —
+`format_display_name()` now leads with only the **first comma-segment** of the
+alternate name (reliably the primary common name). The full value stays stored, so
+**search still matches any variant** (verified: "saglouc", "broughton", "dumb bell" all
+still resolve). No data, schema, or import change.
 
-These render as e.g. `Dumb Bell Bay, DUMB BELL BAY (Alert), NT`.
-
-**Proposed fix:** In `normalize_station()`, clean the alternate name before storing:
-de-duplicate repeated segments, collapse `, <SAME UPPERCASED>` echoes, and optionally
-skip combining into the display label (still index it for search) when it contains
-commas or exceeds a length threshold — fall back to showing just the official name.
-
-**Effort:** Small–Medium. **Impact:** Cosmetic polish for a handful of stations.
+Result: `Dumb Bell Bay (Alert), NT`, `Broughton Island (Qikiqtarjuaq), NU`,
+`Sugluk (Salluit), QC`, `Parry Passage (Henslung Cove), BC`. Covered by
+`TestFormatDisplayName` and `TestMessyAlternativeNameSearchAndDisplay`.
 
 ---
 
