@@ -8,7 +8,7 @@ import time
 import re
 
 from app import app
-from app.database import search_stations_by_name, get_popular_stations, get_place_name_by_station_id, get_station_id_by_place_name, search_stations_by_country, get_popular_stations_by_country, log_usage_event, get_usage_stats
+from app.database import get_popular_stations, get_place_name_by_station_id, get_station_id_by_place_name, search_stations_by_country, get_popular_stations_by_country, log_usage_event, get_usage_stats
 
 # Directory for storing generated PDF calendars (matches get_tides.py)
 # Default to app/calendars for local dev, override with PDF_OUTPUT_DIR env var for production

@@ -279,36 +279,6 @@ def import_stations_from_csv():
         logging.error(f"Error importing stations from CSV: {e}")
         return False
 
-def search_stations_by_name(query, limit=10):
-    """Search for stations by place name with case-insensitive substring matching."""
-    if not query or len(query.strip()) < 1:
-        return []
-
-    try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-
-            # Case-insensitive substring search
-            search_query = f"%{query.strip()}%"
-            results = cursor.execute('''
-                SELECT station_id, place_name, lookup_count
-                FROM tide_station_ids
-                WHERE place_name IS NOT NULL
-                AND LOWER(place_name) LIKE LOWER(?)
-                ORDER BY lookup_count DESC, place_name ASC
-                LIMIT ?
-            ''', (search_query, limit)).fetchall()
-
-            return [{
-                'station_id': row[0],
-                'place_name': row[1],
-                'lookup_count': row[2]
-            } for row in results]
-
-    except sqlite3.Error as e:
-        logging.error(f"Database error searching stations: {e}")
-        return []
-
 def get_popular_stations(limit=16):
     """Get the most popular tide stations by lookup count."""
     try:
