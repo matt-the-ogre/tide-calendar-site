@@ -81,25 +81,22 @@ Result: `Dumb Bell Bay (Alert), NT`, `Broughton Island (Qikiqtarjuaq), NU`,
 
 ---
 
-## 4. Stale CSV fallback (`app/canadian_tide_stations.csv`)
+## 4. Stale CSV fallback (`app/canadian_tide_stations.csv`) ✅ FIXED
 
-**Problem:** The CSV fallback (used only when the CHS API is unreachable at startup)
-still contains the old hand-curated station set and has no `alternative_name` column.
-The importer tolerates the missing column (defaults to NULL), so it won't crash — but
-if the API is ever down, the site falls back to a much smaller list with no common-name
-search.
+**Was:** The CSV fallback (used only when the CHS API is unreachable at startup) was a
+stale 10-row hand-curated set with no `alternative_name` column — so an API outage
+degraded the site to a fraction of its stations with no common-name search. It also
+caused a pre-existing failure in `scripts/test_multi_country_offline.py` ("Get Canadian
+station info (Halifax) — Wrong API source: None") because Halifax wasn't in it.
 
-**Proposed fix:** Regenerate the fallback CSV from a successful live import (all ~1,076
-stations including an `alternative_name` column) so the degraded mode closely matches
-normal operation. Could be a small maintenance script under `scripts/`.
+**Resolved:** Added `scripts/generate_canadian_fallback_csv.py`, which snapshots a full
+live import to `app/canadian_tide_stations.csv` — now **1,076 stations** with correct
+provinces (from the baked map), `alternative_name`, and formatted place names, matching
+normal operation. It's fast (one bulk `/stations` call + the local province map, no
+per-station calls). Regenerate it occasionally alongside `fetch_canadian_provinces.py`.
 
-**Note:** The stale CSV already causes a pre-existing failure in
-`scripts/test_multi_country_offline.py` ("Get Canadian station info (Halifax) — Wrong
-API source: None") because Halifax is no longer in the curated CSV. Regenerating the
-CSV would fix that test too. (Unrelated to the name-search change; these `scripts/`
-tests are not run by the new CI job.)
-
-**Effort:** Small. **Impact:** Only matters during a CHS API outage.
+The `test_multi_country_offline.py` Halifax check now passes (31/0). (These `scripts/`
+tests still aren't run by CI — see #6/#7.)
 
 ---
 
