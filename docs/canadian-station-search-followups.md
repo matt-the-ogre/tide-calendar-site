@@ -81,25 +81,22 @@ Result: `Dumb Bell Bay (Alert), NT`, `Broughton Island (Qikiqtarjuaq), NU`,
 
 ---
 
-## 4. Stale CSV fallback (`app/canadian_tide_stations.csv`)
+## 4. Stale CSV fallback (`app/canadian_tide_stations.csv`) ✅ FIXED
 
-**Problem:** The CSV fallback (used only when the CHS API is unreachable at startup)
-still contains the old hand-curated station set and has no `alternative_name` column.
-The importer tolerates the missing column (defaults to NULL), so it won't crash — but
-if the API is ever down, the site falls back to a much smaller list with no common-name
-search.
+**Was:** The CSV fallback (used only when the CHS API is unreachable at startup) was a
+stale 10-row hand-curated set with no `alternative_name` column — so an API outage
+degraded the site to a fraction of its stations with no common-name search. It also
+caused a pre-existing failure in `scripts/test_multi_country_offline.py` ("Get Canadian
+station info (Halifax) — Wrong API source: None") because Halifax wasn't in it.
 
-**Proposed fix:** Regenerate the fallback CSV from a successful live import (all ~1,076
-stations including an `alternative_name` column) so the degraded mode closely matches
-normal operation. Could be a small maintenance script under `scripts/`.
+**Resolved:** Added `scripts/generate_canadian_fallback_csv.py`, which snapshots a full
+live import to `app/canadian_tide_stations.csv` — now **1,076 stations** with correct
+provinces (from the baked map), `alternative_name`, and formatted place names, matching
+normal operation. It's fast (one bulk `/stations` call + the local province map, no
+per-station calls). Regenerate it occasionally alongside `fetch_canadian_provinces.py`.
 
-**Note:** The stale CSV already causes a pre-existing failure in
-`scripts/test_multi_country_offline.py` ("Get Canadian station info (Halifax) — Wrong
-API source: None") because Halifax is no longer in the curated CSV. Regenerating the
-CSV would fix that test too. (Unrelated to the name-search change; these `scripts/`
-tests are not run by the new CI job.)
-
-**Effort:** Small. **Impact:** Only matters during a CHS API outage.
+The `test_multi_country_offline.py` Halifax check now passes (31/0). (These `scripts/`
+tests still aren't run by CI — see #6/#7.)
 
 ---
 
@@ -136,37 +133,38 @@ ongoing signal.
 
 ---
 
-## 6. Harden `format_display_name()` province split
+## 6. Harden `format_display_name()` province split ✅ FIXED
 
-**Problem:** When no explicit province is passed, `format_display_name()` in
-`app/database.py` splits the trailing `", …"` off `place_name` via `rpartition(', ')`
-and treats the tail as the province. This is correct today only because
-`construct_place_name()` always appends `", PROV"` for aliased (Canadian) stations and
-USA stations have no alias (so they return early). If that invariant ever changes, an
-official name containing a comma but no province suffix would be mis-split.
+**Was:** When no explicit province was passed, `format_display_name()` split the trailing
+`", …"` off `place_name` via `rpartition(', ')` and treated the tail as the province —
+correct only because `construct_place_name()` always appends `", PROV"`. A future
+place_name with a comma but no province suffix would have been mis-split.
 
-**Proposed fix:** Constrain the fallback to a province/state-code shape (e.g. a short
-alpha token, or membership in `PROVINCE_CODES`) before treating it as a suffix, or
-make `place_name` carry a structured province consistently (see #1).
-
-**Effort:** Small. **Impact:** Defensive; no known trigger today.
+**Resolved:** The `rpartition` fallback now strips the tail only when it is a
+province/state-code shape (`len(tail) == 2 and tail.isalpha()`, e.g. `", BC"`).
+Otherwise the name is kept whole. Humanized labels like "Greenland" always arrive via
+the explicit `province` arg (the province column is reliably populated since #1), so
+they never depend on the fallback. Covered by
+`TestFormatDisplayName.test_does_not_split_non_province_tail`.
 
 ---
 
-## 7. (Optional) Consolidate the two `import_canadian_stations_from_csv()`
+## 7. (Optional) Consolidate the two `import_canadian_stations_from_csv()` ✅ RESOLVED (keep separate)
 
-**Status:** The data inconsistency is **resolved** — both functions now write
-`alternative_name`. The `database.py` copy is NOT dead: it is the CSV-only importer
-used by the offline maintenance scripts (`scripts/test_canadian_import.py`,
-`test_multi_country_offline.py`, `test_lookup_count_preservation.py`), while
-`canadian_station_sync.py`'s copy is the API importer (with its own CSV fallback) used
-at runtime startup. They serve different purposes, so they are not strictly duplicates.
+**Decision: keep them separate.** They are intentionally different, not accidental
+duplicates:
 
-**Optional cleanup:** If the divergence still feels risky, consolidate the two CSV
-readers into one shared helper that both the offline scripts and the runtime fallback
-call. Low priority.
+| | `database.py` (offline scripts) | `canadian_station_sync.py` (API fallback) |
+|--|--|--|
+| "skip if already populated" guard | yes | no |
+| removes stations not in the CSV (sync) | yes | no |
+| coordinate parsing | graceful (None on bad data) | `float()` (raises) |
 
-**Effort:** Small–Medium. **Impact:** Code clarity only (no functional gap remains).
+Merging them would force reconciling those sync semantics and **change behavior for one
+caller** for only marginal "clarity" gain. The original concern — a data inconsistency —
+is already gone (both write `alternative_name`). Instead of a risky merge, the
+`canadian_station_sync.py` docstring now explains the distinction and cross-references
+the `database.py` importer. No code consolidation.
 
 ---
 

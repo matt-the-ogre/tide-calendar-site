@@ -558,8 +558,13 @@ def format_display_name(place_name, alternative_name, province=None):
         core = place_name[: -len(f", {province}")]
         suffix = f", {province}"
     elif ', ' in place_name:
-        core, _, tail = place_name.rpartition(', ')
-        suffix = f", {tail}"
+        candidate_core, _, tail = place_name.rpartition(', ')
+        # Only strip the tail when it looks like a province/state code (the form
+        # construct_place_name appends, e.g. ", BC"). Guards against mis-splitting an
+        # official name that contains a comma but no province suffix. Humanized
+        # labels like "Greenland" always arrive via the explicit `province` arg above.
+        if len(tail) == 2 and tail.isalpha():
+            core, suffix = candidate_core, f", {tail}"
 
     # Don't duplicate when the common name already matches the official name.
     if alt.lower() in (core.strip().lower(), place_name.strip().lower()):

@@ -134,6 +134,15 @@ class TestFormatDisplayName(_DBTest):
             "Bay of Woe, NU",
         )
 
+    def test_does_not_split_non_province_tail(self):
+        # Defensive: with no explicit province, only a province-code-shaped tail is
+        # stripped as a suffix. An official name that contains a comma but no province
+        # is kept whole rather than mis-split into a bogus suffix.
+        self.assertEqual(
+            self.db.format_display_name("Foo, Bar Bay", "Common Name", None),
+            "Common Name (Foo, Bar Bay)",
+        )
+
 
 class TestSearchByAlternativeName(_DBTest):
     def setUp(self):

@@ -267,9 +267,16 @@ def fetch_canadian_stations_from_api() -> Tuple[Optional[List[Dict]], str]:
 
 def import_canadian_stations_from_csv() -> bool:
     """
-    Fallback: Import Canadian stations from static CSV file.
+    Lightweight CSV fallback, used only when the CHS API is unreachable at startup
+    (called by import_canadian_stations_from_api on failure).
 
-    This is used when the API is unavailable.
+    Intentionally distinct from database.py's identically-named importer: that one is
+    the full "sync DB to CSV" used by the offline maintenance scripts (it has a
+    "skip if already populated" guard and removes Canadian stations not in the CSV).
+    This fallback simply upserts every row (ON CONFLICT) so a degraded startup still
+    populates the DB. Both write alternative_name, so the data stays consistent
+    whichever path runs. They are kept separate on purpose (see follow-up doc #7) —
+    merging them would change one caller's sync semantics for marginal gain.
 
     Returns:
         True if successful, False otherwise

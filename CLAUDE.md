@@ -115,12 +115,13 @@ ANALYTICS_TOKEN=<random-string>  # gates /admin/analytics dashboard
 │   │   ├── llms.txt     # LLM crawler description (served via /llms.txt route)
 │   │   └── ads.txt      # Ad network verification (served via /ads.txt route)
 │   ├── tide_stations_new.csv        # US/NOAA station data (imported at startup)
-│   ├── canadian_tide_stations.csv   # Canadian/CHS station data (CSV fallback only)
+│   ├── canadian_tide_stations.csv   # Canadian/CHS fallback (full ~1076-station snapshot; gen: scripts/generate_canadian_fallback_csv.py)
 │   └── canadian_station_provinces.csv  # Authoritative code→province map (gen: scripts/fetch_canadian_provinces.py)
 ├── scripts/               # Development and maintenance scripts (NOT deployed)
 │   ├── validate_tide_stations.py    # Validate CSV stations against NOAA API
 │   ├── update_example_image.sh      # Monthly update of example calendar image
 │   ├── fetch_canadian_provinces.py  # Build authoritative code→province map from CHS /metadata
+│   ├── generate_canadian_fallback_csv.py  # Snapshot full live import to the fallback CSV
 │   └── test_canadian_import.py      # Test Canadian station imports
 ├── backup/                # CSV backup files (NOT deployed)
 │   └── tide_stations_new.csv.backup.*
@@ -207,6 +208,21 @@ partway — it is resumable/checkpointed, so don't kill a slow run). At runtime
 **When to run**: Occasionally (e.g. monthly), and whenever new Canadian stations appear.
 The script is resumable. The output CSV must stay listed in the Dockerfile `COPY` lines
 so it ships in the image.
+
+#### Canadian Fallback CSV
+The `scripts/generate_canadian_fallback_csv.py` script regenerates
+`app/canadian_tide_stations.csv` — the offline fallback used only when the CHS API is
+unreachable at startup:
+
+```bash
+python3 scripts/generate_canadian_fallback_csv.py
+```
+
+It snapshots a full live import (all ~1,076 stations with correct provinces, alternative
+names, and place names) so degraded mode matches normal operation. Fast: one bulk
+`/stations` call + the local province map (no per-station calls), so run
+`fetch_canadian_provinces.py` first if provinces are stale. Run it after that whenever
+the station set changes meaningfully.
 
 ### Running Tests
 ```bash
