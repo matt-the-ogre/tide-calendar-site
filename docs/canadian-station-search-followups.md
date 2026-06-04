@@ -39,6 +39,14 @@ container startup. Options to keep startup fast:
 - Cache provinceCode in the DB and only refetch for new/unknown stations.
 - Run it as a periodic maintenance script rather than at every startup.
 
+**Related:** The `province` **column** is also left empty (`''`) for stations whose
+province was inferred from longitude rather than parsed from the name — the inferred
+value only lands inside `place_name` (e.g. `"ḵalpilin, BC"`), not the column. So
+`get_station_info()` returns `''` for province on those rows. `format_display_name()`
+compensates by splitting the suffix out of `place_name`, but a proper fix would
+populate the column from the authoritative `provinceCode` above and keep the two
+in sync.
+
 **Effort:** Medium. **Impact:** Cosmetic (wrong province label), but visible.
 
 ---
@@ -95,6 +103,57 @@ stations including an `alternative_name` column) so the degraded mode closely ma
 normal operation. Could be a small maintenance script under `scripts/`.
 
 **Effort:** Small. **Impact:** Only matters during a CHS API outage.
+
+---
+
+## 5. Monitor for empty calendars from newly-surfaced stations
+
+**Problem:** Relaxing the import filter to "any station with `wlp-hilo`" added ~1,005
+stations. 07837 was verified to have current/forward predictions, but not all of the
+newly-included stations were — a truly-defunct one (only historical data) would now be
+selectable by name and produce an empty calendar. This is handled gracefully (the
+empty-PDF path returns the error template), and was an accepted trade-off, but it
+should be watched.
+
+**Proposed action (operational, no code):** After the prod deploy, watch
+`/admin/analytics` for an uptick in `error_detail = pdf_empty` / `pdf_missing`. That is
+the exact signal that a dead station is now reachable via name search. If a specific
+station recurs, either exclude it or fall back to checking prediction availability for
+the requested month at import/selection time.
+
+**Effort:** Tiny (watch existing analytics). **Impact:** Catches dead stations early.
+
+---
+
+## 6. Harden `format_display_name()` province split
+
+**Problem:** When no explicit province is passed, `format_display_name()` in
+`app/database.py` splits the trailing `", …"` off `place_name` via `rpartition(', ')`
+and treats the tail as the province. This is correct today only because
+`construct_place_name()` always appends `", PROV"` for aliased (Canadian) stations and
+USA stations have no alias (so they return early). If that invariant ever changes, an
+official name containing a comma but no province suffix would be mis-split.
+
+**Proposed fix:** Constrain the fallback to a province/state-code shape (e.g. a short
+alpha token, or membership in `PROVINCE_CODES`) before treating it as a suffix, or
+make `place_name` carry a structured province consistently (see #1).
+
+**Effort:** Small. **Impact:** Defensive; no known trigger today.
+
+---
+
+## 7. Consolidate duplicate `import_canadian_stations_from_csv()`
+
+**Problem:** There are two functions with this name — one in
+`app/canadian_station_sync.py` (the active CSV fallback, updated to write
+`alternative_name`) and one in `app/database.py` (not in the startup path, **not**
+updated, so it would insert without `alternative_name`). The dormant duplicate is a
+trap for future maintainers.
+
+**Proposed fix:** Remove the unused `database.py` copy, or unify on one implementation
+and have it write `alternative_name`.
+
+**Effort:** Small. **Impact:** Code-clarity / avoids a latent inconsistency.
 
 ---
 

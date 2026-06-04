@@ -354,7 +354,14 @@ def get_place_name_by_station_id(station_id):
         return None
 
 def get_station_id_by_place_name(place_name):
-    """Get the station ID for a given place name (exact match)."""
+    """Get the station ID for a given name.
+
+    Tries the official place_name first (exact, then case-insensitive), then the
+    CHS common/alternative name (exact, then case-insensitive). The alternative
+    name fallback lets a visitor who types a common name (e.g. "Pender Harbour")
+    and submits without picking from the autocomplete still resolve the station,
+    consistent with what the name search surfaces.
+    """
     if not place_name:
         return None
 
@@ -362,7 +369,7 @@ def get_station_id_by_place_name(place_name):
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
 
-            # Try exact match first
+            # Try official place_name: exact, then case-insensitive.
             result = cursor.execute('''
                 SELECT station_id
                 FROM tide_station_ids
@@ -372,11 +379,31 @@ def get_station_id_by_place_name(place_name):
             if result:
                 return result[0]
 
-            # If no exact match, try case-insensitive match
             result = cursor.execute('''
                 SELECT station_id
                 FROM tide_station_ids
                 WHERE LOWER(place_name) = LOWER(?)
+                LIMIT 1
+            ''', (place_name,)).fetchone()
+
+            if result:
+                return result[0]
+
+            # Fall back to the common/alternative name: exact, then case-insensitive.
+            result = cursor.execute('''
+                SELECT station_id
+                FROM tide_station_ids
+                WHERE alternative_name = ?
+                LIMIT 1
+            ''', (place_name,)).fetchone()
+
+            if result:
+                return result[0]
+
+            result = cursor.execute('''
+                SELECT station_id
+                FROM tide_station_ids
+                WHERE LOWER(alternative_name) = LOWER(?)
                 LIMIT 1
             ''', (place_name,)).fetchone()
 

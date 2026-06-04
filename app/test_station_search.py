@@ -144,5 +144,54 @@ class TestUSAUnaffected(_DBTest):
         self.assertEqual(results[0]["display_name"], "Point Roberts, WA")
 
 
+class TestGetStationIdByName(_DBTest):
+    """The form-submit fallback (when no station_id is selected) must resolve a
+    typed common name, not just the official place_name."""
+
+    def setUp(self):
+        super().setUp()
+        self._insert(
+            station_id="07837",
+            place_name="ḵalpilin, BC",
+            country="Canada",
+            api_source="CHS",
+            province="BC",
+            alternative_name="Pender Harbour",
+            lookup_count=1,
+        )
+
+    def test_resolves_by_common_name(self):
+        self.assertEqual(self.db.get_station_id_by_place_name("Pender Harbour"), "07837")
+
+    def test_resolves_by_common_name_case_insensitive(self):
+        self.assertEqual(self.db.get_station_id_by_place_name("pender harbour"), "07837")
+
+    def test_resolves_by_official_place_name_still(self):
+        self.assertEqual(self.db.get_station_id_by_place_name("ḵalpilin, BC"), "07837")
+
+    def test_unknown_name_returns_none(self):
+        self.assertIsNone(self.db.get_station_id_by_place_name("Nowhere, ZZ"))
+
+
+class TestPopularStationsDisplayName(_DBTest):
+    def setUp(self):
+        super().setUp()
+        self._insert(
+            station_id="07837",
+            place_name="ḵalpilin, BC",
+            country="Canada",
+            api_source="CHS",
+            province="BC",
+            alternative_name="Pender Harbour",
+            lookup_count=3,
+        )
+
+    def test_popular_includes_combined_display_name(self):
+        results = self.db.get_popular_stations_by_country("Canada", limit=10)
+        match = [r for r in results if r["station_id"] == "07837"]
+        self.assertEqual(len(match), 1)
+        self.assertEqual(match[0]["display_name"], "Pender Harbour (ḵalpilin), BC")
+
+
 if __name__ == "__main__":
     unittest.main()
