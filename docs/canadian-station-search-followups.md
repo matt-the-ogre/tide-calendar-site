@@ -12,42 +12,36 @@ change. They are independent and can be tackled in any order.
 
 ---
 
-## 1. Province inference is inaccurate
+## 1. Province inference is inaccurate ✅ FIXED
 
-**Problem:** When a CHS `officialName` has no province code, `construct_place_name()`
-in `app/canadian_station_sync.py` guesses the province from longitude. The guess is
-coarse and sometimes wrong.
+**Was:** `construct_place_name()` guessed the province from longitude when the CHS
+`officialName` had no province code. An audit showed this was far worse than first
+assumed:
+- **1,075 of 1,076** imported stations had no province in their name, so nearly all
+  relied on the longitude guess.
+- Sampled against the authoritative `/metadata` `provinceCode`, that guess was **wrong
+  ~50% of the time** — e.g. Digby shown as QC (actually NS), Sambro Harbour QC→NS,
+  Blanc-Sablon NT→QC, many Nunavut stations shown as NT, Cape Tormentine QC→NB.
 
-**Evidence:** Station 06380 displays as `Holman (Ulukhaktok), MB`. Ulukhaktok is in
-the Northwest Territories (NT), not Manitoba (MB) — the longitude band for "prairie"
-swallowed it.
+So roughly half of all Canadian stations displayed the wrong province.
 
-**Proposed fix:** The CHS per-station metadata endpoint returns an authoritative
-`provinceCode`:
+**Why not fetch `/metadata` at startup:** the authoritative `provinceCode` lives only
+in the per-station `/metadata` endpoint (the bulk `/stations` list omits it), and CHS
+rate-limits hard enough that ~1,076 calls take 15+ min — infeasible at container start.
 
-```
-GET https://api.iwls-sine.azure.cloud-nuage.dfo-mpo.gc.ca/api/v1/stations/{id}/metadata
--> { ..., "provinceCode": "BC", ... }
-```
+**Resolved:** Precompute the map offline and ship it.
+- `scripts/fetch_canadian_provinces.py` (rate-limited, retrying, resumable) fetches
+  `provinceCode` for every calendar-capable station and writes
+  `app/canadian_station_provinces.csv` (`code,province`). Run it occasionally
+  (alongside `validate_tide_stations.py`).
+- `canadian_station_sync.PROVINCE_BY_CODE` loads that CSV once at import;
+  `normalize_station()` resolves province as **map → name → longitude fallback**, and
+  now also populates the `province` column (fixing the empty-column issue noted below).
+  Longitude inference remains only as a graceful fallback for codes not yet in the map.
+- The new CSV is added to the Dockerfile `COPY` lines so it ships in the image.
 
-Use it instead of the longitude heuristic.
-
-**Cost/trade-off:** The bulk `/stations` list response does **not** include
-`provinceCode`, so this requires one extra call per station (~1,076 calls) at
-container startup. Options to keep startup fast:
-- Fetch metadata only for stations whose name lacks a province code (the minority).
-- Cache provinceCode in the DB and only refetch for new/unknown stations.
-- Run it as a periodic maintenance script rather than at every startup.
-
-**Related:** The `province` **column** is also left empty (`''`) for stations whose
-province was inferred from longitude rather than parsed from the name — the inferred
-value only lands inside `place_name` (e.g. `"ḵalpilin, BC"`), not the column. So
-`get_station_info()` returns `''` for province on those rows. `format_display_name()`
-compensates by splitting the suffix out of `place_name`, but a proper fix would
-populate the column from the authoritative `provinceCode` above and keep the two
-in sync.
-
-**Effort:** Medium. **Impact:** Cosmetic (wrong province label), but visible.
+**Note (now resolved):** the `province` **column** used to be left empty for inferred
+stations; with the map it is populated from the authoritative code.
 
 ---
 
@@ -67,23 +61,23 @@ Covered by `TestFoldForSearch` and `TestDiacriticInsensitiveSearch`.
 
 ---
 
-## 3. Messy CHS `alternativeName` values
+## 3. Messy CHS `alternativeName` values ✅ FIXED
 
-**Problem:** Some CHS alternate names are duplicated or malformed, which produces
-ugly combined display labels. They are still searchable, just unattractive.
+**Was:** Many CHS alternate names are messy lists of echoes/variants — case echoes
+(`Dumb Bell Bay, DUMB BELL BAY`), exact repeats (`Payne Bay, Payne Bay`), duplicated
+multi-segment (`Parry Passage, B.C., Parry Passage, B.C.`), and genuine multi-name
+lists (`Sugluk, Salluit, Saglouc`). 58 of 163 alternate names contain commas. These
+rendered as ugly labels like `Dumb Bell Bay, DUMB BELL BAY (Alert), NT`.
 
-**Evidence:**
-- 03765 Alert → alt `Dumb Bell Bay, DUMB BELL BAY`
-- 09958 Henslung Cove → alt `Parry Passage, B.C., Parry Passage, B.C.`
+**Resolved:** Rather than scrub the stored value, **decouple search from display** —
+`format_display_name()` now leads with only the **first comma-segment** of the
+alternate name (reliably the primary common name). The full value stays stored, so
+**search still matches any variant** (verified: "saglouc", "broughton", "dumb bell" all
+still resolve). No data, schema, or import change.
 
-These render as e.g. `Dumb Bell Bay, DUMB BELL BAY (Alert), NT`.
-
-**Proposed fix:** In `normalize_station()`, clean the alternate name before storing:
-de-duplicate repeated segments, collapse `, <SAME UPPERCASED>` echoes, and optionally
-skip combining into the display label (still index it for search) when it contains
-commas or exceeds a length threshold — fall back to showing just the official name.
-
-**Effort:** Small–Medium. **Impact:** Cosmetic polish for a handful of stations.
+Result: `Dumb Bell Bay (Alert), NT`, `Broughton Island (Qikiqtarjuaq), NU`,
+`Sugluk (Salluit), QC`, `Parry Passage (Henslung Cove), BC`. Covered by
+`TestFormatDisplayName` and `TestMessyAlternativeNameSearchAndDisplay`.
 
 ---
 

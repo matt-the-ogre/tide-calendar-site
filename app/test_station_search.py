@@ -111,6 +111,29 @@ class TestFormatDisplayName(_DBTest):
             expected,
         )
 
+    def test_messy_alternative_uses_first_segment_only(self):
+        # CHS alternativeName "Dumb Bell Bay, DUMB BELL BAY" -> lead with the clean
+        # first name, not the uppercase echo.
+        self.assertEqual(
+            self.db.format_display_name("Alert, NT", "Dumb Bell Bay, DUMB BELL BAY", "NT"),
+            "Dumb Bell Bay (Alert), NT",
+        )
+
+    def test_duplicated_multi_segment_alternative_uses_first_segment(self):
+        self.assertEqual(
+            self.db.format_display_name(
+                "Henslung Cove, BC", "Parry Passage, B.C., Parry Passage, B.C.", "BC"
+            ),
+            "Parry Passage (Henslung Cove), BC",
+        )
+
+    def test_uppercase_alternative_matching_official_not_duplicated(self):
+        # First segment "BAY OF WOE" equals the official (case-insensitively) -> no parens.
+        self.assertEqual(
+            self.db.format_display_name("Bay of Woe, NU", "BAY OF WOE, JONES SD.", "NU"),
+            "Bay of Woe, NU",
+        )
+
 
 class TestSearchByAlternativeName(_DBTest):
     def setUp(self):
@@ -269,6 +292,27 @@ class TestDiacriticInsensitiveSearch(_DBTest):
         )
         results = self.db.search_stations_by_country("riviere", "Canada", limit=10)
         self.assertIn("03250", [r["station_id"] for r in results])
+
+
+class TestMessyAlternativeNameSearchAndDisplay(_DBTest):
+    """A multi-name alternativeName (e.g. "Sugluk, Salluit, Saglouc") stays fully
+    searchable by any segment, while the display leads with just the first."""
+
+    def setUp(self):
+        super().setUp()
+        self._insert(
+            station_id="04470", place_name="Salluit, QC", country="Canada",
+            api_source="CHS", province="QC",
+            alternative_name="Sugluk, Salluit, Saglouc", lookup_count=1,
+        )
+
+    def test_non_first_alt_segment_still_searchable(self):
+        results = self.db.search_stations_by_country("saglouc", "Canada", limit=10)
+        self.assertEqual([r["station_id"] for r in results], ["04470"])
+
+    def test_display_leads_with_first_alt_segment(self):
+        results = self.db.search_stations_by_country("sugluk", "Canada", limit=10)
+        self.assertEqual(results[0]["display_name"], "Sugluk (Salluit), QC")
 
 
 if __name__ == "__main__":

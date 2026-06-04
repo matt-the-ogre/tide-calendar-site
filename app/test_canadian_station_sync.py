@@ -9,9 +9,11 @@ Run from the app/ directory:
     ../venv/bin/python -m unittest test_canadian_station_sync
 """
 
+import os
+import tempfile
 import unittest
 
-from canadian_station_sync import normalize_station
+from canadian_station_sync import normalize_station, _load_province_map
 
 
 # Real CHS record shape for station 07837 (ḵalpilin / Pender Harbour):
@@ -77,6 +79,64 @@ class TestNormalizeStation(unittest.TestCase):
         result = normalize_station(PENDER)
         self.assertTrue(result["place_name"].endswith(", BC"))
         self.assertNotIn("Pender", result["place_name"])
+
+
+class TestProvinceMap(unittest.TestCase):
+    """The authoritative provinceCode map (from CHS /metadata, baked offline) must
+    take precedence over the longitude-based guess, which is wrong ~50% of the time."""
+
+    def _digby(self):
+        # Digby, NS — its longitude (~-65.76) makes construct_place_name guess "QC".
+        return dict(PENDER, code="00325", officialName="Digby",
+                    latitude=44.6, longitude=-65.76)
+
+    def test_uses_authoritative_province_from_map(self):
+        result = normalize_station(self._digby(), province_map={"00325": "NS"})
+        self.assertEqual(result["province"], "NS")
+        self.assertEqual(result["place_name"], "Digby, NS")
+
+    def test_map_overrides_wrong_longitude_inference(self):
+        no_map = normalize_station(self._digby(), province_map={})
+        with_map = normalize_station(self._digby(), province_map={"00325": "NS"})
+        self.assertEqual(with_map["place_name"], "Digby, NS")
+        self.assertNotEqual(no_map["place_name"], with_map["place_name"])
+
+    def test_falls_back_to_longitude_when_code_absent(self):
+        raw = dict(PENDER, code="09999", officialName="Somewhere",
+                   latitude=49.0, longitude=-124.0)  # BC longitude
+        result = normalize_station(raw, province_map={})
+        self.assertTrue(result["place_name"].endswith(", BC"))
+
+    def test_province_in_name_used_when_not_in_map(self):
+        raw = dict(PENDER, code="09998", officialName="Halifax, NS",
+                   latitude=44.6, longitude=-63.5)
+        result = normalize_station(raw, province_map={})
+        self.assertEqual(result["province"], "NS")
+        self.assertEqual(result["place_name"], "Halifax, NS")
+
+    def test_non_canadian_province_code_is_humanized(self):
+        # CHS carries Greenland stations with provinceCode "GRL_DEN"; show a readable
+        # label rather than leaking the raw region code into the UI.
+        raw = dict(PENDER, code="03575", officialName="Nuuk",
+                   latitude=64.18, longitude=-51.75)
+        result = normalize_station(raw, province_map={"03575": "GRL_DEN"})
+        self.assertEqual(result["province"], "Greenland")
+        self.assertEqual(result["place_name"], "Nuuk, Greenland")
+
+
+class TestLoadProvinceMap(unittest.TestCase):
+    def test_loads_code_province_pairs(self):
+        fd, p = tempfile.mkstemp(suffix=".csv")
+        os.close(fd)
+        with open(p, "w", encoding="utf-8") as f:
+            f.write("code,province\n00325,NS\n07837,BC\n")
+        try:
+            self.assertEqual(_load_province_map(p), {"00325": "NS", "07837": "BC"})
+        finally:
+            os.remove(p)
+
+    def test_missing_file_returns_empty(self):
+        self.assertEqual(_load_province_map("/nonexistent/does-not-exist.csv"), {})
 
 
 if __name__ == "__main__":

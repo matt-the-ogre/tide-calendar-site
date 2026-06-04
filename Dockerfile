@@ -39,6 +39,7 @@ COPY app/static/ /app/static/
 # Required CSV data files (imported at startup)
 COPY app/tide_stations_new.csv /app/
 COPY app/canadian_tide_stations.csv /app/
+COPY app/canadian_station_provinces.csv /app/
 
 # Copy package.json for version info
 COPY package.json /app/
