@@ -259,6 +259,17 @@ class TestDiacriticInsensitiveSearch(_DBTest):
         results = self.db.search_stations_by_country("becancour", None, limit=10)
         self.assertEqual([r["station_id"] for r in results], ["03353"])
 
+    def test_ascii_query_matches_diacritic_in_alternative_name(self):
+        # Diacritic lives in the *alternative* name and the place_name cannot match
+        # the query, so a hit proves the alternative_name column is folded too.
+        self._insert(
+            station_id="03250", place_name="Saint-Joseph, QC", country="Canada",
+            api_source="CHS", province="QC", alternative_name="Rivière-du-Loup",
+            lookup_count=1,
+        )
+        results = self.db.search_stations_by_country("riviere", "Canada", limit=10)
+        self.assertIn("03250", [r["station_id"] for r in results])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -27,6 +27,22 @@ def _int_or_none(v):
     except (TypeError, ValueError):
         return None
 
+def _no_predictions_message(where, year, month):
+    """User-facing message when a calendar can't be generated.
+
+    The usual cause, now that inactive/temporary stations are listed, is that the
+    station has no published predictions for the requested period; a transient
+    tide-service outage is also possible, so the message hedges both. Built lazily
+    (only in the error branches) rather than on the success path.
+    """
+    return (
+        f"We couldn't generate a tide calendar for {where} for {year}-{month:02d}. "
+        f"This station may have no published tide predictions for that period "
+        f"(some stations are inactive or have only historical data), or the tide "
+        f"data service may be temporarily unavailable. Please try again, or choose "
+        f"a different station or month."
+    )
+
 def extract_location_with_state(place_name):
     """
     Extract location with state abbreviation from full place name.
@@ -206,31 +222,21 @@ def index():
         env['PYTHONPATH'] = os.path.dirname(__file__)
         subprocess.run(cmd, cwd=project_root, env=env)
 
-        # Friendly message for the most common failure now that the station list
-        # includes inactive/temporary stations: the station simply has no published
-        # predictions for the requested period (get_tides.py exits without writing a
-        # PDF). Also covers transient tide-service outages.
-        no_data_msg = (
-            f"We couldn't generate a tide calendar for {location_display or station_id} "
-            f"for {year}-{month:02d}. This station may have no published tide predictions "
-            f"for that period (some stations are inactive or have only historical data), "
-            f"or the tide data service may be temporarily unavailable. Please try again, "
-            f"or choose a different station or month."
-        )
-
         # Check if the PDF file was created
         if not os.path.exists(pdf_full_path):
             # log an error message
             logging.error(f"File {pdf_full_path} does not exist.")
             log_usage_event(station_id, place_name, year, month, 'error', 'pdf_missing')
-            return render_template('tide_station_not_found.html', message=no_data_msg)
+            return render_template('tide_station_not_found.html',
+                                   message=_no_predictions_message(location_display or station_id, year, month))
 
         # Check if the PDF file is empty
         if os.path.getsize(pdf_full_path) == 0:
             # log an error message
             logging.error(f"File {pdf_full_path} is empty.")
             log_usage_event(station_id, place_name, year, month, 'error', 'pdf_empty')
-            return render_template('tide_station_not_found.html', message=no_data_msg)
+            return render_template('tide_station_not_found.html',
+                                   message=_no_predictions_message(location_display or station_id, year, month))
 
         log_usage_event(station_id, place_name, year, month, 'success')
 
@@ -349,22 +355,17 @@ def api_generate_quick():
         env['PYTHONPATH'] = os.path.dirname(__file__)
         subprocess.run(cmd, cwd=project_root, env=env)
 
-        # No predictions for this station/period (or transient tide-service outage).
-        quick_no_data = (f"No tide predictions available for station {station_id} for "
-                         f"{year}-{month:02d}; the station may be inactive or have only "
-                         f"historical data.")
-
         # Check if the PDF file was created
         if not os.path.exists(pdf_full_path):
             logging.error(f"Quick generate failed: File {pdf_full_path} does not exist.")
             log_usage_event(station_id, place_name, year, month, 'error', 'pdf_missing', source='quick_api')
-            return jsonify({'error': quick_no_data}), 500
+            return jsonify({'error': _no_predictions_message(location_display or station_id, year, month)}), 500
 
         # Check if the PDF file is empty
         if os.path.getsize(pdf_full_path) == 0:
             logging.error(f"Quick generate failed: File {pdf_full_path} is empty.")
             log_usage_event(station_id, place_name, year, month, 'error', 'pdf_empty', source='quick_api')
-            return jsonify({'error': quick_no_data}), 500
+            return jsonify({'error': _no_predictions_message(location_display or station_id, year, month)}), 500
 
         log_usage_event(station_id, place_name, year, month, 'success', source='quick_api')
 
