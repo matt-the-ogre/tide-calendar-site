@@ -115,10 +115,12 @@ ANALYTICS_TOKEN=<random-string>  # gates /admin/analytics dashboard
 │   │   ├── llms.txt     # LLM crawler description (served via /llms.txt route)
 │   │   └── ads.txt      # Ad network verification (served via /ads.txt route)
 │   ├── tide_stations_new.csv        # US/NOAA station data (imported at startup)
-│   └── canadian_tide_stations.csv   # Canadian/CHS station data (CSV fallback only)
+│   ├── canadian_tide_stations.csv   # Canadian/CHS station data (CSV fallback only)
+│   └── canadian_station_provinces.csv  # Authoritative code→province map (gen: scripts/fetch_canadian_provinces.py)
 ├── scripts/               # Development and maintenance scripts (NOT deployed)
 │   ├── validate_tide_stations.py    # Validate CSV stations against NOAA API
 │   ├── update_example_image.sh      # Monthly update of example calendar image
+│   ├── fetch_canadian_provinces.py  # Build authoritative code→province map from CHS /metadata
 │   └── test_canadian_import.py      # Test Canadian station imports
 ├── backup/                # CSV backup files (NOT deployed)
 │   └── tide_stations_new.csv.backup.*
@@ -184,6 +186,26 @@ python3 scripts/validate_tide_stations.py
 - Expected runtime: ~12-15 minutes for ~2900 stations
 
 **When to run**: Monthly maintenance to keep the station list clean and prevent invalid stations from appearing in the popular stations list.
+
+#### Canadian Province Map
+The `scripts/fetch_canadian_provinces.py` script builds the authoritative
+`code → province` lookup for Canadian stations, written to `app/canadian_station_provinces.csv`:
+
+```bash
+python3 scripts/fetch_canadian_provinces.py
+```
+
+**Why it exists**: CHS official names almost never include a province, and the bulk
+`/stations` list omits `provinceCode` (only per-station `/metadata` has it). The old
+longitude-based guess in `construct_place_name()` was wrong ~50% of the time. This
+script precomputes the map from `/metadata` (the CHS API rate-limits too hard to do
+this at container startup, ~15-20 min for ~1,076 stations). At runtime
+`canadian_station_sync.PROVINCE_BY_CODE` loads the CSV and `normalize_station()` uses
+**map → province-in-name → longitude fallback**.
+
+**When to run**: Occasionally (e.g. monthly), and whenever new Canadian stations appear.
+The script is resumable. The output CSV must stay listed in the Dockerfile `COPY` lines
+so it ships in the image.
 
 ### Running Tests
 ```bash

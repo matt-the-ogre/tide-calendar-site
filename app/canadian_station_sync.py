@@ -7,6 +7,7 @@ Ensures only active, operating stations with high/low tide prediction data are a
 This replaces the static canadian_tide_stations.csv approach with real-time API data.
 """
 
+import csv
 import logging
 import requests
 import sqlite3
@@ -33,6 +34,42 @@ HEADERS = {
 PROVINCE_CODES = {
     'AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'
 }
+
+# The CHS dataset includes a few non-Canadian regions (e.g. Greenland stations carry
+# provinceCode "GRL_DEN"); map those to a readable label so the raw code isn't shown.
+_PROVINCE_DISPLAY = {'GRL_DEN': 'Greenland'}
+
+
+def _load_province_map(path=None) -> Dict[str, str]:
+    """Load the baked station-code -> province-code map.
+
+    The map is generated offline by scripts/fetch_canadian_provinces.py from the
+    authoritative CHS /metadata `provinceCode`. The bulk /stations list does not
+    include province, and fetching it per-station at startup is infeasible due to
+    CHS API rate limits, so the lookup is precomputed and shipped as a CSV. Returns
+    {} if the file is absent, so normalize_station falls back to longitude inference
+    and behaviour degrades gracefully rather than crashing.
+    """
+    if path is None:
+        path = APP_DIR / 'canadian_station_provinces.csv'
+    mapping: Dict[str, str] = {}
+    if not os.path.exists(path):
+        logging.warning(f"Province map not found at {path}; using longitude inference fallback")
+        return mapping
+    try:
+        with open(path, newline='', encoding='utf-8') as f:
+            for row in csv.DictReader(f):
+                code = (row.get('code') or '').strip()
+                province = (row.get('province') or '').strip()
+                if code and province:
+                    mapping[code] = province
+    except (OSError, csv.Error) as e:
+        logging.error(f"Failed to load province map from {path}: {e}")
+    return mapping
+
+
+# Authoritative code -> province lookup, loaded once at import.
+PROVINCE_BY_CODE = _load_province_map()
 
 
 def extract_province_from_name(official_name: str) -> Optional[str]:
@@ -107,7 +144,7 @@ def construct_place_name(official_name: str, province: Optional[str], latitude: 
     return f"{official_name}, {inferred_province}"
 
 
-def normalize_station(station: Dict) -> Optional[Dict]:
+def normalize_station(station: Dict, province_map: Optional[Dict] = None) -> Optional[Dict]:
     """
     Normalize a raw CHS station record into our import shape, or return None.
 
@@ -123,12 +160,19 @@ def normalize_station(station: Dict) -> Optional[Dict]:
     when the official name is the Indigenous "ḵalpilin") is preserved so the
     autocomplete can match and display it.
 
+    Province resolution, in priority order: the authoritative provinceCode from
+    the baked map (defaults to PROVINCE_BY_CODE) > a province code parsed from the
+    official name > longitude-based inference (a coarse last resort — it is wrong
+    ~50% of the time, which is why the map exists).
+
     Returns:
         Normalized dict with keys code, officialName, alternativeName, latitude,
         longitude, province, place_name — or None if the station is unusable.
     """
     if not station:
         return None
+    if province_map is None:
+        province_map = PROVINCE_BY_CODE
 
     # Must publish high/low tide predictions to produce a calendar.
     time_series = station.get('timeSeries', [])
@@ -142,7 +186,9 @@ def normalize_station(station: Dict) -> Optional[Dict]:
 
     latitude = station.get('latitude', 0.0)
     longitude = station.get('longitude', 0.0)
-    province = extract_province_from_name(official_name)
+    province = province_map.get(code) or extract_province_from_name(official_name)
+    if province:
+        province = _PROVINCE_DISPLAY.get(province, province)
     place_name = construct_place_name(official_name, province, latitude, longitude)
     alternative_name = (station.get('alternativeName') or '').strip()
 
