@@ -199,7 +199,8 @@ python3 scripts/fetch_canadian_provinces.py
 `/stations` list omits `provinceCode` (only per-station `/metadata` has it). The old
 longitude-based guess in `construct_place_name()` was wrong ~50% of the time. This
 script precomputes the map from `/metadata` (the CHS API rate-limits too hard to do
-this at container startup, ~15-20 min for ~1,076 stations). At runtime
+this at container startup; ~30-50 min for ~1,076 stations as throttling slows it
+partway — it is resumable/checkpointed, so don't kill a slow run). At runtime
 `canadian_station_sync.PROVINCE_BY_CODE` loads the CSV and `normalize_station()` uses
 **map → province-in-name → longitude fallback**.
 

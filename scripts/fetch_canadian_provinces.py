@@ -17,7 +17,10 @@ Behaviour:
 
 Run (occasionally, e.g. monthly, alongside validate_tide_stations.py):
     python3 scripts/fetch_canadian_provinces.py
-Expected runtime: ~15-20 minutes for ~1,076 stations.
+Expected runtime: ~30-50 minutes for ~1,076 stations — CHS throttling slows it down
+partway through (the rate drops as retries/backoff kick in). It is resumable and
+checkpoints the CSV every 25 stations, so a slow run is normal — DON'T kill it; just
+re-run later and it continues. Watch progress via the CSV row count.
 """
 
 import argparse
