@@ -14,8 +14,19 @@ import logging
 import requests
 import calendar
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
+
+# Upper bound mirrors the web layer (routes.py): agencies only publish
+# predictions a few years ahead. The lower bound stays at 2000 because the
+# CLI and maintenance scripts fetch historical months. Previously this was a
+# hardcoded 2000-2030 range that would have started silently rejecting
+# requests the web form accepts come 2031.
+MAX_YEARS_AHEAD = 4
+
+
+def year_in_range(year: int) -> bool:
+    return 2000 <= year <= datetime.now(timezone.utc).year + MAX_YEARS_AHEAD
 
 
 class TideAdapter(ABC):
@@ -122,7 +133,7 @@ class NOAAAdapter(TideAdapter):
             self.logger.error(f"Invalid month: {month}")
             return None
 
-        if not (2000 <= year <= 2030):
+        if not year_in_range(year):
             self.logger.error(f"Year out of range: {year}")
             return None
 
@@ -401,7 +412,7 @@ class CHSAdapter(TideAdapter):
             self.logger.error(f"Invalid month: {month}")
             return None
 
-        if not (2000 <= year <= 2030):
+        if not year_in_range(year):
             self.logger.error(f"Year out of range: {year}")
             return None
 

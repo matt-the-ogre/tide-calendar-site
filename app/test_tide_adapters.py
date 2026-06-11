@@ -151,6 +151,25 @@ No Predictions data was found."""
         result = self.adapter.get_predictions('9449639', 1999, 6)
         self.assertIsNone(result)
 
+    def test_year_bound_is_dynamic(self):
+        """The upper year bound must track the current year, not a constant.
+
+        The old hardcoded 2000-2030 range would have silently rejected
+        requests the web form accepts starting in 2031.
+        """
+        from datetime import datetime, timezone
+        from tide_adapters import MAX_YEARS_AHEAD, year_in_range
+
+        current = datetime.now(timezone.utc).year
+        self.assertTrue(year_in_range(current))
+        self.assertTrue(year_in_range(current + MAX_YEARS_AHEAD))
+        self.assertFalse(year_in_range(current + MAX_YEARS_AHEAD + 1))
+        self.assertFalse(year_in_range(1999))
+
+        # Beyond-horizon requests are rejected without an HTTP call
+        result = self.adapter.get_predictions('9449639', current + MAX_YEARS_AHEAD + 1, 6)
+        self.assertIsNone(result)
+
 
 class TestCHSAdapter(unittest.TestCase):
     """Test suite for CHS adapter."""
