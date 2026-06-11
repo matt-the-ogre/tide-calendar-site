@@ -1,28 +1,56 @@
-# Use the official Python image from the Docker Hub
-FROM python:3.12-slim-bookworm
+# --- Stage 1: version info ---------------------------------------------------
+# .git is copied ONLY into this builder stage so the final image never carries
+# repo history in its layers. CapRover clones the repo before building, so
+# .git is present in webhook builds; local builds can override via build args.
+FROM python:3.12-slim-bookworm AS version
 
-# Build arguments for version info (passed at build time)
 ARG VERSION=unknown
 ARG COMMIT_HASH=unknown
 ARG BRANCH=unknown
 ARG BUILD_TIMESTAMP=unknown
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV FLASK_APP=run.py
-ENV FLASK_RUN_PORT=80
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git && \
+    rm -rf /var/lib/apt/lists/*
 
-# Create and set the working directory
+COPY package.json /tmp/package.json
+COPY .git /tmp/.git
+
+RUN cd /tmp && \
+    git config --global --add safe.directory /tmp && \
+    VERSION=$(python3 -c "import json; print(json.load(open('/tmp/package.json'))['version'])" 2>/dev/null || echo "${VERSION}") && \
+    COMMIT_HASH=$(git rev-parse HEAD 2>/dev/null || echo "${COMMIT_HASH}") && \
+    BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "${BRANCH}") && \
+    BUILD_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ") && \
+    printf '{"version": "%s", "commit_hash": "%s", "branch": "%s", "build_timestamp": "%s"}\n' \
+        "$VERSION" "$COMMIT_HASH" "$BRANCH" "$BUILD_TIMESTAMP" > /version_info.json && \
+    cat /version_info.json
+
+# --- Stage 2: runtime ---------------------------------------------------------
+FROM python:3.12-slim-bookworm
+
+ENV PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
-# Create persistent data directory
-RUN mkdir -p /data
+# System dependencies (rarely change — keep this layer early for cache reuse)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    pcal \
+    ghostscript && \
+    rm -rf /var/lib/apt/lists/*
 
-# # Install any needed packages specified in requirements.txt
-# RUN pip install --no-cache-dir -r requirements.txt
+# Python dependencies (change occasionally)
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy only runtime application files (not dev tools, tests, or generated files)
-# Core Python application files
+# Non-root runtime user. /data is the CapRover persistent volume; it is mounted
+# at runtime (typically root-owned), so the entrypoint chowns it at startup.
+RUN useradd --system --create-home appuser && \
+    mkdir -p /data && \
+    chown appuser:appuser /data /app
+
+# Application code (changes most often — keep these layers last)
 COPY app/__init__.py /app/
 COPY app/run.py /app/
 COPY app/routes.py /app/
@@ -30,7 +58,6 @@ COPY app/get_tides.py /app/
 COPY app/database.py /app/
 COPY app/tide_adapters.py /app/
 COPY app/canadian_station_sync.py /app/
-COPY app/generate_version_info.py /app/
 
 # Templates and static assets
 COPY app/templates/ /app/templates/
@@ -41,43 +68,22 @@ COPY app/tide_stations_new.csv /app/
 COPY app/canadian_tide_stations.csv /app/
 COPY app/canadian_station_provinces.csv /app/
 
-# Copy package.json for version info
-COPY package.json /app/
+# Version info from the builder stage (no .git in this image)
+COPY --from=version /version_info.json /app/version_info.json
 
-# Install system dependencies (including git for version info generation)
-RUN apt-get update && \
-apt-get install -y --no-install-recommends \
-pcal \
-ghostscript \
-git && \
-rm -rf /var/lib/apt/lists/*
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Copy only the requirements file to the container
-COPY requirements.txt /app
-
-# Install python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy .git directory temporarily for version info generation
-COPY .git /tmp/.git
-
-# Generate version info JSON from git (for CapRover) or build args (for local builds)
-RUN if [ -d "/tmp/.git" ]; then \
-        cd /tmp && \
-        export VERSION=$(python3 -c "import json; print(json.load(open('/app/package.json'))['version'])" 2>/dev/null || echo "unknown") && \
-        export COMMIT_HASH=$(git rev-parse HEAD 2>/dev/null || echo "unknown") && \
-        export BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown") && \
-        export BUILD_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ") && \
-        cd /app && \
-        echo "{\"version\": \"$VERSION\", \"commit_hash\": \"$COMMIT_HASH\", \"branch\": \"$BRANCH\", \"build_timestamp\": \"$BUILD_TIMESTAMP\"}" > /app/version_info.json; \
-    else \
-        echo "{\"version\": \"${VERSION:-unknown}\", \"commit_hash\": \"${COMMIT_HASH:-unknown}\", \"branch\": \"${BRANCH:-unknown}\", \"build_timestamp\": \"${BUILD_TIMESTAMP:-unknown}\"}" > /app/version_info.json; \
-    fi && \
-    rm -rf /tmp/.git && \
-    cat /app/version_info.json
-
-# Expose the port the app runs on
 EXPOSE 80
 
-# Command to run the Flask app
-CMD ["flask", "run", "--host=0.0.0.0", "--port=80"]
+# Startup imports ~3,200 stations (CSV + CHS API with fallback), so allow a
+# generous start period before health probes count against the container.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=3 \
+    CMD ["python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:80/health', timeout=4)"]
+
+# run.py lives at /app/run.py inside the /app package dir, so import it as
+# app.run from / (this mirrors how `flask run` resolved FLASK_APP=run.py).
+# --preload runs the module-level startup (DB init, station import) once in
+# the master instead of once per worker.
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["gunicorn", "--chdir", "/", "--preload", "--workers", "2", "--threads", "4", "--timeout", "120", "--bind", "0.0.0.0:80", "app.run:app"]
