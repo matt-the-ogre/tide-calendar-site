@@ -55,6 +55,7 @@ COPY app/__init__.py /app/
 COPY app/run.py /app/
 COPY app/routes.py /app/
 COPY app/get_tides.py /app/
+COPY app/calendar_service.py /app/
 COPY app/database.py /app/
 COPY app/tide_adapters.py /app/
 COPY app/canadian_station_sync.py /app/

@@ -1,24 +1,23 @@
+import hmac
+import json
 import logging
-import subprocess
-import sys
-from flask import render_template, request, send_file, make_response, jsonify
 import os
-import glob
-import time
-import re
+from datetime import datetime
+
+from flask import render_template, request, send_file, make_response, jsonify
 
 from app import app
-from app.database import get_popular_stations, get_place_name_by_station_id, get_station_id_by_place_name, search_stations_by_country, get_popular_stations_by_country, log_usage_event, get_usage_stats
-
-# Directory for storing generated PDF calendars (matches get_tides.py)
-# Default to app/calendars for local dev, override with PDF_OUTPUT_DIR env var for production
-from pathlib import Path
-APP_DIR = Path(__file__).parent.resolve()
-DEFAULT_PDF_DIR = str(APP_DIR / 'calendars')
-PDF_OUTPUT_DIR = os.getenv('PDF_OUTPUT_DIR', DEFAULT_PDF_DIR)
+from app.calendar_service import get_or_generate_pdf
+from app.database import (get_popular_stations, get_place_name_by_station_id,
+                          get_station_id_by_place_name, search_stations_by_country,
+                          get_popular_stations_by_country, log_usage_event,
+                          get_usage_stats)
 
 # Top stations count configuration
 TOP_STATIONS_COUNT = int(os.getenv('TOP_STATIONS_COUNT', '10'))
+
+STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
+
 
 def _int_or_none(v):
     """Coerce form value to int for analytics logging; returns None on failure."""
@@ -27,13 +26,13 @@ def _int_or_none(v):
     except (TypeError, ValueError):
         return None
 
+
 def _no_predictions_message(where, year, month):
     """User-facing message when a calendar can't be generated.
 
     The usual cause, now that inactive/temporary stations are listed, is that the
     station has no published predictions for the requested period; a transient
-    tide-service outage is also possible, so the message hedges both. Built lazily
-    (only in the error branches) rather than on the success path.
+    tide-service outage is also possible, so the message hedges both.
     """
     return (
         f"We couldn't generate a tide calendar for {where} for {year}-{month:02d}. "
@@ -43,93 +42,6 @@ def _no_predictions_message(where, year, month):
         f"a different station or month."
     )
 
-def extract_location_with_state(place_name):
-    """
-    Extract location with state abbreviation from full place name.
-    Examples:
-        "Point Roberts, WA" -> "Point Roberts, WA"
-        "Seattle, WA" -> "Seattle, WA"
-        "Port Allen, Hanapepe Bay, Kauai Island, HI" -> "Port Allen, HI"
-        "Esperanza, Antarctica" -> "Esperanza, Antarctica"
-    """
-    if not place_name:
-        return None
-
-    parts = [p.strip() for p in place_name.split(',')]
-
-    if len(parts) == 0:
-        return None
-    elif len(parts) == 1:
-        return parts[0]
-    else:
-        # Return first part + last part (city + state/country)
-        return f"{parts[0]}, {parts[-1]}"
-
-def sanitize_filename(text):
-    """
-    Convert location name to safe filename component.
-    Examples:
-        "Point Roberts, WA" -> "Point_Roberts_WA"
-        "Seattle, WA" -> "Seattle_WA"
-    """
-    if not text:
-        return "unknown"
-
-    # Replace problematic characters with underscores
-    safe = re.sub(r'[/\\:*?"<>|,]', '_', text)
-
-    # Replace spaces with underscores
-    safe = safe.replace(' ', '_')
-
-    # Remove multiple consecutive underscores
-    safe = re.sub(r'_+', '_', safe)
-
-    # Remove leading/trailing underscores
-    safe = safe.strip('_')
-
-    # Limit length to avoid filesystem issues
-    max_length = 100
-    if len(safe) > max_length:
-        safe = safe[:max_length].rstrip('_')
-
-    return safe or "unknown"
-
-def cleanup_previous_month_pdfs(directory):
-    """Delete all PDF files from previous months to keep cache directory clean."""
-    try:
-        from datetime import datetime
-        import re
-
-        # Get current year and month
-        today = datetime.now()
-        current_year = today.year
-        current_month = today.month
-
-        pdf_pattern = os.path.join(directory, "tide_calendar_*.pdf")
-        deleted_count = 0
-
-        for pdf_file in glob.glob(pdf_pattern):
-            try:
-                # Extract year and month from filename using regex
-                # Pattern: tide_calendar_<location>_<YYYY>_<MM>.pdf
-                match = re.search(r'_(\d{4})_(\d{2})\.pdf$', pdf_file)
-                if match:
-                    pdf_year = int(match.group(1))
-                    pdf_month = int(match.group(2))
-
-                    # Delete if PDF is from a previous month (earlier year or earlier month in same year)
-                    if pdf_year < current_year or (pdf_year == current_year and pdf_month < current_month):
-                        os.remove(pdf_file)
-                        deleted_count += 1
-                        logging.info(f"Cleaned up old PDF: {pdf_file} ({pdf_year}-{pdf_month:02d})")
-            except (OSError, ValueError) as e:
-                logging.warning(f"Could not process PDF {pdf_file}: {e}")
-
-        if deleted_count > 0:
-            logging.info(f"Cleaned up {deleted_count} PDF(s) from previous months")
-
-    except Exception as e:
-        logging.error(f"Error during previous month PDF cleanup: {e}")
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -155,7 +67,6 @@ def index():
 
         # Validate form inputs
         try:
-            from datetime import datetime
             year = int(year)
             month = int(month)
             current_year = datetime.utcnow().year
@@ -163,7 +74,6 @@ def index():
             # out, so cap requests at current_year + 4.
             max_year = current_year + 4
 
-            # Validate ranges
             if not (1 <= month <= 12):
                 raise ValueError("Month must be between 1 and 12")
             if not (current_year <= year <= max_year):
@@ -176,84 +86,23 @@ def index():
             log_usage_event(station_id, None, _int_or_none(year), _int_or_none(month), 'error', 'invalid_input')
             return render_template('tide_station_not_found.html', message=f"Invalid input: {str(e)}")
 
-        # Get the place name for the station ID
-        place_name = get_place_name_by_station_id(station_id)
+        result = get_or_generate_pdf(station_id, year, month, source='web')
 
-        # Extract and sanitize location name for filename
-        location_display = extract_location_with_state(place_name)
-        location_filename = sanitize_filename(location_display) if location_display else station_id
-
-        # Construct PDF filename and full path
-        pdf_filename_only = f"tide_calendar_{location_filename}_{year}_{month:02d}.pdf"
-        pdf_full_path = os.path.join(PDF_OUTPUT_DIR, pdf_filename_only)
-
-        # Check if PDF already exists in cache
-        if os.path.exists(pdf_full_path) and os.path.getsize(pdf_full_path) > 0:
-            logging.info(f"Serving cached PDF: {pdf_full_path}")
-            log_usage_event(station_id, place_name, year, month, 'success')
-            # Clean up previous month's PDF files to keep cache directory clean
-            cleanup_previous_month_pdfs(PDF_OUTPUT_DIR)
-            # Create a response object to set the cookie
-            response = make_response(send_file(pdf_full_path, as_attachment=True))
-            if place_name:
-                response.set_cookie('last_place_name', place_name)
-            return response
-
-        # PDF not in cache, generate it
-        logging.info(f"Generating new PDF for station {station_id}, {year}-{month:02d}")
-
-        # Ensure PDF output directory exists
-        if not os.path.exists(PDF_OUTPUT_DIR):
-            os.makedirs(PDF_OUTPUT_DIR, exist_ok=True)
-            logging.info(f"Created PDF output directory: {PDF_OUTPUT_DIR}")
-
-        # Call the get_tides.py script with location name
-        script_path = os.path.join(os.path.dirname(__file__), 'get_tides.py')
-        # Get the project root directory (parent of app directory)
-        project_root = os.path.dirname(os.path.dirname(__file__))
-
-        # Pass location_display to get_tides.py for calendar note text
-        cmd = [sys.executable, script_path, '--station_id', station_id, '--year', str(year), '--month', str(month)]
-        if location_display:
-            cmd.extend(['--location_name', location_display])
-
-        # Set PYTHONPATH to include the app directory so imports work
-        env = os.environ.copy()
-        env['PYTHONPATH'] = os.path.dirname(__file__)
-        subprocess.run(cmd, cwd=project_root, env=env)
-
-        # Check if the PDF file was created
-        if not os.path.exists(pdf_full_path):
-            # log an error message
-            logging.error(f"File {pdf_full_path} does not exist.")
-            log_usage_event(station_id, place_name, year, month, 'error', 'pdf_missing')
+        if not result.ok:
             return render_template('tide_station_not_found.html',
-                                   message=_no_predictions_message(location_display or station_id, year, month))
+                                   message=_no_predictions_message(
+                                       result.location_display or station_id, year, month))
 
-        # Check if the PDF file is empty
-        if os.path.getsize(pdf_full_path) == 0:
-            # log an error message
-            logging.error(f"File {pdf_full_path} is empty.")
-            log_usage_event(station_id, place_name, year, month, 'error', 'pdf_empty')
-            return render_template('tide_station_not_found.html',
-                                   message=_no_predictions_message(location_display or station_id, year, month))
-
-        log_usage_event(station_id, place_name, year, month, 'success')
-
-        # Create a response object to set the cookie (place_name already fetched above)
-        response = make_response(send_file(pdf_full_path, as_attachment=True))
-        if place_name:
-            response.set_cookie('last_place_name', place_name)
-
-        # Clean up previous month's PDF files to keep cache directory clean
-        cleanup_previous_month_pdfs(PDF_OUTPUT_DIR)
-
+        response = make_response(send_file(result.pdf_path, as_attachment=True))
+        if result.place_name:
+            response.set_cookie('last_place_name', result.place_name)
         return response
 
     # If GET request, read the last place name from the cookie, if available
     last_place_name = request.cookies.get('last_place_name', 'Point Roberts, WA')
 
     return render_template('index.html', last_place_name=last_place_name)
+
 
 @app.route('/api/search_stations')
 def api_search_stations():
@@ -276,6 +125,7 @@ def api_search_stations():
         logging.error(f"Error in search API: {e}")
         return jsonify([]), 500
 
+
 @app.route('/api/popular_stations')
 def api_popular_stations():
     """API endpoint to get the most popular tide stations."""
@@ -293,96 +143,37 @@ def api_popular_stations():
         logging.error(f"Error in popular stations API: {e}")
         return jsonify([]), 500
 
+
 @app.route('/api/generate_quick', methods=['POST'])
 def api_generate_quick():
-    """API endpoint to quickly generate current month's PDF without logging."""
+    """API endpoint to quickly generate current month's PDF."""
     try:
-        from datetime import datetime
-
-        # Get station_id from JSON request
-        data = request.get_json()
+        data = request.get_json(silent=True)
         if not data or 'station_id' not in data:
             log_usage_event(None, None, None, None, 'error', 'invalid_input', source='quick_api')
             return jsonify({'error': 'station_id is required'}), 400
 
-        station_id = data['station_id'].strip()
-
-        # Validate station_id
-        if not station_id or not station_id.isdigit():
-            log_usage_event(station_id or None, None, None, None, 'error', 'invalid_input', source='quick_api')
+        station_id = data['station_id']
+        if not isinstance(station_id, str) or not station_id.strip().isdigit():
+            log_usage_event(str(station_id) or None, None, None, None, 'error', 'invalid_input', source='quick_api')
             return jsonify({'error': 'Invalid station_id (USA: 7 digits, Canada: 5 digits)'}), 400
+        station_id = station_id.strip()
 
-        # Get current month and year
         today = datetime.now()
-        year = today.year
-        month = today.month
+        result = get_or_generate_pdf(station_id, today.year, today.month, source='quick_api')
 
-        # Get the place name for the station ID
-        place_name = get_place_name_by_station_id(station_id)
+        if not result.ok:
+            return jsonify({'error': _no_predictions_message(
+                result.location_display or station_id, today.year, today.month)}), 500
 
-        # Extract and sanitize location name for filename
-        location_display = extract_location_with_state(place_name)
-        location_filename = sanitize_filename(location_display) if location_display else station_id
+        return send_file(result.pdf_path, as_attachment=True,
+                         download_name=result.download_name)
 
-        # Construct PDF filename and full path
-        pdf_filename_only = f"tide_calendar_{location_filename}_{year}_{month:02d}.pdf"
-        pdf_full_path = os.path.join(PDF_OUTPUT_DIR, pdf_filename_only)
-
-        # Check if PDF already exists in cache
-        if os.path.exists(pdf_full_path) and os.path.getsize(pdf_full_path) > 0:
-            logging.info(f"Serving cached PDF for quick generate: {pdf_full_path}")
-            log_usage_event(station_id, place_name, year, month, 'success', source='quick_api')
-            return send_file(pdf_full_path, as_attachment=True, download_name=pdf_filename_only)
-
-        # PDF not in cache, generate it
-        logging.info(f"Generating quick PDF for station {station_id}, {year}-{month:02d} (no logging)")
-
-        # Ensure PDF output directory exists
-        if not os.path.exists(PDF_OUTPUT_DIR):
-            os.makedirs(PDF_OUTPUT_DIR, exist_ok=True)
-            logging.info(f"Created PDF output directory: {PDF_OUTPUT_DIR}")
-
-        # Call the get_tides.py script with --skip_logging flag
-        script_path = os.path.join(os.path.dirname(__file__), 'get_tides.py')
-        project_root = os.path.dirname(os.path.dirname(__file__))
-
-        cmd = [sys.executable, script_path, '--station_id', station_id, '--year', str(year), '--month', str(month), '--skip_logging']
-        if location_display:
-            cmd.extend(['--location_name', location_display])
-
-        # Set PYTHONPATH to include the app directory so imports work
-        env = os.environ.copy()
-        env['PYTHONPATH'] = os.path.dirname(__file__)
-        subprocess.run(cmd, cwd=project_root, env=env)
-
-        # Check if the PDF file was created
-        if not os.path.exists(pdf_full_path):
-            logging.error(f"Quick generate failed: File {pdf_full_path} does not exist.")
-            log_usage_event(station_id, place_name, year, month, 'error', 'pdf_missing', source='quick_api')
-            return jsonify({'error': _no_predictions_message(location_display or station_id, year, month)}), 500
-
-        # Check if the PDF file is empty
-        if os.path.getsize(pdf_full_path) == 0:
-            logging.error(f"Quick generate failed: File {pdf_full_path} is empty.")
-            log_usage_event(station_id, place_name, year, month, 'error', 'pdf_empty', source='quick_api')
-            return jsonify({'error': _no_predictions_message(location_display or station_id, year, month)}), 500
-
-        log_usage_event(station_id, place_name, year, month, 'success', source='quick_api')
-
-        # Return the PDF file
-        return send_file(pdf_full_path, as_attachment=True, download_name=pdf_filename_only)
-
-    except Exception as e:
-        logging.error(f"Error in quick generate API: {e}")
+    except Exception:
+        logging.exception("Error in quick generate API")
         log_usage_event(None, None, None, None, 'error', 'exception', source='quick_api')
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
-@app.route('/ads.txt')
-def ads_txt():
-    """Serve ads.txt file for ad network verification."""
-    return _serve_static_file('ads.txt', 'text/plain')
-
-STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
 
 def _serve_static_file(filename, mimetype):
     """Serve a static file, returning 404 if missing."""
@@ -392,25 +183,36 @@ def _serve_static_file(filename, mimetype):
         logging.warning(f"{filename} file not found")
         return f"{filename} not found", 404
 
+
+@app.route('/ads.txt')
+def ads_txt():
+    """Serve ads.txt file for ad network verification."""
+    return _serve_static_file('ads.txt', 'text/plain')
+
+
 @app.route('/robots.txt')
 def robots_txt():
     """Serve robots.txt for search engine crawlers."""
     return _serve_static_file('robots.txt', 'text/plain')
+
 
 @app.route('/sitemap.xml')
 def sitemap_xml():
     """Serve sitemap.xml for search engine discovery."""
     return _serve_static_file('sitemap.xml', 'application/xml')
 
+
 @app.route('/llms.txt')
 def llms_txt():
     """Serve llms.txt for LLM crawlers."""
     return _serve_static_file('llms.txt', 'text/plain')
 
+
 @app.errorhandler(404)
 def page_not_found(e):
     """Custom 404 error page."""
     return render_template('404.html'), 404
+
 
 @app.route('/admin/analytics')
 def admin_analytics():
@@ -424,7 +226,6 @@ def admin_analytics():
     so the endpoint is invisible to scanners. If ANALYTICS_TOKEN is unset, logs
     a warning server-side so the admin can spot the misconfig in logs.
     """
-    import hmac
     expected = os.getenv('ANALYTICS_TOKEN')
 
     auth_header = request.headers.get('Authorization', '')
@@ -444,13 +245,11 @@ def admin_analytics():
     stats = get_usage_stats(recent_limit=100, top_limit=20)
     return render_template('admin_analytics.html', stats=stats)
 
+
 @app.route('/health')
 def health_check():
     """Health check endpoint with version and build information."""
     try:
-        import json
-        from datetime import datetime
-
         # Load version info from JSON file (generated at build time)
         version_info_path = os.path.join(os.path.dirname(__file__), 'version_info.json')
         version_data = {
@@ -470,14 +269,11 @@ def health_check():
         # Check database connectivity
         db_status = 'ok'
         try:
-            from app.database import get_popular_stations
-            # Try a simple database query
             get_popular_stations(limit=1)
         except Exception as e:
             db_status = f'error: {str(e)}'
             logging.error(f"Database health check failed: {e}")
 
-        # Build health response
         health_response = {
             'status': 'healthy' if db_status == 'ok' else 'degraded',
             'timestamp': datetime.utcnow().isoformat() + 'Z',
