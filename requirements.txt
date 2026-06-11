@@ -8,5 +8,5 @@ Werkzeug==3.1.6
 Flask-Limiter==4.1.1
 gunicorn==23.0.0
 requests==2.33.0
-urllib3==2.6.3
-python-dotenv==1.1.0
+urllib3==2.7.0
+python-dotenv==1.2.2
