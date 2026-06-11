@@ -5,14 +5,16 @@ Run from the app/ directory (matches CI):
 """
 import os
 import tempfile
+import threading
 import unittest
 from unittest import mock
 
 import calendar_service
+import get_tides
 from calendar_service import (GenerateResult, extract_location_with_state,
                               get_or_generate_pdf, pdf_filename_for,
                               sanitize_filename)
-from get_tides import TideDataError
+from get_tides import TideDataError, generate_calendar
 
 
 class TestSanitizeFilename(unittest.TestCase):
@@ -161,6 +163,54 @@ class TestGetOrGeneratePdf(unittest.TestCase):
         self.assertEqual(result.error_code, 'unknown_station')
         self.log_usage.assert_called_once_with(
             "31337", None, 2026, 6, 'error', 'unknown_station', source='web')
+
+
+class TestGenerateCalendarConcurrency(unittest.TestCase):
+    """Concurrent same-station requests must not share temp files.
+
+    gunicorn threads share a PID, so the temp-PDF suffix must be unique per
+    thread — otherwise two cache-miss requests for the same station/month
+    interleave writes and one thread's cleanup deletes the other's output.
+    """
+
+    CSV = "Date Time, Prediction, Type\n2026-06-01 04:30,1.2,H\n"
+
+    def test_concurrent_generations_to_same_path_both_succeed(self):
+        barrier = threading.Barrier(2, timeout=10)
+        errors = []
+
+        def fake_run_tool(cmd):
+            if cmd[0] == "pcal":
+                with open(cmd[4], 'w') as f:  # ["pcal","-f",in,"-o",out,...]
+                    f.write("%!PS-fake\n")
+            elif cmd[0] == "ps2pdf":
+                with open(cmd[2], 'wb') as f:  # ["ps2pdf", in, out]
+                    f.write(b"%PDF-fake\n")
+                # Hold both threads here so their temp files coexist; with a
+                # shared temp name the second os.replace() then fails.
+                barrier.wait()
+
+        def worker(out_path):
+            try:
+                generate_calendar("9449639", 2026, 6, out_path)
+            except Exception as e:  # noqa: BLE001 — recording any failure
+                errors.append(e)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_path = os.path.join(tmpdir, "tide_calendar_X_2026_06.pdf")
+            with mock.patch.object(get_tides, 'download_tide_data', return_value=self.CSV), \
+                 mock.patch.object(get_tides, '_run_tool', side_effect=fake_run_tool):
+                threads = [threading.Thread(target=worker, args=(out_path,)) for _ in range(2)]
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join(timeout=15)
+
+            self.assertEqual(errors, [])
+            with open(out_path, 'rb') as f:
+                self.assertEqual(f.read(), b"%PDF-fake\n")
+            # No stray temp files left behind
+            self.assertEqual(os.listdir(tmpdir), [os.path.basename(out_path)])
 
 
 if __name__ == '__main__':

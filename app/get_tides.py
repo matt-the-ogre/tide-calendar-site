@@ -10,6 +10,7 @@ import logging
 import os
 import subprocess
 import tempfile
+import threading
 from datetime import datetime
 
 try:
@@ -174,8 +175,11 @@ def generate_calendar(station_id, year, month, output_path, location_name=None):
     csv_data = download_tide_data(station_id, year, month)
 
     os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
-    # Same directory as the final path so os.replace() is an atomic rename
-    tmp_pdf = f"{output_path}.tmp.{os.getpid()}"
+    # Same directory as the final path so os.replace() is an atomic rename.
+    # PID alone isn't unique here — gunicorn threads share a PID, so include
+    # the thread id to keep concurrent same-station requests off each other's
+    # temp file.
+    tmp_pdf = f"{output_path}.tmp.{os.getpid()}.{threading.get_ident()}"
 
     try:
         with tempfile.TemporaryDirectory(prefix='tidecal-') as tmpdir:
