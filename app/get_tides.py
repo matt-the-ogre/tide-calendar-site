@@ -1,11 +1,18 @@
+"""Tide data download and PDF calendar generation pipeline.
+
+Importable (app.calendar_service calls generate_calendar() in-process) and
+runnable as a CLI (scripts/update_example_image.sh):
+
+    python get_tides.py --station_id 9449639 --year 2024 --month 6
+"""
 import argparse
-import os
-import requests
-from datetime import datetime
-import calendar
-import subprocess
 import logging
-import re
+import os
+import subprocess
+import tempfile
+import threading
+from datetime import datetime
+
 try:
     from app.database import log_station_lookup, get_station_info
     from app.tide_adapters import get_adapter_for_station
@@ -13,61 +20,75 @@ except ImportError:
     from database import log_station_lookup, get_station_info
     from tide_adapters import get_adapter_for_station
 
-# sample call: python get_tide_data.py --station_id 9449639 --year 2024 --month 6
+# Per-invocation timeout for each external tool (pcal, ps2pdf)
+SUBPROCESS_TIMEOUT = 60
 
-# Directory for storing generated PDF calendars
-# Default to app/calendars for local dev, override with PDF_OUTPUT_DIR env var for production
-from pathlib import Path
-APP_DIR = Path(__file__).parent.resolve()
-DEFAULT_PDF_DIR = str(APP_DIR / 'calendars')
-PDF_OUTPUT_DIR = os.getenv('PDF_OUTPUT_DIR', DEFAULT_PDF_DIR)
+# Tides below this height (metres) are marked with an asterisk so pcal
+# colour-codes the day
+LOW_TIDE_THRESHOLD = 0.3
 
-def ensure_pdf_directory():
-    """Ensure the PDF output directory exists."""
-    if not os.path.exists(PDF_OUTPUT_DIR):
-        os.makedirs(PDF_OUTPUT_DIR, exist_ok=True)
-        logging.info(f"Created PDF output directory: {PDF_OUTPUT_DIR}")
 
-def sanitize_filename(text):
-    """Convert location name to safe filename component."""
-    if not text:
-        return "unknown"
+class TideDataError(Exception):
+    """No usable tide predictions for the requested station/period."""
 
-    safe = re.sub(r'[/\\:*?"<>|,]', '_', text)
-    safe = safe.replace(' ', '_')
-    safe = re.sub(r'_+', '_', safe)
-    safe = safe.strip('_')
 
-    max_length = 100
-    if len(safe) > max_length:
-        safe = safe[:max_length].rstrip('_')
+class CalendarGenerationError(Exception):
+    """The pcal/ghostscript rendering pipeline failed."""
 
-    return safe or "unknown"
 
-def convert_tide_data_to_pcal(tide_data_filename, pcal_filename, location_name=None):
+def download_tide_data(station_id, year, month):
+    """Fetch tide predictions as CSV text via the appropriate API adapter.
+
+    Returns the CSV string. Raises TideDataError when the station is unknown
+    to both APIs or has no predictions for the period.
     """
-    Converts tide data to a pcal compatible custom dates file.
+    station_info = get_station_info(station_id)
+    api_source = station_info.get('api_source') if station_info else None
+
+    try:
+        adapter = get_adapter_for_station(station_id, api_source)
+    except ValueError as e:
+        raise TideDataError(f"No adapter for station {station_id}: {e}") from e
+
+    logging.info(f"Using {adapter.__class__.__name__} for station {station_id}")
+    csv_data = adapter.get_predictions(station_id, year, month)
+
+    if not csv_data:
+        raise TideDataError(
+            f"Failed to download data for station {station_id} ({year}-{month:02d})")
+
+    lines = csv_data.splitlines()
+    if len(lines) < 2:
+        raise TideDataError(
+            f"No predictions data found for station {station_id} in {year}-{month:02d}")
+    if "No Predictions data was found." in lines[1]:
+        raise TideDataError(
+            f"No predictions data found for station {station_id} in {year}-{month:02d}")
+
+    return csv_data
+
+
+def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, station_id=None):
+    """Convert tide CSV text to a pcal custom dates file.
 
     Parameters:
-    - tide_data_filename: The path to the file containing the tide data.
-    - pcal_filename: The path to the output pcal custom dates file.
-    - location_name: Optional human-readable location name for display in calendar.
+    - csv_data: CSV text with header line, then `datetime,prediction,H|L` rows.
+    - pcal_filename: Path of the pcal custom dates file to write.
+    - location_name: Optional human-readable location for the calendar note.
+    - station_id: Fallback identifier for the note when location_name is absent.
     """
-    # Open the tide data file and the output pcal file
-    with open(tide_data_filename, 'r') as tide_file, open(pcal_filename, 'w') as pcal_file:
-        # Skip the header line
-        next(tide_file)
+    lines = csv_data.splitlines()
 
+    with open(pcal_filename, 'w') as pcal_file:
         valid_lines = 0
         skipped_lines = 0
 
-        for line_num, line in enumerate(tide_file, start=2):  # start=2 because we skipped header
-            # Skip empty lines
+        # lines[0] is the header
+        for line_num, line in enumerate(lines[1:], start=2):
             if not line.strip():
                 continue
 
             try:
-                # Parse the tide data - expect exactly 3 comma-separated fields
                 parts = line.strip().split(',')
                 if len(parts) != 3:
                     logging.warning(f"Skipping line {line_num}: Expected 3 fields, got {len(parts)}: {line.strip()}")
@@ -76,42 +97,34 @@ def convert_tide_data_to_pcal(tide_data_filename, pcal_filename, location_name=N
 
                 date_time, prediction_str, tide_type = parts
 
-                # Validate and convert prediction to float
                 try:
                     prediction = round(float(prediction_str.strip()), 1)
-                except ValueError as e:
+                except ValueError:
                     logging.error(f"Line {line_num}: Could not convert prediction '{prediction_str}' to float. Line: {line.strip()}")
                     skipped_lines += 1
                     continue
 
-                # Parse date and time
                 try:
                     date, time = date_time.strip().split()
                     year, month, day = date.split('-')
-                except ValueError as e:
+                except ValueError:
                     logging.error(f"Line {line_num}: Could not parse date/time '{date_time}'. Line: {line.strip()}")
                     skipped_lines += 1
                     continue
 
-                # Validate tide type
                 tide_type = tide_type.strip().upper()
                 if tide_type not in ['H', 'L']:
                     logging.warning(f"Line {line_num}: Invalid tide type '{tide_type}', defaulting to 'H'. Line: {line.strip()}")
                     tide_type = 'H'
 
-                # Convert tide type from single character to full word
                 tide_type_full = "High" if tide_type == "H" else "Low"
 
-                # Format the date for pcal (mm/dd)
+                # Format the date for pcal (mm/dd); asterisk marks low tides
+                # so pcal colour-codes the day
                 pcal_date = f"{int(month)}/{int(day)}"
-
-                if prediction < 0.3:
-                    # add an asterisk to the pcal_date if the tide is less than the prediction value specified above
-                    # this indicates the day is special to pcal and it will be colour-coded
+                if prediction < LOW_TIDE_THRESHOLD:
                     pcal_date += "*"
 
-                # Write the event to the pcal file
-                # Including time and tide type in the event description
                 pcal_file.write(f"{pcal_date}  {time} {tide_type_full} {prediction} m\n")
                 valid_lines += 1
 
@@ -120,169 +133,126 @@ def convert_tide_data_to_pcal(tide_data_filename, pcal_filename, location_name=N
                 skipped_lines += 1
                 continue
 
-        # Log parsing summary
         logging.info(f"Parsed {valid_lines} valid tide predictions, skipped {skipped_lines} malformed lines")
 
         if valid_lines == 0:
-            logging.error(f"No valid tide data found in {tide_data_filename}")
-            raise ValueError(f"No valid tide data found in {tide_data_filename}")
+            raise TideDataError("No valid tide data found in API response")
 
-        # write a blank line at the end of the file
         pcal_file.write("\n")
 
-        # write the tide station location in a note at the end of the file
-        # Use location_name if provided, otherwise fallback to station ID
+        # Tide station note shown on the calendar page
         if location_name:
             pcal_file.write(f"note/1 all Tide Station: {location_name}\n")
         else:
-            pcal_file.write(f"note/1 all Tide Station ID: {tide_data_filename.split('_')[0]}\n")
+            pcal_file.write(f"note/1 all Tide Station ID: {station_id or 'unknown'}\n")
 
 
-def download_tide_data(station_id, year, month):
-    """
-    Download tide data using the appropriate API adapter.
-
-    Args:
-        station_id: The tide station ID (format depends on API)
-        year: Year for predictions
-        month: Month for predictions (1-12)
-
-    Returns:
-        Filename of the CSV file with tide data, or None if download fails
-    """
+def _run_tool(cmd):
+    """Run an external rendering tool with a timeout; raise on any failure."""
     try:
-        # Get station info to determine which API to use
-        station_info = get_station_info(station_id)
-        api_source = station_info.get('api_source') if station_info else None
-
-        # Get the appropriate adapter for this station
-        adapter = get_adapter_for_station(station_id, api_source)
-        logging.info(f"Using {adapter.__class__.__name__} for station {station_id}")
-
-        # Fetch predictions from the API
-        csv_data = adapter.get_predictions(station_id, year, month)
-
-        if not csv_data:
-            logging.error(f"Failed to download data for station {station_id}")
-            return None
-
-        # Save to file
-        filename = f"{station_id}_{year}_{month:02d}.csv"
-        with open(filename, 'w') as file:
-            file.write(csv_data)
-
-        # Verify the file has data
-        with open(filename, 'r') as file:
-            lines = file.readlines()
-            if len(lines) < 2:
-                logging.error(f"No predictions data found for station {station_id} in {year}-{month:02d}.")
-                os.remove(filename)
-                return None
-
-        logging.debug(f"Data successfully saved to {filename}")
-        return filename
-
-    except ValueError as e:
-        logging.error(f"Error getting adapter for station {station_id}: {e}")
-        return None
-    except Exception as e:
-        logging.error(f"Unexpected error downloading tide data: {e}")
-        return None
+        result = subprocess.run(cmd, capture_output=True, text=True,
+                                timeout=SUBPROCESS_TIMEOUT)
+    except subprocess.TimeoutExpired as e:
+        raise CalendarGenerationError(f"{cmd[0]} timed out after {SUBPROCESS_TIMEOUT}s") from e
+    except OSError as e:
+        raise CalendarGenerationError(f"Could not run {cmd[0]}: {e}") from e
+    if result.returncode != 0:
+        raise CalendarGenerationError(
+            f"{cmd[0]} exited {result.returncode}: {result.stderr.strip()[:500]}")
+    return result
 
 
-if __name__ == "__main__":
-    # Set up logging
+def generate_calendar(station_id, year, month, output_path, location_name=None):
+    """Fetch tide data and render a PDF calendar at output_path.
+
+    All intermediate files (pcal events, PostScript) live in a per-invocation
+    temp directory, and the PDF is renamed into place atomically, so
+    concurrent requests for the same station/month can never serve a
+    truncated file from the cache.
+
+    Raises TideDataError or CalendarGenerationError. Returns output_path.
+    """
+    csv_data = download_tide_data(station_id, year, month)
+
+    os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
+    # Same directory as the final path so os.replace() is an atomic rename.
+    # PID alone isn't unique here — gunicorn threads share a PID, so include
+    # the thread id to keep concurrent same-station requests off each other's
+    # temp file.
+    tmp_pdf = f"{output_path}.tmp.{os.getpid()}.{threading.get_ident()}"
+
+    try:
+        with tempfile.TemporaryDirectory(prefix='tidecal-') as tmpdir:
+            pcal_path = os.path.join(tmpdir, 'events.txt')
+            ps_path = os.path.join(tmpdir, 'calendar.ps')
+
+            convert_tide_data_to_pcal(csv_data, pcal_path,
+                                      location_name=location_name,
+                                      station_id=station_id)
+
+            # -s r:g:b -- colour of day numerals (blue)
+            # -m -- show the month name
+            # -C text -- centered footer text
+            # -n font/size -- event text inside day boxes (~50% larger than default)
+            # mini-calendars for prev/next month shown by default (-S suppresses)
+            _run_tool(["pcal", "-f", pcal_path, "-o", ps_path,
+                       "-s", "0.0:0.0:1.0", "-n", "Helvetica-Narrow/9",
+                       "-m", "-C", "tidecalendar.xyz",
+                       str(month), str(year)])
+
+            _run_tool(["ps2pdf", ps_path, tmp_pdf])
+
+            if not os.path.exists(tmp_pdf) or os.path.getsize(tmp_pdf) == 0:
+                raise CalendarGenerationError("ps2pdf produced no output")
+
+            os.replace(tmp_pdf, output_path)
+    finally:
+        if os.path.exists(tmp_pdf):
+            os.remove(tmp_pdf)
+
+    logging.info(f"PDF file created: {output_path}")
+    return output_path
+
+
+def main():
     logging.basicConfig(level=logging.INFO)
 
-    parser = argparse.ArgumentParser(description="Download tide data as CSV.")
+    parser = argparse.ArgumentParser(description="Generate a tide calendar PDF.")
     parser.add_argument('--station_id', type=str, default='9449639', help='Station ID (default: 9449639)')
     parser.add_argument('--year', type=int, default=datetime.now().year, help='Year (default: current year)')
     parser.add_argument('--month', type=int, default=datetime.now().month, help='Month (default: current month)')
     parser.add_argument('--location_name', type=str, default=None, help='Human-readable location name for display')
     parser.add_argument('--skip_logging', action='store_true', help='Skip logging station lookup to database')
-
     args = parser.parse_args()
 
-    # Ensure month is in the correct format
     if args.month < 1 or args.month > 12:
         logging.error("Month must be between 1 and 12")
-        exit(1)
-    else:
-        downloaded_filename = download_tide_data(args.station_id, args.year, args.month)
-        if not downloaded_filename:
-            logging.error("Could not retrieve tide data. Please check the station ID and try again.")
-            exit(1)
+        raise SystemExit(1)
 
-    # convert the tide data to pcal format
+    # Filename contract and output dir are owned by calendar_service; imported
+    # lazily here to avoid a circular import (calendar_service imports us).
+    try:
+        from app.calendar_service import pdf_filename_for, PDF_OUTPUT_DIR
+    except ImportError:
+        from calendar_service import pdf_filename_for, PDF_OUTPUT_DIR
 
-    # check if the downloaded file exists
-    if not downloaded_filename:
-        logging.error(f"File {downloaded_filename} does not exist.")
-        exit(1)
-    # check if the downloaded file is empty
-    if downloaded_filename and os.path.getsize(downloaded_filename) == 0:
-        logging.error(f"File {downloaded_filename} is empty.")
-        exit(1)
+    output_path = os.path.join(
+        PDF_OUTPUT_DIR,
+        pdf_filename_for(args.location_name, args.station_id, args.year, args.month))
 
-    # check if the downloaded file's second line starts with the string "No Predictions data was found.", and if so, exit
-    with open(downloaded_filename, 'r') as file:
-        lines = file.readlines()
-        if len(lines) < 2:
-            logging.error(f"File {downloaded_filename} does not contain enough data.")
-            exit(1)
-        second_line = lines[1]
-        if "No Predictions data was found." in second_line:
-            logging.error(f"No predictions data found for {args.station_id} in {args.year}-{args.month:02d}.")
-            exit(1)
-    
-    # make a pcal file with the tide events using the month and year in the filename
-    pcal_filename = f"tide_calendar_{args.station_id}_{args.year}_{args.month:02d}.txt"
+    try:
+        generate_calendar(args.station_id, args.year, args.month, output_path,
+                          location_name=args.location_name)
+    except (TideDataError, CalendarGenerationError) as e:
+        logging.error(f"Could not generate calendar: {e}")
+        raise SystemExit(1)
 
-    convert_tide_data_to_pcal(downloaded_filename, pcal_filename, args.location_name)
-
-    logging.debug(f"PCAL file created: {pcal_filename}")
-
-    # Ensure PDF output directory exists
-    ensure_pdf_directory()
-
-    # Determine PDF filename based on location_name or station_id
-    if args.location_name:
-        location_safe = sanitize_filename(args.location_name)
-        pdf_filename = f"tide_calendar_{location_safe}_{args.year}_{args.month:02d}.pdf"
-    else:
-        pdf_filename = f"tide_calendar_{args.station_id}_{args.year}_{args.month:02d}.pdf"
-
-    # Full path for PDF output
-    pdf_output_path = os.path.join(PDF_OUTPUT_DIR, pdf_filename)
-
-    # now make a calendar page using `pcal` and the pcal file with the tide events for that month and year
-
-    # -s r:g:b -- colour of day numerics (0.0:0.0:1.0 = blue)
-    # -m -- show the month name
-    # -f -- specify the input file
-    # -o -- specify the output file
-    # -C text -- centered footer text
-    # -n font/size -- event text inside day boxes (pcal default is Helvetica-Narrow/6; 9 is ~50% larger)
-    # mini-calendars for prev/next month shown by default (lower-right; -S suppresses)
-
-    # Call the shell command to create the calendar page
-    subprocess.run(["pcal", "-f", pcal_filename, "-o", pcal_filename.replace('.txt', '.ps'), "-s", "0.0:0.0:1.0", "-n", "Helvetica-Narrow/9", "-m", "-C", "tidecalendar.xyz", str(args.month), str(args.year)])
-
-    # Convert the PostScript file to PDF and save to /data/calendars
-    subprocess.run(["ps2pdf", pcal_filename.replace('.txt', '.ps'), pdf_output_path])
-
-    # delete the PostScript file
-    subprocess.run(["rm", pcal_filename.replace('.txt', '.ps')])
-    # delete the CSV file
-    subprocess.run(["rm", downloaded_filename])
-    # delete the pcal file
-    subprocess.run(["rm", pcal_filename])
-
-    # Print a message indicating the PDF file creation
-    logging.info(f"PDF file created: {pdf_output_path}")
-
-    # Log the successful station lookup (unless skip_logging flag is set)
-    # Only log AFTER successful PDF generation to avoid polluting popular stations with failed lookups
+    # Log AFTER successful generation so failed lookups never pollute the
+    # popular stations list
     if not args.skip_logging:
         log_station_lookup(args.station_id)
         logging.info(f"Logged successful lookup for station {args.station_id}")
+
+
+if __name__ == "__main__":
+    main()
