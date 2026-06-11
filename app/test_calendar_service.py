@@ -70,9 +70,10 @@ class TestGetOrGeneratePdf(unittest.TestCase):
         self.log_usage = mock.patch.object(calendar_service, 'log_usage_event').start()
         self.addCleanup(mock.patch.stopall)
         mock.patch.object(calendar_service, 'log_station_lookup').start()
-        self.get_place = mock.patch.object(
-            calendar_service, 'get_place_name_by_station_id',
-            return_value="Point Roberts, WA").start()
+        self.get_info = mock.patch.object(
+            calendar_service, 'get_station_info',
+            return_value={'station_id': '9449639',
+                          'place_name': 'Point Roberts, WA'}).start()
 
     def test_cache_hit_serves_existing_pdf_without_generating(self):
         cached = os.path.join(self.tmpdir.name, "tide_calendar_Point_Roberts_WA_2026_06.pdf")
@@ -133,8 +134,8 @@ class TestGetOrGeneratePdf(unittest.TestCase):
             "12345", "Point Roberts, WA", 2026, 6, 'error', 'no_predictions',
             source='quick_api')
 
-    def test_unknown_station_uses_station_id_in_filename(self):
-        self.get_place.return_value = None
+    def test_station_without_place_name_uses_station_id_in_filename(self):
+        self.get_info.return_value = {'station_id': '999', 'place_name': None}
 
         def fake_generate(station_id, year, month, output_path, location_name=None):
             with open(output_path, 'wb') as f:
@@ -148,6 +149,18 @@ class TestGetOrGeneratePdf(unittest.TestCase):
         self.assertTrue(result.ok)
         self.assertEqual(os.path.basename(result.pdf_path),
                          "tide_calendar_999_2026_06.pdf")
+
+    def test_unknown_station_rejected_before_any_work(self):
+        self.get_info.return_value = None
+
+        with mock.patch.object(calendar_service, 'generate_calendar') as gen:
+            result = get_or_generate_pdf("31337", 2026, 6)
+
+        gen.assert_not_called()
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error_code, 'unknown_station')
+        self.log_usage.assert_called_once_with(
+            "31337", None, 2026, 6, 'error', 'unknown_station', source='web')
 
 
 if __name__ == '__main__':

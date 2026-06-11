@@ -14,13 +14,11 @@ from datetime import datetime
 from pathlib import Path
 
 try:
-    from app.database import (get_place_name_by_station_id, log_station_lookup,
-                              log_usage_event)
+    from app.database import get_station_info, log_station_lookup, log_usage_event
     from app.get_tides import (CalendarGenerationError, TideDataError,
                                generate_calendar)
 except ImportError:
-    from database import (get_place_name_by_station_id, log_station_lookup,
-                          log_usage_event)
+    from database import get_station_info, log_station_lookup, log_usage_event
     from get_tides import (CalendarGenerationError, TideDataError,
                            generate_calendar)
 
@@ -89,7 +87,7 @@ class GenerateResult:
     download_name: str = None
     place_name: str = None
     location_display: str = None
-    error_code: str = None  # 'no_predictions' | 'generation_failed'
+    error_code: str = None  # 'unknown_station' | 'no_predictions' | 'generation_failed'
 
 
 def get_or_generate_pdf(station_id, year, month, source='web'):
@@ -99,7 +97,16 @@ def get_or_generate_pdf(station_id, year, month, source='web'):
     popular-stations list (cache hits and quick-API traffic are not, matching
     the original behavior).
     """
-    place_name = get_place_name_by_station_id(station_id)
+    # Reject station IDs that aren't in our directory before doing any work —
+    # without this, any digit string spawns a full upstream-API fetch cycle
+    # (a cheap resource-exhaustion vector, and guaranteed cache misses).
+    station_info = get_station_info(station_id)
+    if station_info is None:
+        logging.warning(f"Rejected unknown station ID {station_id} (source={source})")
+        log_usage_event(station_id, None, year, month, 'error', 'unknown_station', source=source)
+        return GenerateResult(ok=False, error_code='unknown_station')
+
+    place_name = station_info.get('place_name')
     location_display = extract_location_with_state(place_name)
     download_name = pdf_filename_for(location_display, station_id, year, month)
     pdf_path = os.path.join(PDF_OUTPUT_DIR, download_name)

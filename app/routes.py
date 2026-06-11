@@ -6,7 +6,7 @@ from datetime import datetime
 
 from flask import render_template, request, send_file, make_response, jsonify
 
-from app import app
+from app import app, limiter
 from app.calendar_service import get_or_generate_pdf
 from app.database import (get_popular_stations, get_place_name_by_station_id,
                           get_station_id_by_place_name, search_stations_by_country,
@@ -44,6 +44,7 @@ def _no_predictions_message(where, year, month):
 
 
 @app.route('/', methods=['GET', 'POST'])
+@limiter.limit("10 per minute", methods=["POST"])
 def index():
     if request.method == 'POST':
         station_id = request.form['station_id'].strip()
@@ -89,9 +90,13 @@ def index():
         result = get_or_generate_pdf(station_id, year, month, source='web')
 
         if not result.ok:
-            return render_template('tide_station_not_found.html',
-                                   message=_no_predictions_message(
-                                       result.location_display or station_id, year, month))
+            if result.error_code == 'unknown_station':
+                message = (f"Station ID '{station_id}' was not found. "
+                           f"Please select a tide station from the autocomplete dropdown.")
+            else:
+                message = _no_predictions_message(
+                    result.location_display or station_id, year, month)
+            return render_template('tide_station_not_found.html', message=message)
 
         response = make_response(send_file(result.pdf_path, as_attachment=True))
         if result.place_name:
@@ -145,6 +150,7 @@ def api_popular_stations():
 
 
 @app.route('/api/generate_quick', methods=['POST'])
+@limiter.limit("10 per minute")
 def api_generate_quick():
     """API endpoint to quickly generate current month's PDF."""
     try:
@@ -163,6 +169,8 @@ def api_generate_quick():
         result = get_or_generate_pdf(station_id, today.year, today.month, source='quick_api')
 
         if not result.ok:
+            if result.error_code == 'unknown_station':
+                return jsonify({'error': f"Unknown station_id '{station_id}'"}), 404
             return jsonify({'error': _no_predictions_message(
                 result.location_display or station_id, today.year, today.month)}), 500
 
@@ -212,6 +220,15 @@ def llms_txt():
 def page_not_found(e):
     """Custom 404 error page."""
     return render_template('404.html'), 404
+
+
+@app.errorhandler(429)
+def rate_limited(e):
+    """Friendly response when the PDF-generation rate limit is hit."""
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Too many requests — please wait a minute and try again.'}), 429
+    return render_template('tide_station_not_found.html',
+                           message="Too many calendar requests — please wait a minute and try again."), 429
 
 
 @app.route('/admin/analytics')
