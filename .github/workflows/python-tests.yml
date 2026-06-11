@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, development ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, development ]
 
 jobs:
   unit-tests:
@@ -25,6 +25,13 @@ jobs:
 
     - name: Install dependencies
       run: pip install -r requirements.txt
+
+    - name: Audit dependencies for known vulnerabilities
+      # Fails the build on any known CVE in the pinned set (the urllib3
+      # advisories in June 2026 surfaced only via Dependabot after push).
+      run: |
+        pip install pip-audit
+        pip-audit -r requirements.txt
 
     - name: Run app unit tests
       # Tests import sibling modules (database, canadian_station_sync,

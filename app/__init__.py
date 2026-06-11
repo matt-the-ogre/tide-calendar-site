@@ -21,4 +21,14 @@ def inject_noindex():
     host = request.host.split(':')[0]
     return {'noindex': host != 'tidecalendar.xyz'}
 
+
+@app.after_request
+def set_security_headers(response):
+    """Baseline security headers. No CSP for now — AdSense/Plausible inject
+    scripts and frames that would need a long, brittle allowlist."""
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    return response
+
 from app import routes

@@ -12,6 +12,16 @@ APP_DIR = Path(__file__).parent.resolve()
 DEFAULT_DB_PATH = str(APP_DIR / 'tide_station_ids.db')
 DB_PATH = os.getenv('DB_PATH', DEFAULT_DB_PATH)
 
+
+def _migrate_columns(cursor, table, columns_ddl):
+    """Add any missing columns to a table (idempotent startup migration)."""
+    cursor.execute(f"PRAGMA table_info({table})")
+    existing = {column[1] for column in cursor.fetchall()}
+    for name, ddl in columns_ddl.items():
+        if name not in existing:
+            cursor.execute(f'ALTER TABLE {table} ADD COLUMN {name} {ddl}')
+            logging.info(f"Added {name} column to {table} table")
+
 def init_database():
     """Initialize the database and create tables if they don't exist."""
     try:
@@ -36,36 +46,15 @@ def init_database():
             ''')
 
             # Schema migration: Add missing columns if they don't exist
-            cursor.execute("PRAGMA table_info(tide_station_ids)")
-            columns = [column[1] for column in cursor.fetchall()]
-
-            if 'place_name' not in columns:
-                cursor.execute('ALTER TABLE tide_station_ids ADD COLUMN place_name TEXT')
-                logging.info("Added place_name column to tide_station_ids table")
-
-            if 'country' not in columns:
-                cursor.execute("ALTER TABLE tide_station_ids ADD COLUMN country TEXT DEFAULT 'USA'")
-                logging.info("Added country column to tide_station_ids table")
-
-            if 'api_source' not in columns:
-                cursor.execute("ALTER TABLE tide_station_ids ADD COLUMN api_source TEXT DEFAULT 'NOAA'")
-                logging.info("Added api_source column to tide_station_ids table")
-
-            if 'latitude' not in columns:
-                cursor.execute('ALTER TABLE tide_station_ids ADD COLUMN latitude REAL')
-                logging.info("Added latitude column to tide_station_ids table")
-
-            if 'longitude' not in columns:
-                cursor.execute('ALTER TABLE tide_station_ids ADD COLUMN longitude REAL')
-                logging.info("Added longitude column to tide_station_ids table")
-
-            if 'province' not in columns:
-                cursor.execute('ALTER TABLE tide_station_ids ADD COLUMN province TEXT')
-                logging.info("Added province column to tide_station_ids table")
-
-            if 'alternative_name' not in columns:
-                cursor.execute('ALTER TABLE tide_station_ids ADD COLUMN alternative_name TEXT')
-                logging.info("Added alternative_name column to tide_station_ids table")
+            _migrate_columns(cursor, 'tide_station_ids', {
+                'place_name': 'TEXT',
+                'country': "TEXT DEFAULT 'USA'",
+                'api_source': "TEXT DEFAULT 'NOAA'",
+                'latitude': 'REAL',
+                'longitude': 'REAL',
+                'province': 'TEXT',
+                'alternative_name': 'TEXT',
+            })
 
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS usage_events (
@@ -82,11 +71,9 @@ def init_database():
             ''')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_usage_events_timestamp ON usage_events(timestamp)')
 
-            cursor.execute("PRAGMA table_info(usage_events)")
-            usage_cols = [column[1] for column in cursor.fetchall()]
-            if 'source' not in usage_cols:
-                cursor.execute("ALTER TABLE usage_events ADD COLUMN source TEXT DEFAULT 'web'")
-                logging.info("Added source column to usage_events table")
+            _migrate_columns(cursor, 'usage_events', {
+                'source': "TEXT DEFAULT 'web'",
+            })
 
             cursor.execute('''
                 DELETE FROM usage_events
@@ -184,28 +171,16 @@ def log_station_lookup(station_id):
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
-
-            # Try to get existing lookup count
-            result = cursor.execute('SELECT lookup_count FROM tide_station_ids WHERE station_id = ?', (station_id,)).fetchone()
-
-            if result:
-                # Update existing record
-                cursor.execute('''
-                    UPDATE tide_station_ids
-                    SET lookup_count = lookup_count + 1,
-                        last_lookup = CURRENT_TIMESTAMP
-                    WHERE station_id = ?
-                ''', (station_id,))
-                new_count = result[0] + 1
-            else:
-                # Insert new record
-                cursor.execute('''
-                    INSERT INTO tide_station_ids (station_id, lookup_count)
-                    VALUES (?, 1)
-                ''', (station_id,))
-                new_count = 1
-
+            result = cursor.execute('''
+                INSERT INTO tide_station_ids (station_id, lookup_count)
+                VALUES (?, 1)
+                ON CONFLICT(station_id) DO UPDATE SET
+                    lookup_count = lookup_count + 1,
+                    last_lookup = CURRENT_TIMESTAMP
+                RETURNING lookup_count
+            ''', (station_id,)).fetchone()
             conn.commit()
+            new_count = result[0]
             logging.info(f"Station ID {station_id} has been looked up {new_count} times.")
             return new_count
 
@@ -280,28 +255,17 @@ def import_stations_from_csv():
         return False
 
 def get_popular_stations(limit=16):
-    """Get the most popular tide stations by lookup count."""
-    try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
+    """Get the most popular tide stations by lookup count (all countries).
 
-            results = cursor.execute('''
-                SELECT station_id, place_name, lookup_count
-                FROM tide_station_ids
-                WHERE place_name IS NOT NULL
-                ORDER BY lookup_count DESC, place_name ASC
-                LIMIT ?
-            ''', (limit,)).fetchall()
-
-            return [{
-                'station_id': row[0],
-                'place_name': row[1],
-                'lookup_count': row[2]
-            } for row in results]
-
-    except sqlite3.Error as e:
-        logging.error(f"Database error getting popular stations: {e}")
-        return []
+    Thin wrapper over get_popular_stations_by_country, kept for callers that
+    predate the country filter (e.g. the /health DB check); preserves its
+    original three-key dict shape.
+    """
+    return [{
+        'station_id': s['station_id'],
+        'place_name': s['place_name'],
+        'lookup_count': s['lookup_count'],
+    } for s in get_popular_stations_by_country(None, limit)]
 
 def get_place_name_by_station_id(station_id):
     """Get the place name for a given station ID."""
@@ -336,49 +300,25 @@ def get_station_id_by_place_name(place_name):
     if not place_name:
         return None
 
+    # Match preference order: official name beats alternative name, exact
+    # match beats case-insensitive.
+    match_clauses = (
+        'place_name = ?',
+        'LOWER(place_name) = LOWER(?)',
+        'alternative_name = ?',
+        'LOWER(alternative_name) = LOWER(?)',
+    )
+
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
-
-            # Try official place_name: exact, then case-insensitive.
-            result = cursor.execute('''
-                SELECT station_id
-                FROM tide_station_ids
-                WHERE place_name = ?
-            ''', (place_name,)).fetchone()
-
-            if result:
-                return result[0]
-
-            result = cursor.execute('''
-                SELECT station_id
-                FROM tide_station_ids
-                WHERE LOWER(place_name) = LOWER(?)
-                LIMIT 1
-            ''', (place_name,)).fetchone()
-
-            if result:
-                return result[0]
-
-            # Fall back to the common/alternative name: exact, then case-insensitive.
-            result = cursor.execute('''
-                SELECT station_id
-                FROM tide_station_ids
-                WHERE alternative_name = ?
-                LIMIT 1
-            ''', (place_name,)).fetchone()
-
-            if result:
-                return result[0]
-
-            result = cursor.execute('''
-                SELECT station_id
-                FROM tide_station_ids
-                WHERE LOWER(alternative_name) = LOWER(?)
-                LIMIT 1
-            ''', (place_name,)).fetchone()
-
-            return result[0] if result else None
+            for clause in match_clauses:
+                result = cursor.execute(
+                    f'SELECT station_id FROM tide_station_ids WHERE {clause} LIMIT 1',
+                    (place_name,)).fetchone()
+                if result:
+                    return result[0]
+            return None
 
     except sqlite3.Error as e:
         logging.error(f"Database error getting station ID for place {place_name}: {e}")
@@ -573,6 +513,19 @@ def format_display_name(place_name, alternative_name, province=None):
     return f"{alt} ({core}){suffix}"
 
 
+def _station_rows_to_dicts(rows):
+    """Map (station_id, place_name, country, lookup_count, alternative_name,
+    province) rows to the dict shape the station APIs return."""
+    return [{
+        'station_id': row[0],
+        'place_name': row[1],
+        'country': row[2],
+        'lookup_count': row[3],
+        'alternative_name': row[4],
+        'display_name': format_display_name(row[1], row[4], row[5])
+    } for row in rows]
+
+
 def search_stations_by_country(query, country=None, limit=10):
     """Search for stations by place name or common (alternative) name,
     optionally filtered by country."""
@@ -592,34 +545,19 @@ def search_stations_by_country(query, country=None, limit=10):
             # query in Python and apply fold() only to the columns in SQL.
             folded_query = f"%{fold_for_search(query.strip())}%"
 
-            if country:
-                results = cursor.execute('''
-                    SELECT station_id, place_name, country, lookup_count, alternative_name, province
-                    FROM tide_station_ids
-                    WHERE place_name IS NOT NULL
-                    AND (fold(place_name) LIKE ? OR fold(alternative_name) LIKE ?)
-                    AND country = ?
-                    ORDER BY lookup_count DESC, place_name ASC
-                    LIMIT ?
-                ''', (folded_query, folded_query, country, limit)).fetchall()
-            else:
-                results = cursor.execute('''
-                    SELECT station_id, place_name, country, lookup_count, alternative_name, province
-                    FROM tide_station_ids
-                    WHERE place_name IS NOT NULL
-                    AND (fold(place_name) LIKE ? OR fold(alternative_name) LIKE ?)
-                    ORDER BY lookup_count DESC, place_name ASC
-                    LIMIT ?
-                ''', (folded_query, folded_query, limit)).fetchall()
+            country_clause = 'AND country = ?' if country else ''
+            params = [folded_query, folded_query] + ([country] if country else []) + [limit]
+            results = cursor.execute(f'''
+                SELECT station_id, place_name, country, lookup_count, alternative_name, province
+                FROM tide_station_ids
+                WHERE place_name IS NOT NULL
+                AND (fold(place_name) LIKE ? OR fold(alternative_name) LIKE ?)
+                {country_clause}
+                ORDER BY lookup_count DESC, place_name ASC
+                LIMIT ?
+            ''', params).fetchall()
 
-            return [{
-                'station_id': row[0],
-                'place_name': row[1],
-                'country': row[2],
-                'lookup_count': row[3],
-                'alternative_name': row[4],
-                'display_name': format_display_name(row[1], row[4], row[5])
-            } for row in results]
+            return _station_rows_to_dicts(results)
 
     except sqlite3.Error as e:
         logging.error(f"Database error searching stations: {e}")
@@ -631,32 +569,18 @@ def get_popular_stations_by_country(country=None, limit=16):
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
 
-            if country:
-                results = cursor.execute('''
-                    SELECT station_id, place_name, country, lookup_count, alternative_name, province
-                    FROM tide_station_ids
-                    WHERE place_name IS NOT NULL
-                    AND country = ?
-                    ORDER BY lookup_count DESC, place_name ASC
-                    LIMIT ?
-                ''', (country, limit)).fetchall()
-            else:
-                results = cursor.execute('''
-                    SELECT station_id, place_name, country, lookup_count, alternative_name, province
-                    FROM tide_station_ids
-                    WHERE place_name IS NOT NULL
-                    ORDER BY lookup_count DESC, place_name ASC
-                    LIMIT ?
-                ''', (limit,)).fetchall()
+            country_clause = 'AND country = ?' if country else ''
+            params = ([country] if country else []) + [limit]
+            results = cursor.execute(f'''
+                SELECT station_id, place_name, country, lookup_count, alternative_name, province
+                FROM tide_station_ids
+                WHERE place_name IS NOT NULL
+                {country_clause}
+                ORDER BY lookup_count DESC, place_name ASC
+                LIMIT ?
+            ''', params).fetchall()
 
-            return [{
-                'station_id': row[0],
-                'place_name': row[1],
-                'country': row[2],
-                'lookup_count': row[3],
-                'alternative_name': row[4],
-                'display_name': format_display_name(row[1], row[4], row[5])
-            } for row in results]
+            return _station_rows_to_dicts(results)
 
     except sqlite3.Error as e:
         logging.error(f"Database error getting popular stations: {e}")
