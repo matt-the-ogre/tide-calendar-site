@@ -24,6 +24,9 @@ flask run --host 0.0.0.0 --port 5001
 
 ### Docker Development
 ```bash
+# Local Docker runs via colima (docker CLI is the brew formula, client only)
+colima start   # if it fails with "vz driver is running but host agent is not": colima stop --force, retry
+
 # Build Docker image
 docker build -t tide-calendar-app .
 
@@ -230,6 +233,10 @@ the station set changes meaningfully.
 
 ### Running Tests
 ```bash
+# Run Python unit tests (same as CI; must run from app/ — tests import sibling modules)
+cd app && python -m unittest discover -p 'test_*.py'
+python scripts/test_usage_events.py
+
 # Install Playwright (first time)
 cd tests && npm install && npx playwright install chromium
 
@@ -263,6 +270,10 @@ See `docs/performance-benchmarks.md` for detailed performance targets, API laten
 - **Testing pcal/PDF changes**: Cached PDFs mask code changes. Clear cache before testing: `ssh captain "docker exec <container> sh -c 'rm -f /data/calendars/*.pdf'"` (must use `sh -c` for glob expansion in `docker exec`)
 - **CapRover containers**: SSH host `captain`, container names: `srv-captain--tide-calendar-{dev,prod}.1.<hash>`. Find with: `ssh captain "docker ps --format '{{.Names}}' | grep tide"`
 - **subprocess.run gotcha**: When using list args (not `shell=True`), each flag and its value must be separate list elements. `["-s", "0.0:0.0:1.0"]` not `["-s 0.0:0.0:1.0"]`
+- **Docker build context**: `.dockerignore` must NOT exclude `.git` — the Dockerfile's builder stage derives /health's commit_hash from it (only that stage sees it; history never ships in the final image)
+- **pip-audit CI gate**: a red build with no code change usually means a newly published advisory, not a regression — bump the affected pin (it's non-deterministic by design)
+- **"submit-pypi" CI check**: GitHub's built-in Automatic Dependency Submission (dependency graph), not a PyPI publish
+- **Rate-limit testing**: limiter counters are per-gunicorn-worker (in-memory), so effective ceiling ≈ limit × 2 workers; burst tests need 25+ requests to reliably trip 429s
 - **pcal flags reference**: `-s r:g:b` sets day numeral color, `-S` suppresses mini-calendars (on by default), `-K` repositions mini-cals (prev upper-left, next lower-right), `-C text` adds centered footer, `-m` shows month name
-- **Deploy verification**: After pushing, check `/health` endpoint for matching `commit_hash` to confirm CapRover deploy landed (~60s build time). Compare dev vs prod: `curl -s https://dev.tidecalendar.xyz/health | python3 -m json.tool`
+- **Deploy verification**: After pushing, check `/health` endpoint for matching `commit_hash` to confirm CapRover deploy landed (observed 10–60s including container startup). Compare dev vs prod: `curl -s https://dev.tidecalendar.xyz/health | python3 -m json.tool`
 - **Analytics**: Server-side `usage_events` table logs every request to `/` and `/api/generate_quick` (station_id, station_name, year, month, status, error_detail, source). No PII. `source='web'` for form submissions, `source='quick_api'` for embed/widget traffic. Dashboard at `/admin/analytics` — accepts `Authorization: Bearer $ANALYTICS_TOKEN` header (preferred, stays out of access logs) or `?token=$ANALYTICS_TOKEN` query param (fallback). Returns 404 on any unauth/unconfigured request (invisible to scanners). Events older than 365 days are pruned on container startup. Complements client-side Plausible (which misses cached serves, validation errors, and ad-blocked users). Tests: `python3 scripts/test_usage_events.py`.
