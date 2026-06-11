@@ -85,8 +85,9 @@ ANALYTICS_TOKEN=<random-string>  # gates /admin/analytics dashboard
 ## Architecture Overview
 
 ### Core Components
-- **Flask Web Application**: Serves tide calendar generation interface with form validation
-- **Tide Data Fetcher**: `get_tides.py` retrieves NOAA/CHS tide data and generates PDF calendars
+- **Flask Web Application**: Serves tide calendar generation interface with form validation and per-IP rate limiting (Flask-Limiter, 10/min on the two generation endpoints)
+- **Calendar Service**: `calendar_service.py` single owner of the PDF contract — filename derivation (`pdf_filename_for`), cache check, generation, usage-event logging. Both web routes and the CLI go through it.
+- **Tide Data Pipeline**: `get_tides.py` importable `generate_calendar()` (fetch → pcal → ps2pdf, per-invocation temp dir, atomic rename into cache); also a CLI used by `scripts/update_example_image.sh`
 - **Database Module**: `database.py` centralized SQLite operations for station usage tracking
 - **Canadian Station Sync**: `canadian_station_sync.py` dynamically imports Canadian stations from CHS API
 - **Tide Adapters**: `tide_adapters.py` provides unified interface for NOAA and CHS APIs with retry logic
@@ -97,7 +98,8 @@ ANALYTICS_TOKEN=<random-string>  # gates /admin/analytics dashboard
 ├── app/                    # Runtime application code (deployed to Docker)
 │   ├── __init__.py        # Flask app initialization
 │   ├── routes.py          # Web routes, form handling, and input validation
-│   ├── get_tides.py       # Core tide data processing and PDF generation
+│   ├── calendar_service.py  # PDF filename contract, cache, generation orchestration
+│   ├── get_tides.py       # Tide data fetch + pcal/ps2pdf pipeline (importable + CLI)
 │   ├── database.py        # Centralized SQLite database operations
 │   ├── canadian_station_sync.py  # Dynamic Canadian station import from CHS API
 │   ├── tide_adapters.py   # NOAA/CHS API adapters with retry logic
@@ -148,11 +150,13 @@ ANALYTICS_TOKEN=<random-string>  # gates /admin/analytics dashboard
      - Fallback to `canadian_tide_stations.csv` if API unavailable
    - Sync database (remove inactive stations)
 2. **PDF Generation with Caching**:
-   - User submits form → `routes.py` validates input
+   - User submits form → `routes.py` validates input → `calendar_service.get_or_generate_pdf()`
+   - Unknown station IDs are rejected before any upstream work (logged as `unknown_station`)
    - Check if PDF exists in cache (`/data/calendars/` in production, `app/calendars/` in dev)
    - If cached: serve immediately
-   - If not cached: call `get_tides.py` → NOAA/CHS API fetch → pcal conversion → PDF creation → save to cache
+   - If not cached: `get_tides.generate_calendar()` in-process → NOAA/CHS API fetch → pcal conversion → ps2pdf → atomic rename into cache (intermediates live in a temp dir; pcal/ps2pdf have 60s timeouts)
    - **API Retry Logic**: 3 attempts with exponential backoff for 502/503/504 gateway errors
+   - Old-month PDFs are swept once at container startup (`run.py`), not per request
 3. **Database Tracking**: Station IDs and lookup counts stored in SQLite via `database.py` module
 4. **Form Validation**: Input validation prevents crashes and provides user-friendly error messages
 5. **Error Handling**: Missing/empty PDFs and invalid inputs trigger custom error templates
@@ -250,7 +254,8 @@ See `docs/performance-benchmarks.md` for detailed performance targets, API laten
 - **Database sync**: On container startup, the database automatically syncs with the CSV files, removing any stations not present in the canonical CSVs
 - **Default demo station**: Station ID 9449639 (Point Roberts, WA)
 - **Low tides**: Events (<0.3m) are marked with asterisks in calendars
-- **Form validation**: Validates station ID (numeric), year (2000-2030), month (1-12)
+- **Form validation**: Validates station ID (numeric + must exist in the station directory), year (current year through current year + 4), month (1-12). Note: `tide_adapters.py` still hardcodes a 2000-2030 year range — needs a dynamic bound before 2031.
+- **Production server**: gunicorn (2 workers × 4 threads, `--preload`, 120s timeout) as non-root `appuser`; `docker-entrypoint.sh` chowns the runtime-mounted `/data` volume before dropping privileges. `flask run` remains for local dev only.
 - **Docker file inclusion**: When adding new source files required at runtime, verify the Dockerfile copies them (explicitly or implicitly)
 - **Playwright + hidden inputs**: Radio inputs in country filter are hidden via CSS (`display: none`) with pill-style labels as visible controls. Playwright tests must interact with the parent `<label>` elements (e.g., `locator('xpath=..')`) instead of calling `.check()` on the hidden inputs. See `tests/pages/HomePage.ts` `selectCountryFilter()`.
 - **Root-level static files** (robots.txt, sitemap.xml, llms.txt, ads.txt) are served via Flask routes in `routes.py` using the `_serve_static_file()` helper, not Flask's default `/static/` path. New root-level files need both the static file and a route.
