@@ -24,7 +24,12 @@
     "PreToolUse": [
       {
         "matcher": "Edit|Write",
-        "command": "case \"$CLAUDE_FILE_PATH\" in *.env|*.env.*) echo 'BLOCKED: .env file edits not allowed' >&2; exit 2;; esac"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-env-edits.py\""
+          }
+        ]
       }
     ]
   }
