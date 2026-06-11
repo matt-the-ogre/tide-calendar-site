@@ -14,7 +14,7 @@ import logging
 import requests
 import calendar
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 # Upper bound mirrors the web layer (routes.py): agencies only publish
@@ -26,7 +26,7 @@ MAX_YEARS_AHEAD = 4
 
 
 def year_in_range(year: int) -> bool:
-    return 2000 <= year <= datetime.utcnow().year + MAX_YEARS_AHEAD
+    return 2000 <= year <= datetime.now(timezone.utc).year + MAX_YEARS_AHEAD
 
 
 class TideAdapter(ABC):

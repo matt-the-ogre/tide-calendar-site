@@ -30,7 +30,7 @@ jobs:
       # Fails the build on any known CVE in the pinned set (the urllib3
       # advisories in June 2026 surfaced only via Dependabot after push).
       run: |
-        pip install pip-audit
+        pip install pip-audit==2.10.1
         pip-audit -r requirements.txt
 
     - name: Run app unit tests

@@ -14,7 +14,12 @@ DB_PATH = os.getenv('DB_PATH', DEFAULT_DB_PATH)
 
 
 def _migrate_columns(cursor, table, columns_ddl):
-    """Add any missing columns to a table (idempotent startup migration)."""
+    """Add any missing columns to a table (idempotent startup migration).
+
+    table/column names are f-string-interpolated because SQLite placeholders
+    only bind values, not identifiers; every caller passes hardcoded literals,
+    never user input.
+    """
     cursor.execute(f"PRAGMA table_info({table})")
     existing = {column[1] for column in cursor.fetchall()}
     for name, ddl in columns_ddl.items():
@@ -301,7 +306,9 @@ def get_station_id_by_place_name(place_name):
         return None
 
     # Match preference order: official name beats alternative name, exact
-    # match beats case-insensitive.
+    # match beats case-insensitive. The clauses are compile-time constants
+    # interpolated into the SQL below; the user-supplied value only ever
+    # binds through the ? placeholder.
     match_clauses = (
         'place_name = ?',
         'LOWER(place_name) = LOWER(?)',
