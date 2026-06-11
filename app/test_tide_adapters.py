@@ -157,10 +157,10 @@ No Predictions data was found."""
         The old hardcoded 2000-2030 range would have silently rejected
         requests the web form accepts starting in 2031.
         """
-        from datetime import datetime
+        from datetime import datetime, timezone
         from tide_adapters import MAX_YEARS_AHEAD, year_in_range
 
-        current = datetime.utcnow().year
+        current = datetime.now(timezone.utc).year
         self.assertTrue(year_in_range(current))
         self.assertTrue(year_in_range(current + MAX_YEARS_AHEAD))
         self.assertFalse(year_in_range(current + MAX_YEARS_AHEAD + 1))
