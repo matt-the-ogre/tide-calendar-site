@@ -5,6 +5,12 @@
 
   var COUNTRY_COLORS = { USA: '#1f6feb', Canada: '#d1242f' };
 
+  // Fixed view for the "all" filter: continental North America incl. Alaska,
+  // Hawaii, and southern Canada. Fitting to every marker would zoom out to the
+  // whole globe because US stations include far Pacific territories (Guam, Wake,
+  // American Samoa). [SW, NE] as [lat, lng].
+  var NORTH_AMERICA = [[14, -170], [72, -52]];
+
   function fillForm(stationId, name) {
     var search = document.getElementById('station_search');
     var hidden = document.getElementById('station_id');
@@ -60,9 +66,11 @@
         if (country === 'all' || country === c) show = show.concat(markersByCountry[c]);
       });
       clusters.addLayers(show);
-      if (show.length) {
-        var group = L.featureGroup(show);
-        map.fitBounds(group.getBounds().pad(0.1));
+      if (country === 'all') {
+        // Snap to North America rather than fitting to outlying Pacific markers.
+        map.fitBounds(NORTH_AMERICA);
+      } else if (show.length) {
+        map.fitBounds(L.featureGroup(show).getBounds().pad(0.1));
       }
     }
 
