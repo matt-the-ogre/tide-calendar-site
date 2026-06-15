@@ -195,25 +195,35 @@ def log_station_lookup(station_id):
         return None
 
 def import_stations_from_csv():
-    """Import station data from CSV file and remove stations not in CSV (sync database to CSV)."""
+    """Import US station data from the canonical CSV (sync DB to CSV)."""
     csv_path = os.path.join(os.path.dirname(__file__), 'tide_stations_new.csv')
-
     if not os.path.exists(csv_path):
         logging.warning(f"CSV file not found: {csv_path}")
         return False
+    return _import_us_csv(csv_path)
 
+
+def _parse_coord(value, station_id, place_name, kind):
+    """Parse a CSV coordinate cell to float or None, tolerating blanks."""
+    try:
+        return float(value) if value and value.strip() else None
+    except (ValueError, AttributeError):
+        logging.warning(f"Invalid {kind} for station {station_id} ({place_name}): {value!r}")
+        return None
+
+
+def _import_us_csv(csv_path):
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
 
-            # Check if we already have place names populated
             MIN_STATION_THRESHOLD = 100
-            result = cursor.execute('SELECT COUNT(*) FROM tide_station_ids WHERE place_name IS NOT NULL').fetchone()
+            result = cursor.execute(
+                'SELECT COUNT(*) FROM tide_station_ids WHERE place_name IS NOT NULL').fetchone()
             if result[0] >= MIN_STATION_THRESHOLD:
                 logging.debug(f"Station place names already populated (count: {result[0]})")
                 return True
 
-            # Import from CSV and collect all valid station IDs
             imported_count = 0
             csv_station_ids = set()
             with open(csv_path, 'r', encoding='utf-8') as csvfile:
@@ -222,39 +232,34 @@ def import_stations_from_csv():
                     station_id = row['station_id']
                     place_name = row['place_name']
                     csv_station_ids.add(station_id)
+                    latitude = _parse_coord(row.get('latitude'), station_id, place_name, 'latitude')
+                    longitude = _parse_coord(row.get('longitude'), station_id, place_name, 'longitude')
 
-                    # Insert or update station (USA/NOAA stations)
-                    # Use INSERT OR IGNORE to preserve lookup_count for existing stations
                     cursor.execute('''
                         INSERT OR IGNORE INTO tide_station_ids
-                        (station_id, place_name, country, api_source, lookup_count, last_lookup)
-                        VALUES (?, ?, 'USA', 'NOAA', 1, CURRENT_TIMESTAMP)
-                    ''', (station_id, place_name))
-
-                    # Update metadata for existing stations without touching lookup_count
+                        (station_id, place_name, country, api_source, latitude, longitude, lookup_count, last_lookup)
+                        VALUES (?, ?, 'USA', 'NOAA', ?, ?, 1, CURRENT_TIMESTAMP)
+                    ''', (station_id, place_name, latitude, longitude))
                     cursor.execute('''
                         UPDATE tide_station_ids
-                        SET place_name = ?, country = 'USA', api_source = 'NOAA'
+                        SET place_name = ?, country = 'USA', api_source = 'NOAA',
+                            latitude = ?, longitude = ?
                         WHERE station_id = ?
-                    ''', (place_name, station_id))
+                    ''', (place_name, latitude, longitude, station_id))
                     imported_count += 1
 
-            # Remove stations from database that are NOT in the CSV (cleanup invalid stations)
-            # This ensures the database stays in sync with the validated canonical CSV
             if csv_station_ids:
-                # Build a parameterized query to delete stations not in CSV
                 placeholders = ','.join('?' * len(csv_station_ids))
-                delete_query = f'DELETE FROM tide_station_ids WHERE station_id NOT IN ({placeholders})'
-                cursor.execute(delete_query, tuple(csv_station_ids))
+                cursor.execute(
+                    f"DELETE FROM tide_station_ids WHERE country = 'USA' AND station_id NOT IN ({placeholders})",
+                    tuple(csv_station_ids))
                 deleted_count = cursor.rowcount
-
                 if deleted_count > 0:
                     logging.info(f"Removed {deleted_count} invalid station(s) not present in CSV")
 
             conn.commit()
             logging.info(f"Imported {imported_count} stations from CSV")
             return True
-
     except Exception as e:
         logging.error(f"Error importing stations from CSV: {e}")
         return False
