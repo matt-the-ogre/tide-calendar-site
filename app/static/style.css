@@ -700,3 +700,20 @@ footer p {
         border-radius: var(--radius-md);
     }
 }
+
+/* --- Station Map --- */
+.map-card { padding-bottom: 1rem; }
+#station-map {
+    width: 100%;
+    height: 420px;
+    border-radius: 8px;
+    z-index: 0; /* keep tiles under the autocomplete dropdown */
+}
+@media (max-width: 600px) {
+    #station-map { height: 300px; }
+}
+.station-popup .popup-name { font-weight: 600; display: block; margin-bottom: 2px; }
+.station-popup .popup-meta { color: #666; font-size: 0.85em; }
+.station-popup button {
+    margin-top: 8px; cursor: pointer; width: 100%;
+}

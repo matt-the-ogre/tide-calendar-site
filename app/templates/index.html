@@ -33,6 +33,11 @@
       }
     }
     </script>
+
+    <!-- Leaflet (vendored) for the station map -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/MarkerCluster.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/MarkerCluster.Default.css') }}">
 {% endblock %}
 
 {% block body %}
@@ -43,6 +48,12 @@
             <img src="{{ url_for('static', filename='tide-calendar-example.webp') }}" alt="Example tide calendar showing monthly high and low tides" />
             <figcaption>Example: printable monthly tide calendar for Point Roberts, WA</figcaption>
         </figure>
+
+        <section class="card map-card">
+            <h2>Find a station on the map</h2>
+            <p class="section-subtitle">Click a pin, then "Use this station" to fill the form below. The country filter zooms the map.</p>
+            <div id="station-map" aria-label="Map of available tide stations"></div>
+        </section>
 
         <section class="card form-card">
             <h2>Generate tide calendars for USA and Canadian stations</h2>
@@ -135,6 +146,9 @@
 {% endblock %}
 
 {% block scripts %}
+    <script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/leaflet/leaflet.markercluster.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/station_map.js') }}" defer></script>
     <script>
         // Get current date
         const currentDate = new Date();
@@ -187,6 +201,11 @@
 
                     // Reload popular stations for the selected country
                     reloadPopularStations();
+
+                    // Re-fit / filter the station map to the selected country
+                    if (window.tideMap) {
+                        window.tideMap.showCountry(selectedCountry);
+                    }
 
                     // Track country selection
                     if (window.plausible) {

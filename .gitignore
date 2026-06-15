@@ -33,3 +33,9 @@ tide_calendar*.ps
 app/version_info.json
 
 .worktale/
+
+# Superpowers visual-brainstorm scratch (not for commit)
+.superpowers/
+
+# Playwright MCP scratch
+.playwright-mcp/
