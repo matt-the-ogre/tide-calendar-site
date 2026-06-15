@@ -11,7 +11,7 @@ from app.calendar_service import get_or_generate_pdf
 from app.database import (get_popular_stations, get_place_name_by_station_id,
                           get_station_id_by_place_name, search_stations_by_country,
                           get_popular_stations_by_country, log_usage_event,
-                          get_usage_stats)
+                          get_usage_stats, get_stations_with_coordinates, stations_to_geojson)
 
 # Top stations count configuration
 TOP_STATIONS_COUNT = int(os.getenv('TOP_STATIONS_COUNT', '10'))
@@ -147,6 +147,23 @@ def api_popular_stations():
     except Exception as e:
         logging.error(f"Error in popular stations API: {e}")
         return jsonify([]), 500
+
+
+_stations_geojson_cache = None
+
+
+@app.route('/api/stations.geojson')
+def api_stations_geojson():
+    """GeoJSON FeatureCollection of all selectable stations that have coordinates.
+
+    Memoized in-process: the station set is static per container. Only stations
+    present in the directory appear, so a pin click can never hit an unknown
+    station.
+    """
+    global _stations_geojson_cache
+    if _stations_geojson_cache is None:
+        _stations_geojson_cache = stations_to_geojson(get_stations_with_coordinates())
+    return jsonify(_stations_geojson_cache)
 
 
 @app.route('/api/generate_quick', methods=['POST'])
