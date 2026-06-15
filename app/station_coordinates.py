@@ -8,6 +8,8 @@ no network call) when nothing is missing. Always non-fatal.
 import logging
 import sqlite3
 
+import requests
+
 # Dual import so this works both as the `app` package (flask/gunicorn) and as a
 # top-level sibling module under `cd app && python -m unittest`. Reference
 # database.DB_PATH dynamically (NOT `from ... import DB_PATH`) so tests that
@@ -17,15 +19,28 @@ try:
 except ImportError:
     import database
 
+NOAA_URL = ('https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/'
+            'stations.json?type=tidepredictions')
 
-def _default_fetcher(url=None):
-    # Imported lazily; runtime (run.py) executes from the repo root where the
-    # `scripts` package is importable. Dual path keeps it robust.
-    try:
-        from scripts.fetch_noaa_coordinates import fetch_noaa_coordinates
-    except ImportError:
-        from fetch_noaa_coordinates import fetch_noaa_coordinates
-    return fetch_noaa_coordinates()
+
+def fetch_noaa_coordinates(url=NOAA_URL):
+    """Return {station_id: {'lat': float, 'lng': float}} from the NOAA MDAPI.
+
+    Inlined here (NOT imported from scripts/) on purpose: scripts/ is excluded
+    from the Docker image (.dockerignore), so a runtime import of the script
+    would raise ModuleNotFoundError in production. This module ships in the
+    image, so the fetch must live here. scripts/fetch_noaa_coordinates.py keeps
+    its own copy for the offline maintenance/CSV-baking workflow.
+    """
+    resp = requests.get(url, timeout=30,
+                        headers={'User-Agent': 'tidecalendar.xyz coordinate sync'})
+    resp.raise_for_status()
+    out = {}
+    for s in resp.json().get('stations', []):
+        sid, lat, lng = s.get('id'), s.get('lat'), s.get('lng')
+        if sid is not None and lat is not None and lng is not None:
+            out[str(sid)] = {'lat': float(lat), 'lng': float(lng)}
+    return out
 
 
 def _missing_station_ids():
@@ -37,7 +52,7 @@ def _missing_station_ids():
     return [r[0] for r in rows]
 
 
-def backfill_missing_coordinates(fetcher=_default_fetcher):
+def backfill_missing_coordinates(fetcher=fetch_noaa_coordinates):
     """Fill NULL coordinates for US stations. Returns the number updated."""
     try:
         missing = _missing_station_ids()

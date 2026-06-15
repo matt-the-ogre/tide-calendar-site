@@ -163,7 +163,11 @@ def api_stations_geojson():
     global _stations_geojson_cache
     if _stations_geojson_cache is None:
         _stations_geojson_cache = stations_to_geojson(get_stations_with_coordinates())
-    return jsonify(_stations_geojson_cache)
+    response = jsonify(_stations_geojson_cache)
+    # The station set is static per container; let browsers/proxies cache it so
+    # the ~600 KB payload isn't refetched on every homepage visit.
+    response.headers['Cache-Control'] = 'public, max-age=86400'
+    return response
 
 
 @app.route('/api/generate_quick', methods=['POST'])

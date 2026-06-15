@@ -122,5 +122,41 @@ class StationsToGeojsonTest(unittest.TestCase):
                          {'type': 'FeatureCollection', 'features': []})
 
 
+class FetchNoaaCoordinatesTest(unittest.TestCase):
+    """The fetch must live in the shipped module (scripts/ is excluded from the
+    Docker image), so verify station_coordinates.fetch_noaa_coordinates is
+    self-contained and parses the NOAA payload — this guards the production
+    backfill path that a warm-DB deploy depends on."""
+
+    def test_parses_payload_without_importing_scripts(self):
+        import unittest.mock as mock
+        import station_coordinates
+
+        class FakeResp:
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {'stations': [
+                    {'id': '9449639', 'lat': 48.97, 'lng': -123.07},
+                    {'id': '0000000', 'lat': None, 'lng': None},  # skipped
+                ]}
+
+        with mock.patch.object(station_coordinates.requests, 'get',
+                               return_value=FakeResp()) as getter:
+            coords = station_coordinates.fetch_noaa_coordinates()
+        self.assertTrue(getter.called)
+        self.assertEqual(coords, {'9449639': {'lat': 48.97, 'lng': -123.07}})
+
+    def test_default_fetcher_is_the_inlined_fetch(self):
+        # The default fetcher must be the in-module fetch, not a scripts/ import
+        # (regression guard for the warm-DB production backfill bug).
+        import inspect
+        import station_coordinates
+        sig = inspect.signature(station_coordinates.backfill_missing_coordinates)
+        self.assertIs(sig.parameters['fetcher'].default,
+                      station_coordinates.fetch_noaa_coordinates)
+
+
 if __name__ == '__main__':
     unittest.main()
