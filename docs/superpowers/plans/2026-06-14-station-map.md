@@ -549,17 +549,28 @@ no network call) when nothing is missing. Always non-fatal.
 import logging
 import sqlite3
 
-from app.database import DB_PATH
+# Dual import so this works both as the `app` package (flask/gunicorn) and as a
+# top-level sibling module under `cd app && python -m unittest`. Reference
+# database.DB_PATH dynamically (NOT `from ... import DB_PATH`) so tests that
+# reassign database.DB_PATH are honored.
+try:
+    import app.database as database
+except ImportError:
+    import database
 
 
 def _default_fetcher(url=None):
-    # Imported lazily so the script's requests dependency isn't required unless used.
-    from scripts.fetch_noaa_coordinates import fetch_noaa_coordinates
+    # Imported lazily; runtime (run.py) executes from the repo root where the
+    # `scripts` package is importable. Dual path keeps it robust.
+    try:
+        from scripts.fetch_noaa_coordinates import fetch_noaa_coordinates
+    except ImportError:
+        from fetch_noaa_coordinates import fetch_noaa_coordinates
     return fetch_noaa_coordinates()
 
 
 def _missing_station_ids():
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(database.DB_PATH) as conn:
         rows = conn.execute(
             "SELECT station_id FROM tide_station_ids "
             "WHERE country = 'USA' AND (latitude IS NULL OR longitude IS NULL)"
@@ -580,7 +591,7 @@ def backfill_missing_coordinates(fetcher=_default_fetcher):
             logging.warning("Coordinate backfill: NOAA returned no coordinates")
             return 0
         updated = 0
-        with sqlite3.connect(DB_PATH) as conn:
+        with sqlite3.connect(database.DB_PATH) as conn:
             for sid in missing:
                 c = coords.get(sid)
                 if c:
@@ -629,55 +640,72 @@ git commit -m "Backfill missing US coordinates at startup (one NOAA call, non-fa
 ## Task 7: `/api/stations.geojson` route
 
 **Files:**
-- Modify: `app/routes.py` (import + new route)
+- Modify: `app/database.py` (add pure `stations_to_geojson` transform)
+- Modify: `app/routes.py` (import + new thin, memoized route)
 - Test: `app/test_station_map.py`
 
-Serve a memoized GeoJSON FeatureCollection of all coord-bearing stations.
+The repo has no route tests and `routes.py` hard-imports `from app import app` (won't
+import under `cd app && python -m unittest`). So we keep the GeoJSON *construction* in a
+pure, DB-free helper in `database.py` and unit-test that; the route is a thin
+memoized wrapper exercised by Playwright (Task 11).
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing test (pure transform)**
 
 ```python
-class GeoJsonRouteTest(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.NamedTemporaryFile(suffix='.db', delete=False)
-        self.tmp.close()
-        database.DB_PATH = self.tmp.name
-        database.init_database()
-        import sqlite3
-        with sqlite3.connect(database.DB_PATH) as conn:
-            conn.execute("INSERT INTO tide_station_ids (station_id, place_name, country, latitude, longitude) "
-                         "VALUES ('9449639','Point Roberts, WA','USA',48.97,-123.07)")
-            conn.commit()
-        import routes
-        routes._stations_geojson_cache = None  # reset memoization
-        self.client = routes.app.test_client()
-
-    def tearDown(self):
-        os.unlink(self.tmp.name)
-
-    def test_returns_feature_collection(self):
-        resp = self.client.get('/api/stations.geojson')
-        self.assertEqual(resp.status_code, 200)
-        data = resp.get_json()
-        self.assertEqual(data['type'], 'FeatureCollection')
-        self.assertEqual(len(data['features']), 1)
-        f = data['features'][0]
+class StationsToGeojsonTest(unittest.TestCase):
+    def test_builds_feature_collection(self):
+        stations = [{'station_id': '9449639', 'name': 'Point Roberts, WA',
+                     'country': 'USA', 'latitude': 48.97, 'longitude': -123.07}]
+        geo = database.stations_to_geojson(stations)
+        self.assertEqual(geo['type'], 'FeatureCollection')
+        self.assertEqual(len(geo['features']), 1)
+        f = geo['features'][0]
+        self.assertEqual(f['type'], 'Feature')
         self.assertEqual(f['geometry']['type'], 'Point')
         self.assertEqual(f['geometry']['coordinates'], [-123.07, 48.97])  # [lng, lat]
         self.assertEqual(f['properties']['station_id'], '9449639')
+        self.assertEqual(f['properties']['name'], 'Point Roberts, WA')
         self.assertEqual(f['properties']['country'], 'USA')
-```
 
-Note: `app/test_station_map.py` already imports `database`; add `import routes` inside this test's setUp (routes imports the app). Ensure tests set `DB_PATH` before importing `routes` — since `routes`→`database` is already imported module-level by earlier tests, reset `database.DB_PATH` in setUp (done) and rely on `get_stations_with_coordinates()` reading the current `database.DB_PATH` at call time (it does).
+    def test_empty(self):
+        self.assertEqual(database.stations_to_geojson([]),
+                         {'type': 'FeatureCollection', 'features': []})
+```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd app && python -m unittest test_station_map.GeoJsonRouteTest -v`
-Expected: FAIL — 404 (route not defined).
+Run: `cd app && python -m unittest test_station_map.StationsToGeojsonTest -v`
+Expected: FAIL — `AttributeError: ... 'stations_to_geojson'`.
 
-- [ ] **Step 3: Implement the route**
+- [ ] **Step 3: Implement the pure helper in `database.py`** (next to `get_stations_with_coordinates`):
 
-In `app/routes.py`, add `get_stations_with_coordinates` to the `from app.database import (...)` block, and add:
+```python
+def stations_to_geojson(stations):
+    """Convert station dicts (from get_stations_with_coordinates) to a GeoJSON
+    FeatureCollection. Pure transform — no DB access — so it's trivially testable.
+    """
+    return {
+        'type': 'FeatureCollection',
+        'features': [{
+            'type': 'Feature',
+            'geometry': {'type': 'Point', 'coordinates': [s['longitude'], s['latitude']]},
+            'properties': {
+                'station_id': s['station_id'],
+                'name': s['name'],
+                'country': s['country'],
+            },
+        } for s in stations],
+    }
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `cd app && python -m unittest test_station_map.StationsToGeojsonTest -v`
+Expected: PASS (2 tests).
+
+- [ ] **Step 5: Add the thin, memoized route in `app/routes.py`**
+
+Add `get_stations_with_coordinates, stations_to_geojson` to the `from app.database import (...)` block, then add:
 
 ```python
 _stations_geojson_cache = None
@@ -693,29 +721,17 @@ def api_stations_geojson():
     """
     global _stations_geojson_cache
     if _stations_geojson_cache is None:
-        features = [{
-            'type': 'Feature',
-            'geometry': {'type': 'Point', 'coordinates': [s['longitude'], s['latitude']]},
-            'properties': {
-                'station_id': s['station_id'],
-                'name': s['name'],
-                'country': s['country'],
-            },
-        } for s in get_stations_with_coordinates()]
-        _stations_geojson_cache = {'type': 'FeatureCollection', 'features': features}
+        _stations_geojson_cache = stations_to_geojson(get_stations_with_coordinates())
     return jsonify(_stations_geojson_cache)
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 6: Manual route check + commit**
 
-Run: `cd app && python -m unittest test_station_map.GeoJsonRouteTest -v`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
+Run (from repo root, with the app importable): start the app and `curl -s localhost:5001/api/stations.geojson | head -c 200` — expect `{"type":"FeatureCollection",...}`. (This is also covered by Playwright in Task 11.)
 
 ```bash
-git add app/routes.py app/test_station_map.py
-git commit -m "Add /api/stations.geojson endpoint (memoized)"
+git add app/database.py app/routes.py app/test_station_map.py
+git commit -m "Add /api/stations.geojson endpoint (pure transform + memoized route)"
 ```
 
 ---
