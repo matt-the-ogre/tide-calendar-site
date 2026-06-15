@@ -202,6 +202,11 @@
                     // Reload popular stations for the selected country
                     reloadPopularStations();
 
+                    // Re-fit / filter the station map to the selected country
+                    if (window.tideMap) {
+                        window.tideMap.showCountry(selectedCountry);
+                    }
+
                     // Track country selection
                     if (window.plausible) {
                         plausible('Country Filter Changed', {
