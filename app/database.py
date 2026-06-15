@@ -368,6 +368,51 @@ def get_station_info(station_id):
         logging.error(f"Database error getting station info for {station_id}: {e}")
         return None
 
+def get_stations_with_coordinates():
+    """Return all stations that have non-NULL coordinates, for the map.
+
+    Shape: [{'station_id', 'name', 'country', 'latitude', 'longitude'}].
+    'name' uses the combined display label so the popup matches the autocomplete.
+    """
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            rows = cursor.execute('''
+                SELECT station_id, place_name, country, latitude, longitude, alternative_name, province
+                FROM tide_station_ids
+                WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+                  AND place_name IS NOT NULL
+            ''').fetchall()
+            return [{
+                'station_id': r[0],
+                'name': format_display_name(r[1], r[5], r[6]),
+                'country': r[2] or 'USA',
+                'latitude': r[3],
+                'longitude': r[4],
+            } for r in rows]
+    except sqlite3.Error as e:
+        logging.error(f"Database error getting stations with coordinates: {e}")
+        return []
+
+
+def stations_to_geojson(stations):
+    """Convert station dicts (from get_stations_with_coordinates) to a GeoJSON
+    FeatureCollection. Pure transform — no DB access — so it's trivially testable.
+    """
+    return {
+        'type': 'FeatureCollection',
+        'features': [{
+            'type': 'Feature',
+            'geometry': {'type': 'Point', 'coordinates': [s['longitude'], s['latitude']]},
+            'properties': {
+                'station_id': s['station_id'],
+                'name': s['name'],
+                'country': s['country'],
+            },
+        } for s in stations],
+    }
+
+
 def import_canadian_stations_from_csv():
     """Import Canadian tide station data from the static CSV and remove Canadian
     stations not in the CSV.
