@@ -36,3 +36,6 @@ app/version_info.json
 
 # Superpowers visual-brainstorm scratch (not for commit)
 .superpowers/
+
+# Playwright MCP scratch
+.playwright-mcp/
