@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Updates app/static/tide-calendar-example.webp with next month's calendar
+# Updates app/static/tide-calendar-example.webp with the current month's calendar
 # for Point Roberts, WA (station 9449639).
 #
 # Usage: ./scripts/update_example_image.sh
@@ -24,15 +24,15 @@ OUTPUT_IMAGE="$STATIC_DIR/tide-calendar-example.webp"
 STATION_ID="9449639"  # Point Roberts, WA
 LOCATION_NAME="Point Roberts, WA"
 
-# Calculate next month's year and month
-NEXT_MONTH=$(date -v+1m +%m 2>/dev/null || date -d "+1 month" +%m)
-NEXT_YEAR=$(date -v+1m +%Y 2>/dev/null || date -d "+1 month" +%Y)
+# Calculate the current month's year and month
+CUR_MONTH=$(date +%m)
+CUR_YEAR=$(date +%Y)
 # Remove leading zero for the app
-MONTH_NUM=$((10#$NEXT_MONTH))
+MONTH_NUM=$((10#$CUR_MONTH))
 
 echo "Generating tide calendar for $LOCATION_NAME"
 echo "  Station: $STATION_ID"
-echo "  Month: $MONTH_NUM/$NEXT_YEAR"
+echo "  Month: $MONTH_NUM/$CUR_YEAR"
 echo ""
 
 # Activate venv if present
@@ -45,14 +45,14 @@ echo "Generating PDF..."
 cd "$PROJECT_ROOT"
 PYTHONPATH="$APP_DIR" python "$APP_DIR/get_tides.py" \
     --station_id "$STATION_ID" \
-    --year "$NEXT_YEAR" \
+    --year "$CUR_YEAR" \
     --month "$MONTH_NUM" \
     --location_name "$LOCATION_NAME" \
     --skip_logging
 
 # Find the generated PDF
 PDF_DIR="${PDF_OUTPUT_DIR:-$APP_DIR/calendars}"
-PDF_FILE="$PDF_DIR/tide_calendar_Point_Roberts_WA_${NEXT_YEAR}_$(printf '%02d' $MONTH_NUM).pdf"
+PDF_FILE="$PDF_DIR/tide_calendar_Point_Roberts_WA_${CUR_YEAR}_$(printf '%02d' $MONTH_NUM).pdf"
 
 if [ ! -s "$PDF_FILE" ]; then
     echo "ERROR: PDF was not generated at $PDF_FILE"
@@ -73,4 +73,4 @@ rm -f "$PDF_FILE"
 echo "Cleaned up: $PDF_FILE"
 
 echo ""
-echo "Done! Example image updated for $(date -v+1m +"%B %Y" 2>/dev/null || date -d '+1 month' +"%B %Y")."
+echo "Done! Example image updated for $(date +"%B %Y")."
