@@ -1,0 +1,102 @@
+name: Update Example Calendar Image
+
+# Regenerates app/static/tide-calendar-example.webp for the CURRENT month and
+# ships it to production, then keeps development in sync.
+#
+# Scheduled workflows only run from the default branch (main), so this file must
+# live on main to fire on its cron.
+
+on:
+  schedule:
+    # 00:00 UTC (GMT) on the 1st of every month.
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Generate + validate only; do NOT commit or push'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+# Never let two runs push concurrently.
+concurrency:
+  group: update-example-image
+  cancel-in-progress: false
+
+jobs:
+  update-image:
+    name: Regenerate example image (current month, UTC)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0  # full history so we can back-merge into development
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # Match the Dockerfile base image (python:3.12-slim-bookworm).
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install PDF/image toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pcal ghostscript imagemagick
+          # update_example_image.sh calls `magick` (ImageMagick 7); Ubuntu ships
+          # ImageMagick 6, whose binary is `convert`. Shim it so the script's
+          # dependency check and command work unchanged (same arg syntax).
+          command -v magick >/dev/null 2>&1 || sudo ln -s "$(command -v convert)" /usr/local/bin/magick
+          # Ubuntu's ImageMagick disables PDF reading by default (a Ghostscript
+          # CVE policy), which would break PDF -> WebP. Re-enable it.
+          sudo sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/' /etc/ImageMagick-*/policy.xml || true
+
+      - name: Regenerate example image for the current month
+        run: ./scripts/update_example_image.sh
+
+      - name: Validate the generated image
+        run: |
+          set -euo pipefail
+          IMG=app/static/tide-calendar-example.webp
+          test -s "$IMG" || { echo "::error::Image missing or empty"; exit 1; }
+          BYTES=$(wc -c < "$IMG")
+          echo "Generated $IMG ($BYTES bytes)"
+          [ "$BYTES" -ge 10000 ] || { echo "::error::Image suspiciously small ($BYTES bytes)"; exit 1; }
+          identify "$IMG" | grep -qi 'WEBP' || { echo "::error::Not a valid WebP"; exit 1; }
+
+      - name: Commit to main (prod) and back-merge into development
+        # Scheduled runs always publish. Manual runs publish only when explicitly
+        # opted in (dry_run=false), so a test dispatch never touches production.
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- app/static/tide-calendar-example.webp; then
+            echo "No change to the example image; nothing to publish."
+            exit 0
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          MONTH=$(date -u +'%B %Y')
+
+          # 1) Publish to main -> triggers the production (tidecalendar.xyz) deploy.
+          git add app/static/tide-calendar-example.webp
+          git commit -m "chore: auto-update example calendar image for ${MONTH}"
+          git push origin main
+
+          # 2) Back-merge main into development so it never falls behind main and
+          #    new work always starts from an up-to-date development. The merge is
+          #    clean because development never modifies the webp itself.
+          git fetch origin development
+          git checkout -B development origin/development
+          git merge --no-edit main
+          git push origin development
