@@ -124,7 +124,7 @@ ANALYTICS_TOKEN=<random-string>  # gates /admin/analytics dashboard
 │   └── canadian_station_provinces.csv  # Authoritative code→province map (gen: scripts/fetch_canadian_provinces.py)
 ├── scripts/               # Development and maintenance scripts (NOT deployed)
 │   ├── validate_tide_stations.py    # Validate CSV stations against NOAA API
-│   ├── update_example_image.sh      # Monthly update of example calendar image
+│   ├── update_example_image.sh      # Example calendar image (current month); auto-run monthly by .github/workflows/update-example-image.yml
 │   ├── fetch_canadian_provinces.py  # Build authoritative code→province map from CHS /metadata
 │   ├── generate_canadian_fallback_csv.py  # Snapshot full live import to the fallback CSV
 │   └── test_canadian_import.py      # Test Canadian station imports
@@ -248,6 +248,21 @@ hard dependency on a live API. Canadian coordinates already live in
 
 **When to run**: whenever new US stations are added to the CSV (so they get map pins).
 The output CSV must stay listed in the Dockerfile `COPY` lines.
+
+#### Example Calendar Image (automated monthly)
+`scripts/update_example_image.sh` regenerates `app/static/tide-calendar-example.webp`
+with the **current** month's calendar for Point Roberts, WA (station 9449639), using
+pcal → ps2pdf → ImageMagick. You can run it manually, but it normally runs **on its own**:
+
+- **Workflow**: `.github/workflows/update-example-image.yml`, cron `0 0 1 * *`
+  (00:00 UTC on the 1st of each month). Scheduled workflows only fire from the default
+  branch, so the workflow must live on `main`.
+- Each run regenerates + validates the image, **commits to `main`** (→ production deploy),
+  then **back-merges `main` into `development`** so `development` never falls behind.
+- Manual `workflow_dispatch` runs default to **`dry_run=true`** (generate + validate only,
+  no push); set `dry_run=false` to publish.
+- Runner note: Ubuntu ships ImageMagick 6 (`convert`, not `magick`) and disables PDF
+  reading by default — the workflow shims `magick`→`convert` and relaxes the PDF policy.
 
 ### Running Tests
 ```bash
