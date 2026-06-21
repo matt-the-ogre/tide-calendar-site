@@ -86,7 +86,7 @@ def localize_and_filter_csv(csv_data, api_source, iana_tz, year, month):
         if tz is None:
             local = naive
         else:
-            local = naive.replace(tzinfo=_utc).astimezone(tz)
+            local = naive.replace(tzinfo=_utc.utc).astimezone(tz)
         if local.year == year and local.month == month:
             out.append(f"{local.strftime('%Y-%m-%d %H:%M')},{value},{ttype}")
     return '\n'.join(out)
