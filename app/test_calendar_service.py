@@ -246,5 +246,42 @@ class CleanupUnitSuffixTest(unittest.TestCase):
             self.assertTrue(os.path.exists(future))  # future month kept
 
 
+class TestIsJunkStationId(unittest.TestCase):
+    """All-zeros IDs are syntactically valid but meaningless — almost entirely
+    bot/probe traffic. They're short-circuited before the directory lookup."""
+
+    def test_all_zeros_is_junk(self):
+        self.assertTrue(calendar_service.is_junk_station_id('00000'))
+        self.assertTrue(calendar_service.is_junk_station_id('0000000'))
+        self.assertTrue(calendar_service.is_junk_station_id('0'))
+
+    def test_real_ids_not_junk(self):
+        self.assertFalse(calendar_service.is_junk_station_id('9449639'))
+        self.assertFalse(calendar_service.is_junk_station_id('07837'))
+
+    def test_non_digit_or_empty_not_junk(self):
+        self.assertFalse(calendar_service.is_junk_station_id(''))
+        self.assertFalse(calendar_service.is_junk_station_id(None))
+        self.assertFalse(calendar_service.is_junk_station_id('abc'))
+        self.assertFalse(calendar_service.is_junk_station_id('00a00'))
+
+
+class TestJunkStationRejected(unittest.TestCase):
+    def test_get_or_generate_pdf_rejects_junk_before_lookup(self):
+        with mock.patch.object(calendar_service, 'log_usage_event') as log_event, \
+             mock.patch.object(calendar_service, 'get_station_info') as get_info:
+            result = get_or_generate_pdf('00000', 2026, 6, source='quick_api')
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error_code, 'junk_station_id')
+        # Short-circuited before any directory work.
+        get_info.assert_not_called()
+        # Logged as 'rejected' (a non-error status), not 'error'.
+        log_event.assert_called_once()
+        args = log_event.call_args[0]
+        self.assertIn('rejected', args)
+        self.assertIn('junk_station_id', args)
+
+
 if __name__ == '__main__':
     unittest.main()

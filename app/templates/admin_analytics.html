@@ -20,6 +20,7 @@
         tr:hover td { background: #fafafa; }
         .status-success { color: #087443; font-weight: 500; }
         .status-error { color: #b42318; font-weight: 500; }
+        .status-rejected { color: #8a6d00; font-weight: 500; }
         .error-detail { font-family: ui-monospace, monospace; font-size: 0.8rem; color: #666; }
         .banner-error { background: #fdecec; border: 1px solid #f1b5b5; border-radius: 6px; padding: 0.8rem 1rem; margin: 1rem 0; color: #8a1f1f; }
         .banner-error code { background: rgba(0,0,0,0.05); padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.85em; }
@@ -42,7 +43,9 @@
         <div class="card"><div class="label">Last 7d</div><div class="value">{{ stats.last_7d }}</div></div>
         <div class="card"><div class="label">Last 30d</div><div class="value">{{ stats.last_30d }}</div></div>
         <div class="card"><div class="label">Success</div><div class="value">{{ stats.success_count }}</div></div>
-        <div class="card"><div class="label">Errors</div><div class="value">{{ stats.error_count }}</div></div>
+        <div class="card"><div class="label">Errors (4xx client)</div><div class="value">{{ stats.client_error_count }}</div></div>
+        <div class="card"><div class="label">Errors (5xx server)</div><div class="value">{{ stats.server_error_count }}</div></div>
+        <div class="card"><div class="label">Rejected (junk)</div><div class="value">{{ stats.rejected_count }}</div></div>
         <div class="card"><div class="label">Web form</div><div class="value">{{ stats.web_count }}</div></div>
         <div class="card"><div class="label">Quick API</div><div class="value">{{ stats.quick_api_count }}</div></div>
     </div>

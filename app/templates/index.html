@@ -317,6 +317,15 @@
 
         // Track form submission with station details
         document.getElementById('tide_form').addEventListener('submit', function(e) {
+            // If the user typed a bare station ID into the search box without
+            // picking from the autocomplete, promote it to the hidden field so
+            // the server resolves it directly (and analytics gets the real ID).
+            const hiddenId = document.getElementById('station_id');
+            const searchRaw = document.getElementById('station_search').value.trim();
+            if (!hiddenId.value && /^\d+$/.test(searchRaw)) {
+                hiddenId.value = searchRaw;
+            }
+
             const stationId = document.getElementById('station_id').value;
             const stationSearch = document.getElementById('station_search').value;
             const year = document.getElementById('year').value;
