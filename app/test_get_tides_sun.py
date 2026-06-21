@@ -10,7 +10,8 @@ class PcalSunLineTest(unittest.TestCase):
             path = os.path.join(d, 'events.txt')
             get_tides.convert_tide_data_to_pcal(csv_data, path, location_name='Test',
                                                 sun_times=sun)
-            text = open(path).read()
+            with open(path) as f:
+                text = f.read()
         self.assertIn('6/15  Rise 05:14  Set 21:09', text)
         self.assertLess(text.index('Rise 05:14'), text.index('05:23 High'))
 
@@ -19,7 +20,8 @@ class PcalSunLineTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, 'events.txt')
             get_tides.convert_tide_data_to_pcal(csv_data, path, location_name='Test')
-            text = open(path).read()
+            with open(path) as f:
+                text = f.read()
         self.assertNotIn('Rise', text)
         self.assertIn('05:23 High', text)
 

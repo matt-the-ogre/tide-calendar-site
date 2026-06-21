@@ -187,6 +187,14 @@ def generate_calendar(station_id, year, month, output_path, location_name=None):
     lat = station_info.get('latitude')
     lng = station_info.get('longitude')
 
+    # A CHS station with no timezone can't be localized: tide times would silently
+    # stay in UTC and no sun line would be drawn. Surface it so it's diagnosable
+    # (the fix is to re-run scripts/fetch_station_timezones.py for the new station).
+    if (api_source or '').upper() == 'CHS' and not iana_tz:
+        logging.warning(
+            "CHS station %s has no timezone; tide times will render in UTC and "
+            "no sunrise/sunset line will be shown", station_id)
+
     csv_data = download_tide_data(station_id, year, month)
     # CHS times are UTC -> convert to the station's local zone and trim to the
     # local month (NOAA passes through unchanged).

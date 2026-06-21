@@ -503,6 +503,32 @@ class CHSPaddingTest(unittest.TestCase):
         self.assertEqual(captured['params']['from'], '2026-05-31T00:00:00Z')
         self.assertEqual(captured['params']['to'], '2026-07-01T23:59:59Z')
 
+    def test_padding_crosses_year_boundaries(self):
+        import tide_adapters
+        from unittest import mock
+        captured = {}
+
+        class FakeResp:
+            status_code = 200
+            text = '[]'
+        def fake_get(url, params=None, headers=None, timeout=None):
+            if url.endswith('/data'):
+                captured['params'] = params
+            return FakeResp()
+
+        a = tide_adapters.CHSAdapter()
+        with mock.patch.object(a, '_lookup_station_uuid', return_value='uuid'), \
+             mock.patch('tide_adapters.requests.get', side_effect=fake_get):
+            a.get_predictions('07735', 2026, 1)   # January -> pad into prior Dec
+        self.assertEqual(captured['params']['from'], '2025-12-31T00:00:00Z')
+        self.assertEqual(captured['params']['to'], '2026-02-01T23:59:59Z')
+
+        with mock.patch.object(a, '_lookup_station_uuid', return_value='uuid'), \
+             mock.patch('tide_adapters.requests.get', side_effect=fake_get):
+            a.get_predictions('07735', 2026, 12)  # December -> pad into next Jan
+        self.assertEqual(captured['params']['from'], '2026-11-30T00:00:00Z')
+        self.assertEqual(captured['params']['to'], '2027-01-01T23:59:59Z')
+
 
 if __name__ == '__main__':
     import sys
