@@ -61,6 +61,7 @@ COPY app/tide_adapters.py /app/
 COPY app/canadian_station_sync.py /app/
 COPY app/station_coordinates.py /app/
 COPY app/sun_times.py /app/
+COPY app/tide_extremes.py /app/
 
 # Templates and static assets
 COPY app/templates/ /app/templates/

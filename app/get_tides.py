@@ -25,6 +25,11 @@ try:
 except ImportError:
     from sun_times import sun_times_for_month, format_sun_line, localize_and_filter_csv
 
+try:
+    from app.tide_extremes import top_extreme_tides, format_extreme_rows
+except ImportError:
+    from tide_extremes import top_extreme_tides, format_extreme_rows
+
 # Per-invocation timeout for each external tool (pcal, ps2pdf)
 SUBPROCESS_TIMEOUT = 60
 
@@ -73,7 +78,19 @@ def download_tide_data(station_id, year, month):
     return csv_data
 
 
-def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, station_id=None, sun_times=None):
+def _write_extreme_note(pcal_file, box, title, entries, empty_msg):
+    """Write a stacked pcal note table into the given empty-cell box."""
+    pcal_file.write(f"note/{box} all {title}\n")
+    rows = format_extreme_rows(entries)
+    if rows:
+        for row in rows:
+            pcal_file.write(f"note/{box} all {row}\n")
+    else:
+        pcal_file.write(f"note/{box} all {empty_msg}\n")
+
+
+def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, station_id=None,
+                              sun_times=None, high_tides=None, low_tides=None):
     """Convert tide CSV text to a pcal custom dates file.
 
     sun_times: optional {day:int -> ("HH:MM","HH:MM") | note str} from
@@ -157,6 +174,14 @@ def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, stati
 
         pcal_file.write("\n")
 
+        # Daylight extreme-tide tables in unused cells (note/2, note/3).
+        if high_tides is not None:
+            _write_extreme_note(pcal_file, 2, "Top 5 High Tides (daylight)",
+                                high_tides, "No daylight high tides")
+        if low_tides is not None:
+            _write_extreme_note(pcal_file, 3, "Top 5 Low Tides (daylight)",
+                                low_tides, "No daylight low tides")
+
         # Tide station note shown on the calendar page
         if location_name:
             pcal_file.write(f"note/1 all Tide Station: {location_name}\n")
@@ -201,6 +226,14 @@ def generate_calendar(station_id, year, month, output_path, location_name=None):
     csv_data = localize_and_filter_csv(csv_data, api_source, iana_tz, year, month)
     sun = sun_times_for_month(lat, lng, iana_tz, year, month)
 
+    # Top-5 daylight high/low tables (only when we have a timezone AND coordinates
+    # to define the daylight window; otherwise skip — omitting the tables rather
+    # than showing a misleading "no daylight tides" cell, like the sun line).
+    if iana_tz and lat is not None and lng is not None:
+        high_tides, low_tides = top_extreme_tides(csv_data, lat, lng, iana_tz, year, month)
+    else:
+        high_tides, low_tides = None, None
+
     os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
     tmp_pdf = f"{output_path}.tmp.{os.getpid()}.{threading.get_ident()}"
 
@@ -212,7 +245,9 @@ def generate_calendar(station_id, year, month, output_path, location_name=None):
             convert_tide_data_to_pcal(csv_data, pcal_path,
                                       location_name=location_name,
                                       station_id=station_id,
-                                      sun_times=sun)
+                                      sun_times=sun,
+                                      high_tides=high_tides,
+                                      low_tides=low_tides)
 
             _run_tool(["pcal", "-f", pcal_path, "-o", ps_path,
                        "-s", "0.0:0.0:1.0", "-n", "Helvetica-Narrow/9",
