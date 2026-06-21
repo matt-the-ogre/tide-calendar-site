@@ -2,6 +2,7 @@ import sqlite3
 import logging
 import os
 import csv
+import re
 import unicodedata
 from pathlib import Path
 
@@ -11,6 +12,16 @@ APP_DIR = Path(__file__).parent.resolve()
 # Default to app directory if DB_PATH not set, allows production override to /data
 DEFAULT_DB_PATH = str(APP_DIR / 'tide_station_ids.db')
 DB_PATH = os.getenv('DB_PATH', DEFAULT_DB_PATH)
+
+# error_detail values attributable to the CALLER (4xx-style: bad input, bot
+# probes, unknown stations) vs. our own failures (everything else with
+# status='error' — no_predictions, generation_failed, exception, legacy
+# pdf_missing). get_usage_stats splits the error metric along this line so that
+# bot/probe traffic can't masquerade as a server outage. 'rejected' is a
+# separate status entirely (junk short-circuited before any work) and counts as
+# neither success nor error.
+CLIENT_ERROR_DETAILS = ('unknown_station', 'station_not_found', 'no_station',
+                        'invalid_input', 'junk_station_id')
 
 
 def _migrate_columns(cursor, table, columns_ddl):
@@ -117,18 +128,27 @@ def get_usage_stats(recent_limit=50, top_limit=10):
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
-            totals = cursor.execute('''
+            # The client/server split keys off a fixed constant set, inlined as
+            # ? placeholders (never user input — but parameterized for hygiene).
+            client_placeholders = ','.join('?' * len(CLIENT_ERROR_DETAILS))
+            totals = cursor.execute(f'''
                 SELECT
                     COUNT(*) AS total,
                     SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS success_count,
                     SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) AS error_count,
+                    SUM(CASE WHEN status = 'error' AND error_detail IN ({client_placeholders})
+                             THEN 1 ELSE 0 END) AS client_error_count,
+                    SUM(CASE WHEN status = 'error' AND (error_detail IS NULL
+                             OR error_detail NOT IN ({client_placeholders}))
+                             THEN 1 ELSE 0 END) AS server_error_count,
+                    SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected_count,
                     SUM(CASE WHEN timestamp >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS last_24h,
                     SUM(CASE WHEN timestamp >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS last_7d,
                     SUM(CASE WHEN timestamp >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS last_30d,
                     SUM(CASE WHEN source = 'web' THEN 1 ELSE 0 END) AS web_count,
                     SUM(CASE WHEN source = 'quick_api' THEN 1 ELSE 0 END) AS quick_api_count
                 FROM usage_events
-            ''').fetchone()
+            ''', CLIENT_ERROR_DETAILS + CLIENT_ERROR_DETAILS).fetchone()
 
             top_stations = cursor.execute('''
                 SELECT
@@ -154,6 +174,9 @@ def get_usage_stats(recent_limit=50, top_limit=10):
                 'total': totals['total'] or 0,
                 'success_count': totals['success_count'] or 0,
                 'error_count': totals['error_count'] or 0,
+                'client_error_count': totals['client_error_count'] or 0,
+                'server_error_count': totals['server_error_count'] or 0,
+                'rejected_count': totals['rejected_count'] or 0,
                 'last_24h': totals['last_24h'] or 0,
                 'last_7d': totals['last_7d'] or 0,
                 'last_30d': totals['last_30d'] or 0,
@@ -166,6 +189,7 @@ def get_usage_stats(recent_limit=50, top_limit=10):
         logging.error(f"Failed to fetch usage stats: {e}")
         return {
             'total': 0, 'success_count': 0, 'error_count': 0,
+            'client_error_count': 0, 'server_error_count': 0, 'rejected_count': 0,
             'last_24h': 0, 'last_7d': 0, 'last_30d': 0,
             'web_count': 0, 'quick_api_count': 0,
             'top_stations': [], 'recent_events': [],
@@ -300,14 +324,32 @@ def get_place_name_by_station_id(station_id):
         logging.error(f"Database error getting place name for station {station_id}: {e}")
         return None
 
+def _extract_station_id(text):
+    """Pull a station ID out of free-text the search box may submit: a bare
+    numeric string ("9449639"), or the autocomplete's "Place Name (12345)"
+    format. Returns the digit string, or None if the text is neither shape.
+    Existence is NOT checked here — the caller verifies against the directory.
+    """
+    if not text:
+        return None
+    s = text.strip()
+    if s.isdigit():
+        return s
+    match = re.search(r'\((\d+)\)\s*$', s)
+    return match.group(1) if match else None
+
+
 def get_station_id_by_place_name(place_name):
     """Get the station ID for a given name.
 
-    Tries the official place_name first (exact, then case-insensitive), then the
-    CHS common/alternative name (exact, then case-insensitive). The alternative
-    name fallback lets a visitor who types a common name (e.g. "Pender Harbour")
-    and submits without picking from the autocomplete still resolve the station,
-    consistent with what the name search surfaces.
+    First resolves the unambiguous shapes the search box invites but that aren't
+    place names: a bare station ID, or the autocomplete's "Name (12345)" format
+    (each verified to be a real station). Then tries the official place_name
+    (exact, then case-insensitive), then the CHS common/alternative name (exact,
+    then case-insensitive). The alternative name fallback lets a visitor who
+    types a common name (e.g. "Pender Harbour") and submits without picking from
+    the autocomplete still resolve the station, consistent with what the name
+    search surfaces. Returns None when nothing resolves — never a wrong station.
     """
     if not place_name:
         return None
@@ -326,6 +368,18 @@ def get_station_id_by_place_name(place_name):
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
+
+            # Unambiguous ID shortcut: only resolves if it maps to a real
+            # station, so a typo'd digit string falls through to None rather
+            # than silently producing a calendar for the wrong place.
+            candidate_id = _extract_station_id(place_name)
+            if candidate_id:
+                row = cursor.execute(
+                    'SELECT station_id FROM tide_station_ids WHERE station_id = ? LIMIT 1',
+                    (candidate_id,)).fetchone()
+                if row:
+                    return row[0]
+
             for clause in match_clauses:
                 result = cursor.execute(
                     f'SELECT station_id FROM tide_station_ids WHERE {clause} LIMIT 1',
