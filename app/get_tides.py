@@ -20,6 +20,11 @@ except ImportError:
     from database import log_station_lookup, get_station_info
     from tide_adapters import get_adapter_for_station
 
+try:
+    from app.sun_times import sun_times_for_month, format_sun_line, localize_and_filter_csv
+except ImportError:
+    from sun_times import sun_times_for_month, format_sun_line, localize_and_filter_csv
+
 # Per-invocation timeout for each external tool (pcal, ps2pdf)
 SUBPROCESS_TIMEOUT = 60
 
@@ -68,18 +73,30 @@ def download_tide_data(station_id, year, month):
     return csv_data
 
 
-def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, station_id=None):
+def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, station_id=None, sun_times=None):
     """Convert tide CSV text to a pcal custom dates file.
 
-    Parameters:
-    - csv_data: CSV text with header line, then `datetime,prediction,H|L` rows.
-    - pcal_filename: Path of the pcal custom dates file to write.
-    - location_name: Optional human-readable location for the calendar note.
-    - station_id: Fallback identifier for the note when location_name is absent.
+    sun_times: optional {day:int -> ("HH:MM","HH:MM") | note str} from
+    sun_times_for_month(); when present, a `Rise … Set …` line is written for
+    each day BEFORE that day's tide lines so it sits at the top of the cell.
     """
     lines = csv_data.splitlines()
 
     with open(pcal_filename, 'w') as pcal_file:
+        # Sun lines first so pcal places them above the tide events for each day.
+        if sun_times:
+            month_num = None
+            for line in lines[1:]:
+                if line.strip():
+                    try:
+                        month_num = int(line.strip().split(',')[0].split()[0].split('-')[1])
+                        break
+                    except (IndexError, ValueError):
+                        continue
+            if month_num is not None:
+                for day in sorted(sun_times):
+                    pcal_file.write(f"{month_num}/{day}  {format_sun_line(sun_times[day])}\n")
+
         valid_lines = 0
         skipped_lines = 0
 
@@ -163,22 +180,28 @@ def _run_tool(cmd):
 
 
 def generate_calendar(station_id, year, month, output_path, location_name=None):
-    """Fetch tide data and render a PDF calendar at output_path.
+    """Fetch tide data and render a PDF calendar at output_path. See module docs."""
+    station_info = get_station_info(station_id) or {}
+    api_source = station_info.get('api_source')
+    iana_tz = station_info.get('timezone')
+    lat = station_info.get('latitude')
+    lng = station_info.get('longitude')
 
-    All intermediate files (pcal events, PostScript) live in a per-invocation
-    temp directory, and the PDF is renamed into place atomically, so
-    concurrent requests for the same station/month can never serve a
-    truncated file from the cache.
+    # A CHS station with no timezone can't be localized: tide times would silently
+    # stay in UTC and no sun line would be drawn. Surface it so it's diagnosable
+    # (the fix is to re-run scripts/fetch_station_timezones.py for the new station).
+    if (api_source or '').upper() == 'CHS' and not iana_tz:
+        logging.warning(
+            "CHS station %s has no timezone; tide times will render in UTC and "
+            "no sunrise/sunset line will be shown", station_id)
 
-    Raises TideDataError or CalendarGenerationError. Returns output_path.
-    """
     csv_data = download_tide_data(station_id, year, month)
+    # CHS times are UTC -> convert to the station's local zone and trim to the
+    # local month (NOAA passes through unchanged).
+    csv_data = localize_and_filter_csv(csv_data, api_source, iana_tz, year, month)
+    sun = sun_times_for_month(lat, lng, iana_tz, year, month)
 
     os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
-    # Same directory as the final path so os.replace() is an atomic rename.
-    # PID alone isn't unique here — gunicorn threads share a PID, so include
-    # the thread id to keep concurrent same-station requests off each other's
-    # temp file.
     tmp_pdf = f"{output_path}.tmp.{os.getpid()}.{threading.get_ident()}"
 
     try:
@@ -188,23 +211,17 @@ def generate_calendar(station_id, year, month, output_path, location_name=None):
 
             convert_tide_data_to_pcal(csv_data, pcal_path,
                                       location_name=location_name,
-                                      station_id=station_id)
+                                      station_id=station_id,
+                                      sun_times=sun)
 
-            # -s r:g:b -- colour of day numerals (blue)
-            # -m -- show the month name
-            # -C text -- centered footer text
-            # -n font/size -- event text inside day boxes (~50% larger than default)
-            # mini-calendars for prev/next month shown by default (-S suppresses)
             _run_tool(["pcal", "-f", pcal_path, "-o", ps_path,
                        "-s", "0.0:0.0:1.0", "-n", "Helvetica-Narrow/9",
                        "-m", "-C", "tidecalendar.xyz",
                        str(month), str(year)])
-
             _run_tool(["ps2pdf", ps_path, tmp_pdf])
 
             if not os.path.exists(tmp_pdf) or os.path.getsize(tmp_pdf) == 0:
                 raise CalendarGenerationError("ps2pdf produced no output")
-
             os.replace(tmp_pdf, output_path)
     finally:
         if os.path.exists(tmp_pdf):

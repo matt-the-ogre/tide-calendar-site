@@ -431,13 +431,17 @@ class CHSAdapter(TideAdapter):
             station_uuid = station_id
             self.logger.debug(f"Station {station_id} is already a UUID")
 
-        # Calculate date range for the month
+        # Calculate the month range, padded ±1 day in UTC. The pad lets the
+        # local-month filter (sun_times.localize_and_filter_csv) recover events
+        # that fall in the target LOCAL month but land on an adjacent UTC day
+        # after UTC->local conversion (west-of-UTC stations lose late-evening
+        # tides on the last day otherwise).
+        from datetime import date as _date, timedelta as _timedelta
         _, last_day = calendar.monthrange(year, month)
-
-        # Build request parameters for CHS IWLS API
-        # Format: ISO 8601 datetime (YYYY-MM-DDTHH:MM:SSZ)
-        from_date = f"{year}-{month:02d}-01T00:00:00Z"
-        to_date = f"{year}-{month:02d}-{last_day}T23:59:59Z"
+        pad_from = _date(year, month, 1) - _timedelta(days=1)
+        pad_to = _date(year, month, last_day) + _timedelta(days=1)
+        from_date = pad_from.strftime('%Y-%m-%dT00:00:00Z')
+        to_date = pad_to.strftime('%Y-%m-%dT23:59:59Z')
 
         params = {
             "time-series-code": "wlp-hilo",

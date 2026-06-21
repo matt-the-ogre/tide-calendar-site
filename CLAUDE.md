@@ -124,7 +124,8 @@ ANALYTICS_TOKEN=<random-string>  # gates /admin/analytics dashboard
 │   └── canadian_station_provinces.csv  # Authoritative code→province map (gen: scripts/fetch_canadian_provinces.py)
 ├── scripts/               # Development and maintenance scripts (NOT deployed)
 │   ├── validate_tide_stations.py    # Validate CSV stations against NOAA API
-│   ├── update_example_image.sh      # Monthly update of example calendar image
+│   ├── update_example_image.sh      # Example calendar image (current month); auto-run monthly by .github/workflows/update-example-image.yml
+│   ├── fetch_station_timezones.py   # Bake IANA timezone column into station CSVs (from lat/long)
 │   ├── fetch_canadian_provinces.py  # Build authoritative code→province map from CHS /metadata
 │   ├── generate_canadian_fallback_csv.py  # Snapshot full live import to the fallback CSV
 │   └── test_canadian_import.py      # Test Canadian station imports
@@ -249,6 +250,34 @@ hard dependency on a live API. Canadian coordinates already live in
 **When to run**: whenever new US stations are added to the CSV (so they get map pins).
 The output CSV must stay listed in the Dockerfile `COPY` lines.
 
+#### Station Timezones (for local times + sunrise/sunset)
+`scripts/fetch_station_timezones.py` bakes an IANA `timezone` column into
+`app/tide_stations_new.csv` and `app/canadian_tide_stations.csv`, derived from each
+station's lat/long via `timezonefinder`:
+
+```bash
+pip install timezonefinder   # dev-only; heavy (numpy/h3), NOT a runtime dependency
+python scripts/fetch_station_timezones.py
+```
+
+Runtime reads the baked column into the DB `timezone` column (stdlib `zoneinfo` only).
+**When to run**: whenever stations are added. Keep both CSVs in the Dockerfile `COPY` lines.
+
+#### Example Calendar Image (automated monthly)
+`scripts/update_example_image.sh` regenerates `app/static/tide-calendar-example.webp`
+with the **current** month's calendar for Point Roberts, WA (station 9449639), using
+pcal → ps2pdf → ImageMagick. You can run it manually, but it normally runs **on its own**:
+
+- **Workflow**: `.github/workflows/update-example-image.yml`, cron `0 0 1 * *`
+  (00:00 UTC on the 1st of each month). Scheduled workflows only fire from the default
+  branch, so the workflow must live on `main`.
+- Each run regenerates + validates the image, **commits to `main`** (→ production deploy),
+  then **back-merges `main` into `development`** so `development` never falls behind.
+- Manual `workflow_dispatch` runs default to **`dry_run=true`** (generate + validate only,
+  no push); set `dry_run=false` to publish.
+- Runner note: Ubuntu ships ImageMagick 6 (`convert`, not `magick`) and disables PDF
+  reading by default — the workflow shims `magick`→`convert` and relaxes the PDF policy.
+
 ### Running Tests
 ```bash
 # Run Python unit tests (same as CI; must run from app/ — tests import sibling modules)
@@ -271,6 +300,12 @@ See `docs/performance-benchmarks.md` for detailed performance targets, API laten
 
 ### Important Notes
 - **Branching workflow**: Work on `development` branch first, PR into `main`. Dev deploys to https://dev.tidecalendar.xyz, main deploys to https://tidecalendar.xyz
+- **dev→main merge-commit drift**: after a `development → main` PR merge, `development` lags `main` by the merge commit (file trees identical). Resync with `git checkout development && git merge --ff-only origin/main && git push` so new work starts current.
+- **`app/` must NOT import from `scripts/`**: `.dockerignore` excludes `scripts/` from the image, so any runtime `import scripts.*` from `app/` raises ModuleNotFoundError in the container. Cold-DB dev hides it; warm-DB prod surfaces it. Inline shared logic into the shipped `app/` module (e.g. `station_coordinates.py` has its own `fetch_noaa_coordinates`).
+- **Dual-import idiom**: modules imported by the unittest suite use `try: from app.X import … except ImportError: from X import …` (tests run `cd app && python -m unittest` → siblings top-level; gunicorn runs the `app` package). `routes.py` is NOT unittest-importable (`from app import app`) and no test imports it — test pure helpers by putting them in `database.py`, not in routes.
+- **Tests reassign `database.DB_PATH`** at runtime, so reference `database.DB_PATH` dynamically; never `from database import DB_PATH` (the binding goes stale and tests clobber the real DB).
+- **Local manual testing**: seed a temp DB fast with `database.import_stations_from_csv()` + `import_canadian_stations_from_csv()` (CSV, no API), then `DB_PATH=… FLASK_APP=app flask run` to bypass run.py's slow CHS API sync.
+- **Claude Code sandbox can't reach localhost**: curl to a local flask server returns HTTP 000 — verify via the Playwright/Chrome MCP browser (real env) or `dangerouslyDisableSandbox` for localhost-targeting Bash. Run the dev server as a harness background task (`run_in_background`), not `&`/nohup (the sandbox reaps detached processes).
 - **Local development**: Application runs on port 5001
 - **Production (CapRover)**: Application runs on port 80 (CapRover proxies from 443→80)
 - **Database location**: `/data/tide_station_ids.db` (configurable via `DB_PATH` env var)
@@ -294,5 +329,7 @@ See `docs/performance-benchmarks.md` for detailed performance targets, API laten
 - **Rate-limit testing**: limiter counters are per-gunicorn-worker (in-memory), so effective ceiling ≈ limit × 2 workers; burst tests need 25+ requests to reliably trip 429s
 - **pcal flags reference**: `-s r:g:b` sets day numeral color, `-S` suppresses mini-calendars (on by default), `-K` repositions mini-cals (prev upper-left, next lower-right), `-C text` adds centered footer, `-m` shows month name
 - **Deploy verification**: After pushing, check `/health` endpoint for matching `commit_hash` to confirm CapRover deploy landed (observed 10–60s including container startup). Compare dev vs prod: `curl -s https://dev.tidecalendar.xyz/health | python3 -m json.tool`
+- **Local times on the PDF**: tide times render in the station's local timezone. NOAA is fetched `lst_ldt` (already local); CHS is fetched in UTC and converted via `sun_times.localize_and_filter_csv()` (the CHS fetch is padded ±1 day in UTC, then events are filtered to the target local month so west-of-UTC stations don't lose late-evening tides). The IANA timezone is precomputed per station (see the Station Timezones script) into the DB `timezone` column; `backfill_timezones_from_csv()` populates the warm DB from the shipped CSVs at startup.
+- **Sunrise/sunset**: `app/sun_times.py` (`astral` + stdlib `zoneinfo`) computes per-day local sunrise/sunset, rendered as a 24h `Rise HH:MM  Set HH:MM` line at the top of each pcal day cell. Polar day/night degrades to a `Sun: 24h daylight` / `Sun: polar night` note. Missing tz → sun line omitted (logged). A 12h/24h web toggle is a planned future addition (formatting is centralized in `format_sun_line`).
 - **Station map**: The homepage embeds a Leaflet/OpenStreetMap map of all selectable stations (`app/static/js/station_map.js`). Pins are `L.circleMarker` (vector — no marker-image assets needed), clustered via Leaflet.markercluster. Clicking a pin's "Use this station" popup button fills the existing form (`#station_search` + `#station_id`) and scrolls to it; the country filter radios re-fit the map (all → North America, USA/Canada → that country's bounds, computed from the markers, not hardcoded). Leaflet + markercluster are **vendored** in `app/static/vendor/leaflet/` (no CDN, no CSP changes — there is no CSP). Data comes from `GET /api/stations.geojson` (GeoJSON FeatureCollection, memoized in-process; only stations with coordinates appear, so a pin click can never hit an unknown station). US coordinates ship in `tide_stations_new.csv` (see the NOAA Coordinate Sync script); `app/station_coordinates.py` `backfill_missing_coordinates()` runs at startup (`run.py`) and makes **one** NOAA call to fill any US stations still missing coords (the only path that reaches production's *warm* persistent-volume DB, where the CSV import short-circuits) — non-fatal, and a no-op/no-network-call when nothing is missing.
 - **Analytics**: Server-side `usage_events` table logs every request to `/` and `/api/generate_quick` (station_id, station_name, year, month, status, error_detail, source). No PII. `source='web'` for form submissions, `source='quick_api'` for embed/widget traffic. Dashboard at `/admin/analytics` — accepts `Authorization: Bearer $ANALYTICS_TOKEN` header (preferred, stays out of access logs) or `?token=$ANALYTICS_TOKEN` query param (fallback). Returns 404 on any unauth/unconfigured request (invisible to scanners). Events older than 365 days are pruned on container startup. Complements client-side Plausible (which misses cached serves, validation errors, and ad-blocked users). Tests: `python3 scripts/test_usage_events.py`.
