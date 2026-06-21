@@ -11,7 +11,8 @@ from app.calendar_service import get_or_generate_pdf
 from app.database import (get_popular_stations, get_place_name_by_station_id,
                           get_station_id_by_place_name, search_stations_by_country,
                           get_popular_stations_by_country, log_usage_event,
-                          get_usage_stats, get_stations_with_coordinates, stations_to_geojson)
+                          get_usage_stats, get_stations_with_coordinates, stations_to_geojson,
+                          get_station_info)
 
 # Top stations count configuration
 TOP_STATIONS_COUNT = int(os.getenv('TOP_STATIONS_COUNT', '10'))
@@ -190,12 +191,11 @@ def api_generate_quick():
 
         today = datetime.now()
         # unit param optional; if absent, default by station country (USA->imperial, Canada->metric)
-        from app.database import get_station_info as _get_station_info
         raw_unit = data.get('unit', '')
         if raw_unit in ('metric', 'imperial'):
             unit = raw_unit
         else:
-            info = _get_station_info(station_id)
+            info = get_station_info(station_id)
             unit = 'metric' if (info and info.get('country') == 'Canada') else 'imperial'
         result = get_or_generate_pdf(station_id, today.year, today.month, source='quick_api', unit=unit)
 
