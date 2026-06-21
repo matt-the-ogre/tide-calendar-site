@@ -97,16 +97,22 @@ def test_get_usage_stats_aggregates():
         db.log_usage_event('A', 'Station A', 2026, 1, 'success')
         db.log_usage_event('A', 'Station A', 2026, 2, 'success')
         db.log_usage_event('B', 'Station B', 2026, 1, 'success', source='quick_api')
-        db.log_usage_event(None, None, None, None, 'error', 'invalid_input')
-        db.log_usage_event('C', None, 2026, 1, 'error', 'pdf_missing')
+        db.log_usage_event(None, None, None, None, 'error', 'invalid_input')  # client (4xx)
+        db.log_usage_event('C', None, 2026, 1, 'error', 'no_predictions')     # server (5xx)
+        db.log_usage_event('00000', None, 2026, 1, 'rejected', 'junk_station_id', source='quick_api')
 
         stats = db.get_usage_stats()
-        assert stats['total'] == 5, stats
+        assert stats['total'] == 6, stats
         assert stats['success_count'] == 3, stats
         assert stats['error_count'] == 2, stats
+        # Errors split into caller-fault (4xx) vs our-fault (5xx); rejected junk
+        # is neither success nor error.
+        assert stats['client_error_count'] == 1, stats  # invalid_input
+        assert stats['server_error_count'] == 1, stats  # no_predictions
+        assert stats['rejected_count'] == 1, stats       # junk_station_id
         assert stats['web_count'] == 4, stats
-        assert stats['quick_api_count'] == 1, stats
-        assert stats['last_24h'] == 5, stats  # all just inserted
+        assert stats['quick_api_count'] == 2, stats
+        assert stats['last_24h'] == 6, stats  # all just inserted
         assert 'error' not in stats, "No DB error expected on happy path"
 
         # Top stations: only named stations within 30d, in hit-count order
@@ -118,9 +124,9 @@ def test_get_usage_stats_aggregates():
         assert 'C' not in top_names
         assert None not in top_names
 
-        # Recent events include all 5, newest first, with source tag
-        assert len(stats['recent_events']) == 5
-        assert stats['recent_events'][0]['status'] in ('success', 'error')
+        # Recent events include all 6, newest first, with source tag
+        assert len(stats['recent_events']) == 6
+        assert stats['recent_events'][0]['status'] in ('success', 'error', 'rejected')
         assert 'source' in stats['recent_events'][0]
         print("  PASS: totals, source breakdown, top_stations, and recent_events all correct")
     finally:

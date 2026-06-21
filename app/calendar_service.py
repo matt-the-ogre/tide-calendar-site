@@ -88,7 +88,17 @@ class GenerateResult:
     download_name: str = None
     place_name: str = None
     location_display: str = None
-    error_code: str = None  # 'unknown_station' | 'no_predictions' | 'generation_failed'
+    # 'junk_station_id' | 'unknown_station' | 'no_predictions' | 'generation_failed'
+    error_code: str = None
+
+
+def is_junk_station_id(station_id):
+    """True for syntactically-valid-but-meaningless IDs (all zeros, e.g. '00000'
+    or '0000000'). These are almost entirely bot/probe traffic; rejecting them
+    before the directory lookup keeps them out of the error metric (they're
+    logged as 'rejected', not 'error') and avoids needless work."""
+    return (isinstance(station_id, str) and station_id.isdigit()
+            and not station_id.strip('0'))
 
 
 def get_or_generate_pdf(station_id, year, month, source='web', unit='imperial'):
@@ -98,6 +108,13 @@ def get_or_generate_pdf(station_id, year, month, source='web', unit='imperial'):
     popular-stations list (cache hits and quick-API traffic are not, matching
     the original behavior).
     """
+    # Drop obvious junk (all-zeros IDs — bot/probe traffic) before any work.
+    # Logged as 'rejected' so it stays out of both the success and error rates.
+    if is_junk_station_id(station_id):
+        logging.info(f"Rejected junk station ID {station_id} (source={source})")
+        log_usage_event(station_id, None, year, month, 'rejected', 'junk_station_id', source=source)
+        return GenerateResult(ok=False, error_code='junk_station_id')
+
     # Reject station IDs that aren't in our directory before doing any work —
     # without this, any digit string spawns a full upstream-API fetch cycle
     # (a cheap resource-exhaustion vector, and guaranteed cache misses).

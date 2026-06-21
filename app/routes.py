@@ -93,7 +93,7 @@ def index():
         result = get_or_generate_pdf(station_id, year, month, source='web', unit=unit)
 
         if not result.ok:
-            if result.error_code == 'unknown_station':
+            if result.error_code in ('unknown_station', 'junk_station_id'):
                 message = (f"Station ID '{station_id}' was not found. "
                            f"Please select a tide station from the autocomplete dropdown.")
             else:
@@ -200,6 +200,8 @@ def api_generate_quick():
         result = get_or_generate_pdf(station_id, today.year, today.month, source='quick_api', unit=unit)
 
         if not result.ok:
+            if result.error_code == 'junk_station_id':
+                return jsonify({'error': f"Invalid station_id '{station_id}'"}), 400
             if result.error_code == 'unknown_station':
                 return jsonify({'error': f"Unknown station_id '{station_id}'"}), 404
             return jsonify({'error': _no_predictions_message(

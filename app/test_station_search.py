@@ -223,6 +223,22 @@ class TestGetStationIdByName(_DBTest):
     def test_unknown_name_returns_none(self):
         self.assertIsNone(self.db.get_station_id_by_place_name("Nowhere, ZZ"))
 
+    def test_resolves_bare_numeric_id(self):
+        # The search box invites "or enter a station ID"; a bare numeric typed
+        # without picking from the dropdown must resolve as an ID, not a name.
+        self.assertEqual(self.db.get_station_id_by_place_name("07837"), "07837")
+
+    def test_resolves_name_with_trailing_id_format(self):
+        # The autocomplete fills the box with "Place Name (ID)"; parse the ID.
+        self.assertEqual(
+            self.db.get_station_id_by_place_name("Pender Harbour (07837)"), "07837"
+        )
+
+    def test_unknown_numeric_id_returns_none(self):
+        # A digit string that isn't a real station resolves to nothing (so the
+        # caller surfaces a clean "not found"), never a wrong station.
+        self.assertIsNone(self.db.get_station_id_by_place_name("99999"))
+
 
 class TestPopularStationsDisplayName(_DBTest):
     def setUp(self):
