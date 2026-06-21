@@ -43,9 +43,21 @@ class TopExtremeTidesTest(unittest.TestCase):
                                                       window_fn=lambda *a: None)
         self.assertEqual((highs, lows), ([], []))
 
+    def test_lows_with_negative_heights_most_negative_first(self):
+        csv = ("Date Time,Prediction,Type\n"
+               "2026-06-01 10:00,-0.2,L\n"
+               "2026-06-02 11:00,-1.8,L\n"
+               "2026-06-03 12:00,-1.5,L\n")
+        _, lows = tide_extremes.top_extreme_tides(csv, 1, 1, 'X', 2026, 6, n=5, window_fn=_day_window)
+        self.assertEqual([l['height'] for l in lows], [-1.8, -1.5, -0.2])
+
     def test_format_rows(self):
         rows = tide_extremes.format_extreme_rows([{'day': 6, 'time': '13:30', 'height': 4.6}])
         self.assertEqual(rows, [' 6  13:30  4.6 m'])
+
+    def test_format_negative_height(self):
+        rows = tide_extremes.format_extreme_rows([{'day': 13, 'time': '11:08', 'height': -1.2}])
+        self.assertEqual(rows, ['13  11:08  -1.2 m'])
 
 
 if __name__ == '__main__':

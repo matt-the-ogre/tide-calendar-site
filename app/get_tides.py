@@ -226,9 +226,10 @@ def generate_calendar(station_id, year, month, output_path, location_name=None):
     csv_data = localize_and_filter_csv(csv_data, api_source, iana_tz, year, month)
     sun = sun_times_for_month(lat, lng, iana_tz, year, month)
 
-    # Top-5 daylight high/low tables (only when we have a timezone to define the
-    # daylight window; otherwise skip, like the sun line).
-    if iana_tz:
+    # Top-5 daylight high/low tables (only when we have a timezone AND coordinates
+    # to define the daylight window; otherwise skip — omitting the tables rather
+    # than showing a misleading "no daylight tides" cell, like the sun line).
+    if iana_tz and lat is not None and lng is not None:
         high_tides, low_tides = top_extreme_tides(csv_data, lat, lng, iana_tz, year, month)
     else:
         high_tides, low_tides = None, None
