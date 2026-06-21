@@ -79,6 +79,21 @@
                 </div>
 
                 <div class="form-group">
+                    <label>Units</label>
+                    <div class="country-filter-group">
+                        <label class="radio-label">
+                            <input type="radio" name="unit_toggle" value="imperial" id="unit_imperial" checked>
+                            ft (imperial)
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="unit_toggle" value="metric" id="unit_metric">
+                            m (metric)
+                        </label>
+                    </div>
+                    <input type="hidden" id="unit" name="unit" value="imperial">
+                </div>
+
+                <div class="form-group">
                     <label for="station_search">Tide Station</label>
                     <div class="autocomplete-container">
                         <input type="text" id="station_search" name="station_search" placeholder="Search by station name or enter a station ID..." value="{{ last_place_name }}" autocomplete="off" required>
@@ -180,6 +195,39 @@
             return '';
         }
 
+        // Initialize unit toggle from cookie; derive from country if no cookie set
+        function _unitForCountry(country) {
+            return country === 'Canada' ? 'metric' : 'imperial';
+        }
+
+        function _applyUnit(unit) {
+            const radio = document.getElementById(unit === 'metric' ? 'unit_metric' : 'unit_imperial');
+            if (radio) radio.checked = true;
+            const hidden = document.getElementById('unit');
+            if (hidden) hidden.value = unit;
+        }
+
+        function initializeUnitToggle() {
+            const savedUnit = getCookie('unit_preference');
+            if (savedUnit && ['metric', 'imperial'].includes(savedUnit)) {
+                _applyUnit(savedUnit);
+            } else {
+                // Derive from country filter default (may already be set by initializeCountryFilter)
+                const selectedRadio = document.querySelector('input[name="country_filter"]:checked');
+                const country = selectedRadio ? selectedRadio.value : 'all';
+                _applyUnit(_unitForCountry(country));
+            }
+
+            // On unit radio change: update hidden field and set cookie
+            document.querySelectorAll('input[name="unit_toggle"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const hidden = document.getElementById('unit');
+                    if (hidden) hidden.value = this.value;
+                    setCookie('unit_preference', this.value, 365);
+                });
+            });
+        }
+
         // Initialize country filter from cookie
         function initializeCountryFilter() {
             const savedCountry = getCookie('country_preference');
@@ -205,6 +253,11 @@
                     // Re-fit / filter the station map to the selected country
                     if (window.tideMap) {
                         window.tideMap.showCountry(selectedCountry);
+                    }
+
+                    // Update unit toggle when no unit cookie is set (cookie wins)
+                    if (!getCookie('unit_preference')) {
+                        _applyUnit(_unitForCountry(selectedCountry));
                     }
 
                     // Track country selection
@@ -257,6 +310,7 @@
         }
 
         initializeCountryFilter();
+        initializeUnitToggle();
 
         // Initialize autocomplete functionality
         initializeAutocomplete();
@@ -583,12 +637,13 @@
                 }
 
                 // Make AJAX request to generate PDF
+                const unitValue = document.getElementById('unit') ? document.getElementById('unit').value : 'imperial';
                 const response = await fetch('/api/generate_quick', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ station_id: stationId })
+                    body: JSON.stringify({ station_id: stationId, unit: unitValue })
                 });
 
                 if (!response.ok) {
