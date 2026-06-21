@@ -48,11 +48,12 @@ PYTHONPATH="$APP_DIR" python "$APP_DIR/get_tides.py" \
     --year "$CUR_YEAR" \
     --month "$MONTH_NUM" \
     --location_name "$LOCATION_NAME" \
+    --unit imperial \
     --skip_logging
 
 # Find the generated PDF
 PDF_DIR="${PDF_OUTPUT_DIR:-$APP_DIR/calendars}"
-PDF_FILE="$PDF_DIR/tide_calendar_Point_Roberts_WA_${CUR_YEAR}_$(printf '%02d' $MONTH_NUM).pdf"
+PDF_FILE="$PDF_DIR/tide_calendar_Point_Roberts_WA_${CUR_YEAR}_$(printf '%02d' $MONTH_NUM)_ft.pdf"
 
 if [ ! -s "$PDF_FILE" ]; then
     echo "ERROR: PDF was not generated at $PDF_FILE"

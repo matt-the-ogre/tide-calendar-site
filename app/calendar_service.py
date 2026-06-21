@@ -74,10 +74,11 @@ def sanitize_filename(text):
     return safe or "unknown"
 
 
-def pdf_filename_for(location_display, station_id, year, month):
+def pdf_filename_for(location_display, station_id, year, month, unit='imperial'):
     """The one place the cached-PDF filename is derived."""
     stem = sanitize_filename(location_display) if location_display else station_id
-    return f"tide_calendar_{stem}_{year}_{month:02d}.pdf"
+    token = 'ft' if unit == 'imperial' else 'm'
+    return f"tide_calendar_{stem}_{year}_{month:02d}_{token}.pdf"
 
 
 @dataclass
@@ -90,7 +91,7 @@ class GenerateResult:
     error_code: str = None  # 'unknown_station' | 'no_predictions' | 'generation_failed'
 
 
-def get_or_generate_pdf(station_id, year, month, source='web'):
+def get_or_generate_pdf(station_id, year, month, source='web', unit='imperial'):
     """Serve from the PDF cache or generate; logs the usage event either way.
 
     On fresh web generations the station lookup is also recorded for the
@@ -108,7 +109,7 @@ def get_or_generate_pdf(station_id, year, month, source='web'):
 
     place_name = station_info.get('place_name')
     location_display = extract_location_with_state(place_name)
-    download_name = pdf_filename_for(location_display, station_id, year, month)
+    download_name = pdf_filename_for(location_display, station_id, year, month, unit)
     pdf_path = os.path.join(PDF_OUTPUT_DIR, download_name)
 
     if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
@@ -119,7 +120,7 @@ def get_or_generate_pdf(station_id, year, month, source='web'):
 
     logging.info(f"Generating new PDF for station {station_id}, {year}-{month:02d} (source={source})")
     try:
-        generate_calendar(station_id, year, month, pdf_path, location_name=location_display)
+        generate_calendar(station_id, year, month, pdf_path, location_name=location_display, unit=unit)
     except TideDataError as e:
         logging.error(f"No tide data for station {station_id} {year}-{month:02d}: {e}")
         log_usage_event(station_id, place_name, year, month, 'error', 'no_predictions', source=source)
@@ -152,8 +153,10 @@ def cleanup_previous_month_pdfs(directory=None):
 
         for pdf_file in glob.glob(pdf_pattern):
             try:
-                # Pattern: tide_calendar_<location>_<YYYY>_<MM>.pdf
-                match = re.search(r'_(\d{4})_(\d{2})\.pdf$', pdf_file)
+                # Pattern: tide_calendar_<location>_<YYYY>_<MM>[_<unit>].pdf
+                # The optional _ft/_m unit token was added with the unit toggle;
+                # cleanup must still match those so old-month PDFs are swept.
+                match = re.search(r'_(\d{4})_(\d{2})(?:_(?:ft|m))?\.pdf$', pdf_file)
                 if match:
                     pdf_year = int(match.group(1))
                     pdf_month = int(match.group(2))
