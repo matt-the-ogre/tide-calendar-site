@@ -286,6 +286,12 @@ See `docs/performance-benchmarks.md` for detailed performance targets, API laten
 
 ### Important Notes
 - **Branching workflow**: Work on `development` branch first, PR into `main`. Dev deploys to https://dev.tidecalendar.xyz, main deploys to https://tidecalendar.xyz
+- **dev→main merge-commit drift**: after a `development → main` PR merge, `development` lags `main` by the merge commit (file trees identical). Resync with `git checkout development && git merge --ff-only origin/main && git push` so new work starts current.
+- **`app/` must NOT import from `scripts/`**: `.dockerignore` excludes `scripts/` from the image, so any runtime `import scripts.*` from `app/` raises ModuleNotFoundError in the container. Cold-DB dev hides it; warm-DB prod surfaces it. Inline shared logic into the shipped `app/` module (e.g. `station_coordinates.py` has its own `fetch_noaa_coordinates`).
+- **Dual-import idiom**: modules imported by the unittest suite use `try: from app.X import … except ImportError: from X import …` (tests run `cd app && python -m unittest` → siblings top-level; gunicorn runs the `app` package). `routes.py` is NOT unittest-importable (`from app import app`) and no test imports it — test pure helpers by putting them in `database.py`, not in routes.
+- **Tests reassign `database.DB_PATH`** at runtime, so reference `database.DB_PATH` dynamically; never `from database import DB_PATH` (the binding goes stale and tests clobber the real DB).
+- **Local manual testing**: seed a temp DB fast with `database.import_stations_from_csv()` + `import_canadian_stations_from_csv()` (CSV, no API), then `DB_PATH=… FLASK_APP=app flask run` to bypass run.py's slow CHS API sync.
+- **Claude Code sandbox can't reach localhost**: curl to a local flask server returns HTTP 000 — verify via the Playwright/Chrome MCP browser (real env) or `dangerouslyDisableSandbox` for localhost-targeting Bash. Run the dev server as a harness background task (`run_in_background`), not `&`/nohup (the sandbox reaps detached processes).
 - **Local development**: Application runs on port 5001
 - **Production (CapRover)**: Application runs on port 80 (CapRover proxies from 443→80)
 - **Database location**: `/data/tide_station_ids.db` (configurable via `DB_PATH` env var)
