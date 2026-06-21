@@ -125,6 +125,7 @@ ANALYTICS_TOKEN=<random-string>  # gates /admin/analytics dashboard
 ├── scripts/               # Development and maintenance scripts (NOT deployed)
 │   ├── validate_tide_stations.py    # Validate CSV stations against NOAA API
 │   ├── update_example_image.sh      # Example calendar image (current month); auto-run monthly by .github/workflows/update-example-image.yml
+│   ├── fetch_station_timezones.py   # Bake IANA timezone column into station CSVs (from lat/long)
 │   ├── fetch_canadian_provinces.py  # Build authoritative code→province map from CHS /metadata
 │   ├── generate_canadian_fallback_csv.py  # Snapshot full live import to the fallback CSV
 │   └── test_canadian_import.py      # Test Canadian station imports
@@ -249,6 +250,19 @@ hard dependency on a live API. Canadian coordinates already live in
 **When to run**: whenever new US stations are added to the CSV (so they get map pins).
 The output CSV must stay listed in the Dockerfile `COPY` lines.
 
+#### Station Timezones (for local times + sunrise/sunset)
+`scripts/fetch_station_timezones.py` bakes an IANA `timezone` column into
+`app/tide_stations_new.csv` and `app/canadian_tide_stations.csv`, derived from each
+station's lat/long via `timezonefinder`:
+
+```bash
+pip install timezonefinder   # dev-only; heavy (numpy/h3), NOT a runtime dependency
+python scripts/fetch_station_timezones.py
+```
+
+Runtime reads the baked column into the DB `timezone` column (stdlib `zoneinfo` only).
+**When to run**: whenever stations are added. Keep both CSVs in the Dockerfile `COPY` lines.
+
 #### Example Calendar Image (automated monthly)
 `scripts/update_example_image.sh` regenerates `app/static/tide-calendar-example.webp`
 with the **current** month's calendar for Point Roberts, WA (station 9449639), using
@@ -315,5 +329,7 @@ See `docs/performance-benchmarks.md` for detailed performance targets, API laten
 - **Rate-limit testing**: limiter counters are per-gunicorn-worker (in-memory), so effective ceiling ≈ limit × 2 workers; burst tests need 25+ requests to reliably trip 429s
 - **pcal flags reference**: `-s r:g:b` sets day numeral color, `-S` suppresses mini-calendars (on by default), `-K` repositions mini-cals (prev upper-left, next lower-right), `-C text` adds centered footer, `-m` shows month name
 - **Deploy verification**: After pushing, check `/health` endpoint for matching `commit_hash` to confirm CapRover deploy landed (observed 10–60s including container startup). Compare dev vs prod: `curl -s https://dev.tidecalendar.xyz/health | python3 -m json.tool`
+- **Local times on the PDF**: tide times render in the station's local timezone. NOAA is fetched `lst_ldt` (already local); CHS is fetched in UTC and converted via `sun_times.localize_and_filter_csv()` (the CHS fetch is padded ±1 day in UTC, then events are filtered to the target local month so west-of-UTC stations don't lose late-evening tides). The IANA timezone is precomputed per station (see the Station Timezones script) into the DB `timezone` column; `backfill_timezones_from_csv()` populates the warm DB from the shipped CSVs at startup.
+- **Sunrise/sunset**: `app/sun_times.py` (`astral` + stdlib `zoneinfo`) computes per-day local sunrise/sunset, rendered as a 24h `Rise HH:MM  Set HH:MM` line at the top of each pcal day cell. Polar day/night degrades to a `Sun: 24h daylight` / `Sun: polar night` note. Missing tz → sun line omitted (logged). A 12h/24h web toggle is a planned future addition (formatting is centralized in `format_sun_line`).
 - **Station map**: The homepage embeds a Leaflet/OpenStreetMap map of all selectable stations (`app/static/js/station_map.js`). Pins are `L.circleMarker` (vector — no marker-image assets needed), clustered via Leaflet.markercluster. Clicking a pin's "Use this station" popup button fills the existing form (`#station_search` + `#station_id`) and scrolls to it; the country filter radios re-fit the map (all → North America, USA/Canada → that country's bounds, computed from the markers, not hardcoded). Leaflet + markercluster are **vendored** in `app/static/vendor/leaflet/` (no CDN, no CSP changes — there is no CSP). Data comes from `GET /api/stations.geojson` (GeoJSON FeatureCollection, memoized in-process; only stations with coordinates appear, so a pin click can never hit an unknown station). US coordinates ship in `tide_stations_new.csv` (see the NOAA Coordinate Sync script); `app/station_coordinates.py` `backfill_missing_coordinates()` runs at startup (`run.py`) and makes **one** NOAA call to fill any US stations still missing coords (the only path that reaches production's *warm* persistent-volume DB, where the CSV import short-circuits) — non-fatal, and a no-op/no-network-call when nothing is missing.
 - **Analytics**: Server-side `usage_events` table logs every request to `/` and `/api/generate_quick` (station_id, station_name, year, month, status, error_detail, source). No PII. `source='web'` for form submissions, `source='quick_api'` for embed/widget traffic. Dashboard at `/admin/analytics` — accepts `Authorization: Bearer $ANALYTICS_TOKEN` header (preferred, stays out of access logs) or `?token=$ANALYTICS_TOKEN` query param (fallback). Returns 404 on any unauth/unconfigured request (invisible to scanners). Events older than 365 days are pruned on container startup. Complements client-side Plausible (which misses cached serves, validation errors, and ad-blocked users). Tests: `python3 scripts/test_usage_events.py`.
