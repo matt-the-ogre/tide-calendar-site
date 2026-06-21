@@ -59,6 +59,7 @@ def init_database():
                 'longitude': 'REAL',
                 'province': 'TEXT',
                 'alternative_name': 'TEXT',
+                'timezone': 'TEXT',
             })
 
             cursor.execute('''
@@ -234,18 +235,19 @@ def _import_us_csv(csv_path):
                     csv_station_ids.add(station_id)
                     latitude = _parse_coord(row.get('latitude'), station_id, place_name, 'latitude')
                     longitude = _parse_coord(row.get('longitude'), station_id, place_name, 'longitude')
+                    tz = (row.get('timezone') or '').strip() or None
 
                     cursor.execute('''
                         INSERT OR IGNORE INTO tide_station_ids
-                        (station_id, place_name, country, api_source, latitude, longitude, lookup_count, last_lookup)
-                        VALUES (?, ?, 'USA', 'NOAA', ?, ?, 1, CURRENT_TIMESTAMP)
-                    ''', (station_id, place_name, latitude, longitude))
+                        (station_id, place_name, country, api_source, latitude, longitude, timezone, lookup_count, last_lookup)
+                        VALUES (?, ?, 'USA', 'NOAA', ?, ?, ?, 1, CURRENT_TIMESTAMP)
+                    ''', (station_id, place_name, latitude, longitude, tz))
                     cursor.execute('''
                         UPDATE tide_station_ids
                         SET place_name = ?, country = 'USA', api_source = 'NOAA',
-                            latitude = ?, longitude = ?
+                            latitude = ?, longitude = ?, timezone = COALESCE(?, timezone)
                         WHERE station_id = ?
-                    ''', (place_name, latitude, longitude, station_id))
+                    ''', (place_name, latitude, longitude, tz, station_id))
                     imported_count += 1
 
             if csv_station_ids:
@@ -346,7 +348,7 @@ def get_station_info(station_id):
             cursor = conn.cursor()
 
             result = cursor.execute('''
-                SELECT station_id, place_name, country, api_source, latitude, longitude, province
+                SELECT station_id, place_name, country, api_source, latitude, longitude, province, timezone
                 FROM tide_station_ids
                 WHERE station_id = ?
             ''', (station_id,)).fetchone()
@@ -359,7 +361,8 @@ def get_station_info(station_id):
                     'api_source': result[3] if result[3] else 'NOAA',
                     'latitude': result[4],
                     'longitude': result[5],
-                    'province': result[6]
+                    'province': result[6],
+                    'timezone': result[7],
                 }
 
             return None
@@ -469,21 +472,22 @@ def import_canadian_stations_from_csv():
                     api_source = row.get('api_source', 'CHS')
                     # Tolerate a CSV without the column (defaults to NULL)
                     alternative_name = row.get('alternative_name') or None
+                    tz = (row.get('timezone') or '').strip() or None
 
                     # Insert or update station (Canadian stations)
                     # Use INSERT OR IGNORE to preserve lookup_count for existing stations
                     cursor.execute('''
                         INSERT OR IGNORE INTO tide_station_ids
-                        (station_id, place_name, country, api_source, latitude, longitude, province, alternative_name, lookup_count, last_lookup)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-                    ''', (station_id, place_name, country, api_source, latitude, longitude, province, alternative_name))
+                        (station_id, place_name, country, api_source, latitude, longitude, province, alternative_name, timezone, lookup_count, last_lookup)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+                    ''', (station_id, place_name, country, api_source, latitude, longitude, province, alternative_name, tz))
 
                     # Update metadata for existing stations without touching lookup_count
                     cursor.execute('''
                         UPDATE tide_station_ids
-                        SET place_name = ?, country = ?, api_source = ?, latitude = ?, longitude = ?, province = ?, alternative_name = ?
+                        SET place_name = ?, country = ?, api_source = ?, latitude = ?, longitude = ?, province = ?, alternative_name = ?, timezone = COALESCE(?, timezone)
                         WHERE station_id = ?
-                    ''', (place_name, country, api_source, latitude, longitude, province, alternative_name, station_id))
+                    ''', (place_name, country, api_source, latitude, longitude, province, alternative_name, tz, station_id))
                     imported_count += 1
 
             # Remove Canadian stations from database that are NOT in the CSV
@@ -642,3 +646,39 @@ def get_popular_stations_by_country(country=None, limit=16):
     except sqlite3.Error as e:
         logging.error(f"Database error getting popular stations: {e}")
         return []
+
+
+def backfill_timezones_from_csv(csv_paths=None):
+    """Fill NULL/empty `timezone` on existing DB rows from the shipped CSVs.
+
+    Needed because the US CSV import short-circuits on a warm DB, and Canadian
+    stations imported via the live CHS API have no timezone. Source is the
+    shipped CSV (no network, no heavy library). Idempotent. Returns rows updated.
+    """
+    if csv_paths is None:
+        here = os.path.dirname(__file__)
+        csv_paths = [os.path.join(here, 'tide_stations_new.csv'),
+                     os.path.join(here, 'canadian_tide_stations.csv')]
+    updated = 0
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            for path in csv_paths:
+                if not os.path.exists(path):
+                    continue
+                with open(path, 'r', encoding='utf-8') as f:
+                    for row in csv.DictReader(f):
+                        tz = (row.get('timezone') or '').strip()
+                        sid = row.get('station_id')
+                        if not tz or not sid:
+                            continue
+                        cur = conn.execute(
+                            "UPDATE tide_station_ids SET timezone = ? "
+                            "WHERE station_id = ? AND (timezone IS NULL OR timezone = '')",
+                            (tz, sid))
+                        updated += cur.rowcount
+            conn.commit()
+        logging.info("Timezone backfill: set timezone on %d station(s)", updated)
+        return updated
+    except (sqlite3.Error, OSError) as e:
+        logging.error("Timezone backfill failed: %s", e)
+        return updated
