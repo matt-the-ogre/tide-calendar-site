@@ -226,6 +226,13 @@ def generate_calendar(station_id, year, month, output_path, location_name=None):
     csv_data = localize_and_filter_csv(csv_data, api_source, iana_tz, year, month)
     sun = sun_times_for_month(lat, lng, iana_tz, year, month)
 
+    # Top-5 daylight high/low tables (only when we have a timezone to define the
+    # daylight window; otherwise skip, like the sun line).
+    if iana_tz:
+        high_tides, low_tides = top_extreme_tides(csv_data, lat, lng, iana_tz, year, month)
+    else:
+        high_tides, low_tides = None, None
+
     os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
     tmp_pdf = f"{output_path}.tmp.{os.getpid()}.{threading.get_ident()}"
 
@@ -237,7 +244,9 @@ def generate_calendar(station_id, year, month, output_path, location_name=None):
             convert_tide_data_to_pcal(csv_data, pcal_path,
                                       location_name=location_name,
                                       station_id=station_id,
-                                      sun_times=sun)
+                                      sun_times=sun,
+                                      high_tides=high_tides,
+                                      low_tides=low_tides)
 
             _run_tool(["pcal", "-f", pcal_path, "-o", ps_path,
                        "-s", "0.0:0.0:1.0", "-n", "Helvetica-Narrow/9",
