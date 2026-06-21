@@ -23,8 +23,13 @@ def _in_window(event_dt, window):
 
 
 def top_extreme_tides(local_csv, lat, lng, iana_tz, year, month, n=5, window_fn=_default_window):
-    """Return (highs, lows): lists of {'day','time','height'} for the top-n
-    daylight high tides (highest-first) and low tides (lowest-first)."""
+    """Return (highs, lows): lists of {'day','time','height'}.
+
+    Selection is by extremity (the n highest daylight high tides and the n lowest
+    daylight low tides), but the returned lists are ordered by **date** (day
+    ascending) for display — easier to scan/plan on a calendar, and extreme tides
+    cluster around spring tides so the dates usually form a tidy consecutive run.
+    Heights remain in each row so the ranking is still visible."""
     highs, lows = [], []
     window_cache = {}
     for line in local_csv.splitlines()[1:]:
@@ -52,15 +57,24 @@ def top_extreme_tides(local_csv, lat, lng, iana_tz, year, month, n=5, window_fn=
         elif ttype == 'L':
             lows.append(entry)
 
+    # Rank by extremity (highs descending, lows ascending), take the top n...
     highs.sort(key=lambda e: (-e['height'], e['_dt']))
     lows.sort(key=lambda e: (e['height'], e['_dt']))
 
-    def _clean(rows):
-        return [{'day': e['day'], 'time': e['time'], 'height': e['height']} for e in rows[:n]]
+    def _select(rows):
+        # ...then display the selected n in date order.
+        chosen = sorted(rows[:n], key=lambda e: e['_dt'])
+        return [{'day': e['day'], 'time': e['time'], 'height': e['height']} for e in chosen]
 
-    return _clean(highs), _clean(lows)
+    return _select(highs), _select(lows)
 
 
-def format_extreme_rows(entries):
-    """Render entries as ASCII pcal note rows: 'DD  HH:MM  X.X m' (day right-aligned)."""
-    return [f"{e['day']:>2}  {e['time']}  {e['height']:.1f} m" for e in entries]
+def format_extreme_rows(entries, month=None):
+    """Render entries as ASCII pcal note rows: 'Mdd  HH:MM  X.X m'.
+
+    The day is prefixed with the month's first letter (e.g. June 14 -> 'J14') so a
+    date can't be mistaken for the numeric tide height. `month` is 1-12; when None
+    the letter is omitted."""
+    import calendar as _calendar
+    letter = _calendar.month_abbr[month][0] if month else ''
+    return [f"{letter}{e['day']:02d}  {e['time']}  {e['height']:.1f} m" for e in entries]

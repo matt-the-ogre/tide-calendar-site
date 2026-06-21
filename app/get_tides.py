@@ -78,10 +78,10 @@ def download_tide_data(station_id, year, month):
     return csv_data
 
 
-def _write_extreme_note(pcal_file, box, title, entries, empty_msg):
+def _write_extreme_note(pcal_file, box, title, entries, empty_msg, month=None):
     """Write a stacked pcal note table into the given empty-cell box."""
     pcal_file.write(f"note/{box} all {title}\n")
-    rows = format_extreme_rows(entries)
+    rows = format_extreme_rows(entries, month)
     if rows:
         for row in rows:
             pcal_file.write(f"note/{box} all {row}\n")
@@ -99,20 +99,22 @@ def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, stati
     """
     lines = csv_data.splitlines()
 
+    # Month number derived from the first data row (all rows share the month);
+    # used for both the per-day sun lines and the extreme-tide date prefixes.
+    month_num = None
+    for line in lines[1:]:
+        if line.strip():
+            try:
+                month_num = int(line.strip().split(',')[0].split()[0].split('-')[1])
+                break
+            except (IndexError, ValueError):
+                continue
+
     with open(pcal_filename, 'w') as pcal_file:
         # Sun lines first so pcal places them above the tide events for each day.
-        if sun_times:
-            month_num = None
-            for line in lines[1:]:
-                if line.strip():
-                    try:
-                        month_num = int(line.strip().split(',')[0].split()[0].split('-')[1])
-                        break
-                    except (IndexError, ValueError):
-                        continue
-            if month_num is not None:
-                for day in sorted(sun_times):
-                    pcal_file.write(f"{month_num}/{day}  {format_sun_line(sun_times[day])}\n")
+        if sun_times and month_num is not None:
+            for day in sorted(sun_times):
+                pcal_file.write(f"{month_num}/{day}  {format_sun_line(sun_times[day])}\n")
 
         valid_lines = 0
         skipped_lines = 0
@@ -177,10 +179,10 @@ def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, stati
         # Daylight extreme-tide tables in unused cells (note/2, note/3).
         if high_tides is not None:
             _write_extreme_note(pcal_file, 2, "Top 5 High Tides (daylight)",
-                                high_tides, "No daylight high tides")
+                                high_tides, "No daylight high tides", month_num)
         if low_tides is not None:
             _write_extreme_note(pcal_file, 3, "Top 5 Low Tides (daylight)",
-                                low_tides, "No daylight low tides")
+                                low_tides, "No daylight low tides", month_num)
 
         # Tide station note shown on the calendar page
         if location_name:

@@ -38,10 +38,11 @@ class PcalExtremeTablesTest(unittest.TestCase):
                                                 high_tides=highs, low_tides=lows)
             with open(path) as f:
                 text = f.read()
+        # month derived from the data row (June) -> 'J' prefix on the day
         self.assertIn('note/2 all Top 5 High Tides (daylight)', text)
-        self.assertIn('note/2 all  4  09:00  4.8 m', text)
+        self.assertIn('note/2 all J04  09:00  4.8 m', text)
         self.assertIn('note/3 all Top 5 Low Tides (daylight)', text)
-        self.assertIn('note/3 all  1  13:00  0.2 m', text)
+        self.assertIn('note/3 all J01  13:00  0.2 m', text)
 
     def test_empty_tables_show_fallback(self):
         import os, tempfile, get_tides
