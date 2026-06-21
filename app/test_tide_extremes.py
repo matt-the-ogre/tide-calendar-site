@@ -56,16 +56,26 @@ class TopExtremeTidesTest(unittest.TestCase):
         self.assertEqual([(l['day'], l['height']) for l in lows],
                          [(1, -0.2), (2, -1.8), (3, -1.5)])
 
-    def test_format_rows_with_month_letter(self):
-        rows = tide_extremes.format_extreme_rows([{'day': 6, 'time': '13:30', 'height': 4.6}], 6)
+    def test_format_rows_with_month_letter_metric(self):
+        rows = tide_extremes.format_extreme_rows([{'day': 6, 'time': '13:30', 'height': 4.6}], 6, unit='metric')
         self.assertEqual(rows, ['J06  13:30  4.6 m'])
 
-    def test_format_negative_height(self):
-        rows = tide_extremes.format_extreme_rows([{'day': 13, 'time': '11:08', 'height': -1.2}], 6)
+    def test_format_rows_with_month_letter_imperial(self):
+        rows = tide_extremes.format_extreme_rows([{'day': 6, 'time': '13:30', 'height': 4.6}], 6, unit='imperial')
+        # 4.6 m * 3.28084 = 15.09... -> 15.1 ft
+        self.assertEqual(rows, ['J06  13:30  15.1 ft'])
+
+    def test_format_negative_height_metric(self):
+        rows = tide_extremes.format_extreme_rows([{'day': 13, 'time': '11:08', 'height': -1.2}], 6, unit='metric')
         self.assertEqual(rows, ['J13  11:08  -1.2 m'])
 
+    def test_format_negative_height_imperial(self):
+        rows = tide_extremes.format_extreme_rows([{'day': 13, 'time': '11:08', 'height': -1.2}], 6, unit='imperial')
+        # -1.2 m * 3.28084 = -3.9370... -> -3.9 ft
+        self.assertEqual(rows, ['J13  11:08  -3.9 ft'])
+
     def test_format_no_month_omits_letter(self):
-        rows = tide_extremes.format_extreme_rows([{'day': 6, 'time': '13:30', 'height': 4.6}])
+        rows = tide_extremes.format_extreme_rows([{'day': 6, 'time': '13:30', 'height': 4.6}], unit='metric')
         self.assertEqual(rows, ['06  13:30  4.6 m'])
 
 

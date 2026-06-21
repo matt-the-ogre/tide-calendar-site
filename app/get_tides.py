@@ -30,6 +30,11 @@ try:
 except ImportError:
     from tide_extremes import top_extreme_tides, format_extreme_rows
 
+try:
+    from app.units import convert as _uconv, suffix as _usuf
+except ImportError:
+    from units import convert as _uconv, suffix as _usuf
+
 # Per-invocation timeout for each external tool (pcal, ps2pdf)
 SUBPROCESS_TIMEOUT = 60
 
@@ -78,10 +83,10 @@ def download_tide_data(station_id, year, month):
     return csv_data
 
 
-def _write_extreme_note(pcal_file, box, title, entries, empty_msg, month=None):
+def _write_extreme_note(pcal_file, box, title, entries, empty_msg, month=None, unit='imperial'):
     """Write a stacked pcal note table into the given empty-cell box."""
     pcal_file.write(f"note/{box} all {title}\n")
-    rows = format_extreme_rows(entries, month)
+    rows = format_extreme_rows(entries, month, unit)
     if rows:
         for row in rows:
             pcal_file.write(f"note/{box} all {row}\n")
@@ -90,7 +95,7 @@ def _write_extreme_note(pcal_file, box, title, entries, empty_msg, month=None):
 
 
 def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, station_id=None,
-                              sun_times=None, high_tides=None, low_tides=None):
+                              sun_times=None, high_tides=None, low_tides=None, unit='imperial'):
     """Convert tide CSV text to a pcal custom dates file.
 
     sun_times: optional {day:int -> ("HH:MM","HH:MM") | note str} from
@@ -161,7 +166,7 @@ def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, stati
                 if prediction < LOW_TIDE_THRESHOLD:
                     pcal_date += "*"
 
-                pcal_file.write(f"{pcal_date}  {time} {tide_type_full} {prediction} m\n")
+                pcal_file.write(f"{pcal_date}  {time} {tide_type_full} {_uconv(prediction, unit):.1f} {_usuf(unit)}\n")
                 valid_lines += 1
 
             except Exception as e:
@@ -179,10 +184,10 @@ def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, stati
         # Daylight extreme-tide tables in unused cells (note/2, note/3).
         if high_tides is not None:
             _write_extreme_note(pcal_file, 2, "Top 5 High Tides (daylight)",
-                                high_tides, "No daylight high tides", month_num)
+                                high_tides, "No daylight high tides", month_num, unit)
         if low_tides is not None:
             _write_extreme_note(pcal_file, 3, "Top 5 Low Tides (daylight)",
-                                low_tides, "No daylight low tides", month_num)
+                                low_tides, "No daylight low tides", month_num, unit)
 
         # Tide station note shown on the calendar page
         if location_name:
@@ -206,7 +211,7 @@ def _run_tool(cmd):
     return result
 
 
-def generate_calendar(station_id, year, month, output_path, location_name=None):
+def generate_calendar(station_id, year, month, output_path, location_name=None, unit='imperial'):
     """Fetch tide data and render a PDF calendar at output_path. See module docs."""
     station_info = get_station_info(station_id) or {}
     api_source = station_info.get('api_source')
@@ -249,7 +254,8 @@ def generate_calendar(station_id, year, month, output_path, location_name=None):
                                       station_id=station_id,
                                       sun_times=sun,
                                       high_tides=high_tides,
-                                      low_tides=low_tides)
+                                      low_tides=low_tides,
+                                      unit=unit)
 
             _run_tool(["pcal", "-f", pcal_path, "-o", ps_path,
                        "-s", "0.0:0.0:1.0", "-n", "Helvetica-Narrow/9",
@@ -277,6 +283,8 @@ def main():
     parser.add_argument('--month', type=int, default=datetime.now().month, help='Month (default: current month)')
     parser.add_argument('--location_name', type=str, default=None, help='Human-readable location name for display')
     parser.add_argument('--skip_logging', action='store_true', help='Skip logging station lookup to database')
+    parser.add_argument('--unit', choices=['metric', 'imperial'], default='imperial',
+                        help='Height units for display (default: imperial/feet)')
     args = parser.parse_args()
 
     if args.month < 1 or args.month > 12:
@@ -292,11 +300,11 @@ def main():
 
     output_path = os.path.join(
         PDF_OUTPUT_DIR,
-        pdf_filename_for(args.location_name, args.station_id, args.year, args.month))
+        pdf_filename_for(args.location_name, args.station_id, args.year, args.month, args.unit))
 
     try:
         generate_calendar(args.station_id, args.year, args.month, output_path,
-                          location_name=args.location_name)
+                          location_name=args.location_name, unit=args.unit)
     except (TideDataError, CalendarGenerationError) as e:
         logging.error(f"Could not generate calendar: {e}")
         raise SystemExit(1)

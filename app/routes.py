@@ -11,7 +11,8 @@ from app.calendar_service import get_or_generate_pdf
 from app.database import (get_popular_stations, get_place_name_by_station_id,
                           get_station_id_by_place_name, search_stations_by_country,
                           get_popular_stations_by_country, log_usage_event,
-                          get_usage_stats, get_stations_with_coordinates, stations_to_geojson)
+                          get_usage_stats, get_stations_with_coordinates, stations_to_geojson,
+                          get_station_info)
 
 # Top stations count configuration
 TOP_STATIONS_COUNT = int(os.getenv('TOP_STATIONS_COUNT', '10'))
@@ -87,7 +88,9 @@ def index():
             log_usage_event(station_id, None, _int_or_none(year), _int_or_none(month), 'error', 'invalid_input')
             return render_template('tide_station_not_found.html', message=f"Invalid input: {str(e)}")
 
-        result = get_or_generate_pdf(station_id, year, month, source='web')
+        unit = request.form.get('unit', 'imperial')
+        unit = unit if unit in ('metric', 'imperial') else 'imperial'
+        result = get_or_generate_pdf(station_id, year, month, source='web', unit=unit)
 
         if not result.ok:
             if result.error_code == 'unknown_station':
@@ -187,7 +190,14 @@ def api_generate_quick():
         station_id = station_id.strip()
 
         today = datetime.now()
-        result = get_or_generate_pdf(station_id, today.year, today.month, source='quick_api')
+        # unit param optional; if absent, default by station country (USA->imperial, Canada->metric)
+        raw_unit = data.get('unit', '')
+        if raw_unit in ('metric', 'imperial'):
+            unit = raw_unit
+        else:
+            info = get_station_info(station_id)
+            unit = 'metric' if (info and info.get('country') == 'Canada') else 'imperial'
+        result = get_or_generate_pdf(station_id, today.year, today.month, source='quick_api', unit=unit)
 
         if not result.ok:
             if result.error_code == 'unknown_station':

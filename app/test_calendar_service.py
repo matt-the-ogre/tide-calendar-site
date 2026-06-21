@@ -49,16 +49,30 @@ class TestExtractLocationWithState(unittest.TestCase):
 
 
 class TestPdfFilenameContract(unittest.TestCase):
-    def test_with_location(self):
-        self.assertEqual(pdf_filename_for("Point Roberts, WA", "9449639", 2026, 6),
-                         "tide_calendar_Point_Roberts_WA_2026_06.pdf")
+    def test_with_location_imperial(self):
+        self.assertEqual(pdf_filename_for("Point Roberts, WA", "9449639", 2026, 6, 'imperial'),
+                         "tide_calendar_Point_Roberts_WA_2026_06_ft.pdf")
+
+    def test_with_location_metric(self):
+        self.assertEqual(pdf_filename_for("Point Roberts, WA", "9449639", 2026, 6, 'metric'),
+                         "tide_calendar_Point_Roberts_WA_2026_06_m.pdf")
+
+    def test_default_unit_is_imperial(self):
+        self.assertTrue(pdf_filename_for("Point Roberts, WA", "9449639", 2026, 6).endswith("_ft.pdf"))
 
     def test_without_location_falls_back_to_station_id(self):
-        self.assertEqual(pdf_filename_for(None, "9449639", 2026, 6),
-                         "tide_calendar_9449639_2026_06.pdf")
+        self.assertEqual(pdf_filename_for(None, "9449639", 2026, 6, 'imperial'),
+                         "tide_calendar_9449639_2026_06_ft.pdf")
 
     def test_month_zero_padded(self):
-        self.assertTrue(pdf_filename_for(None, "1", 2026, 1).endswith("_2026_01.pdf"))
+        self.assertTrue(pdf_filename_for(None, "1", 2026, 1, 'imperial').endswith("_2026_01_ft.pdf"))
+
+    def test_metric_and_imperial_filenames_differ(self):
+        ft = pdf_filename_for("Point Roberts, WA", "9449639", 2026, 7, 'imperial')
+        m = pdf_filename_for("Point Roberts, WA", "9449639", 2026, 7, 'metric')
+        self.assertNotEqual(ft, m)
+        self.assertTrue(ft.endswith("_ft.pdf"))
+        self.assertTrue(m.endswith("_m.pdf"))
 
 
 class TestGetOrGeneratePdf(unittest.TestCase):
@@ -78,7 +92,7 @@ class TestGetOrGeneratePdf(unittest.TestCase):
                           'place_name': 'Point Roberts, WA'}).start()
 
     def test_cache_hit_serves_existing_pdf_without_generating(self):
-        cached = os.path.join(self.tmpdir.name, "tide_calendar_Point_Roberts_WA_2026_06.pdf")
+        cached = os.path.join(self.tmpdir.name, "tide_calendar_Point_Roberts_WA_2026_06_ft.pdf")
         with open(cached, 'wb') as f:
             f.write(b"%PDF-fake")
 
@@ -92,10 +106,10 @@ class TestGetOrGeneratePdf(unittest.TestCase):
             "9449639", "Point Roberts, WA", 2026, 6, 'success', source='web')
 
     def test_empty_cached_file_triggers_regeneration(self):
-        cached = os.path.join(self.tmpdir.name, "tide_calendar_Point_Roberts_WA_2026_06.pdf")
+        cached = os.path.join(self.tmpdir.name, "tide_calendar_Point_Roberts_WA_2026_06_ft.pdf")
         open(cached, 'wb').close()  # zero bytes
 
-        def fake_generate(station_id, year, month, output_path, location_name=None):
+        def fake_generate(station_id, year, month, output_path, location_name=None, unit='imperial'):
             with open(output_path, 'wb') as f:
                 f.write(b"%PDF-fake")
             return output_path
@@ -111,7 +125,7 @@ class TestGetOrGeneratePdf(unittest.TestCase):
         """The cache check predicts the generator's output path — they must agree."""
         seen = {}
 
-        def fake_generate(station_id, year, month, output_path, location_name=None):
+        def fake_generate(station_id, year, month, output_path, location_name=None, unit='imperial'):
             seen['path'] = output_path
             with open(output_path, 'wb') as f:
                 f.write(b"%PDF-fake")
@@ -139,7 +153,7 @@ class TestGetOrGeneratePdf(unittest.TestCase):
     def test_station_without_place_name_uses_station_id_in_filename(self):
         self.get_info.return_value = {'station_id': '999', 'place_name': None}
 
-        def fake_generate(station_id, year, month, output_path, location_name=None):
+        def fake_generate(station_id, year, month, output_path, location_name=None, unit='imperial'):
             with open(output_path, 'wb') as f:
                 f.write(b"%PDF-fake")
             return output_path
@@ -150,7 +164,7 @@ class TestGetOrGeneratePdf(unittest.TestCase):
 
         self.assertTrue(result.ok)
         self.assertEqual(os.path.basename(result.pdf_path),
-                         "tide_calendar_999_2026_06.pdf")
+                         "tide_calendar_999_2026_06_ft.pdf")
 
     def test_unknown_station_rejected_before_any_work(self):
         self.get_info.return_value = None
@@ -211,6 +225,25 @@ class TestGenerateCalendarConcurrency(unittest.TestCase):
                 self.assertEqual(f.read(), b"%PDF-fake\n")
             # No stray temp files left behind
             self.assertEqual(os.listdir(tmpdir), [os.path.basename(out_path)])
+
+
+class CleanupUnitSuffixTest(unittest.TestCase):
+    """Old-month PDFs carrying the unit token (_ft/_m, added by the unit toggle)
+    must still be swept by cleanup_previous_month_pdfs."""
+
+    def test_old_month_unit_suffixed_pdfs_are_removed(self):
+        from calendar_service import cleanup_previous_month_pdfs
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_ft = os.path.join(tmpdir, 'tide_calendar_Point_Roberts_WA_2000_01_ft.pdf')
+            old_m = os.path.join(tmpdir, 'tide_calendar_Point_Roberts_WA_2000_01_m.pdf')
+            future = os.path.join(tmpdir, 'tide_calendar_Point_Roberts_WA_2099_12_ft.pdf')
+            for p in (old_ft, old_m, future):
+                with open(p, 'w') as f:
+                    f.write('x')
+            cleanup_previous_month_pdfs(directory=tmpdir)
+            self.assertFalse(os.path.exists(old_ft))
+            self.assertFalse(os.path.exists(old_m))
+            self.assertTrue(os.path.exists(future))  # future month kept
 
 
 if __name__ == '__main__':
