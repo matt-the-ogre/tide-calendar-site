@@ -91,7 +91,7 @@ class GenerateResult:
     error_code: str = None  # 'unknown_station' | 'no_predictions' | 'generation_failed'
 
 
-def get_or_generate_pdf(station_id, year, month, source='web'):
+def get_or_generate_pdf(station_id, year, month, source='web', unit='imperial'):
     """Serve from the PDF cache or generate; logs the usage event either way.
 
     On fresh web generations the station lookup is also recorded for the
@@ -109,7 +109,7 @@ def get_or_generate_pdf(station_id, year, month, source='web'):
 
     place_name = station_info.get('place_name')
     location_display = extract_location_with_state(place_name)
-    download_name = pdf_filename_for(location_display, station_id, year, month)
+    download_name = pdf_filename_for(location_display, station_id, year, month, unit)
     pdf_path = os.path.join(PDF_OUTPUT_DIR, download_name)
 
     if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
@@ -120,7 +120,7 @@ def get_or_generate_pdf(station_id, year, month, source='web'):
 
     logging.info(f"Generating new PDF for station {station_id}, {year}-{month:02d} (source={source})")
     try:
-        generate_calendar(station_id, year, month, pdf_path, location_name=location_display)
+        generate_calendar(station_id, year, month, pdf_path, location_name=location_display, unit=unit)
     except TideDataError as e:
         logging.error(f"No tide data for station {station_id} {year}-{month:02d}: {e}")
         log_usage_event(station_id, place_name, year, month, 'error', 'no_predictions', source=source)

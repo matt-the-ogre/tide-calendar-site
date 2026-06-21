@@ -11,6 +11,11 @@ try:
 except ImportError:
     from sun_times import civil_daylight_window as _default_window
 
+try:
+    from app.units import convert as _uconv, suffix as _usuf
+except ImportError:
+    from units import convert as _uconv, suffix as _usuf
+
 
 def _in_window(event_dt, window):
     """event_dt: naive local datetime. window: (dawn,dusk) tz-aware | 'all' | None."""
@@ -69,12 +74,14 @@ def top_extreme_tides(local_csv, lat, lng, iana_tz, year, month, n=5, window_fn=
     return _select(highs), _select(lows)
 
 
-def format_extreme_rows(entries, month=None):
-    """Render entries as ASCII pcal note rows: 'Mdd  HH:MM  X.X m'.
+def format_extreme_rows(entries, month=None, unit='imperial'):
+    """Render entries as ASCII pcal note rows: 'Mdd  HH:MM  X.X <unit>'.
 
     The day is prefixed with the month's first letter (e.g. June 14 -> 'J14') so a
     date can't be mistaken for the numeric tide height. `month` is 1-12; when None
-    the letter is omitted."""
+    the letter is omitted. Heights are converted to the requested unit for display;
+    ranking/selection must be done on raw metric values before calling this."""
     import calendar as _calendar
     letter = _calendar.month_abbr[month][0] if month else ''
-    return [f"{letter}{e['day']:02d}  {e['time']}  {e['height']:.1f} m" for e in entries]
+    return [f"{letter}{e['day']:02d}  {e['time']}  {_uconv(e['height'], unit):.1f} {_usuf(unit)}"
+            for e in entries]
