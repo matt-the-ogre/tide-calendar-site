@@ -74,10 +74,11 @@ def sanitize_filename(text):
     return safe or "unknown"
 
 
-def pdf_filename_for(location_display, station_id, year, month):
+def pdf_filename_for(location_display, station_id, year, month, unit='imperial'):
     """The one place the cached-PDF filename is derived."""
     stem = sanitize_filename(location_display) if location_display else station_id
-    return f"tide_calendar_{stem}_{year}_{month:02d}.pdf"
+    token = 'ft' if unit == 'imperial' else 'm'
+    return f"tide_calendar_{stem}_{year}_{month:02d}_{token}.pdf"
 
 
 @dataclass
