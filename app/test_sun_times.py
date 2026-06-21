@@ -86,5 +86,35 @@ class LocalizeCsvTest(unittest.TestCase):
         self.assertEqual(sun_times.localize_and_filter_csv(csv_in, 'NOAA', None, 2026, 6), csv_in)
 
 
+class CivilWindowTest(unittest.TestCase):
+    def test_normal_station_returns_dawn_dusk(self):
+        import sun_times
+        from datetime import date
+        w = sun_times.civil_daylight_window(48.97, -123.07, 'America/Los_Angeles', date(2026, 6, 15))
+        self.assertIsInstance(w, tuple)
+        dawn, dusk = w
+        self.assertLess(dawn, dusk)
+        self.assertIn(dawn.hour, range(3, 6))
+        self.assertIn(dusk.hour, range(21, 23))
+
+    def test_polar_day_all(self):
+        import sun_times
+        from datetime import date
+        self.assertEqual(
+            sun_times.civil_daylight_window(78.0, 15.0, 'Arctic/Longyearbyen', date(2026, 6, 15)),
+            'all')
+
+    def test_polar_night_none(self):
+        import sun_times
+        from datetime import date
+        self.assertIsNone(
+            sun_times.civil_daylight_window(78.0, 15.0, 'Arctic/Longyearbyen', date(2026, 12, 15)))
+
+    def test_missing_tz_none(self):
+        import sun_times
+        from datetime import date
+        self.assertIsNone(sun_times.civil_daylight_window(48.0, -123.0, None, date(2026, 6, 15)))
+
+
 if __name__ == '__main__':
     unittest.main()

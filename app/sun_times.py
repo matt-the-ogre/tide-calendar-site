@@ -38,6 +38,30 @@ def _day_sun(observer, d, tz):
         return '24h daylight' if up else 'polar night'
 
 
+def civil_daylight_window(lat, lng, iana_tz, d):
+    """Civil-twilight daylight window for date d at a station.
+
+    Returns (dawn_dt, dusk_dt) as tz-aware datetimes (civil dawn/dusk, sun 6°
+    below horizon), or 'all' for polar 24h daylight, or None for polar night /
+    missing tz/coords.
+    """
+    tz = _zone(iana_tz)
+    if lat is None or lng is None or tz is None:
+        return None
+    observer = Observer(latitude=lat, longitude=lng)
+    try:
+        dawn = _astral_sun.dawn(observer, date=d, tzinfo=tz)  # depression 6° (civil) by default
+        dusk = _astral_sun.dusk(observer, date=d, tzinfo=tz)
+        return (dawn, dusk)
+    except ValueError:
+        noon = _datetime(d.year, d.month, d.day, 12, 0, tzinfo=tz)
+        try:
+            up = _astral_sun.elevation(observer, noon) > 0
+        except Exception:
+            return 'all'
+        return 'all' if up else None
+
+
 def sun_times_for_month(lat, lng, iana_tz, year, month):
     """{day:int -> ("HH:MM","HH:MM") | note str}. Empty dict if tz/coords missing."""
     tz = _zone(iana_tz)
