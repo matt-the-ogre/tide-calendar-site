@@ -227,5 +227,24 @@ class TestGenerateCalendarConcurrency(unittest.TestCase):
             self.assertEqual(os.listdir(tmpdir), [os.path.basename(out_path)])
 
 
+class CleanupUnitSuffixTest(unittest.TestCase):
+    """Old-month PDFs carrying the unit token (_ft/_m, added by the unit toggle)
+    must still be swept by cleanup_previous_month_pdfs."""
+
+    def test_old_month_unit_suffixed_pdfs_are_removed(self):
+        from calendar_service import cleanup_previous_month_pdfs
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_ft = os.path.join(tmpdir, 'tide_calendar_Point_Roberts_WA_2000_01_ft.pdf')
+            old_m = os.path.join(tmpdir, 'tide_calendar_Point_Roberts_WA_2000_01_m.pdf')
+            future = os.path.join(tmpdir, 'tide_calendar_Point_Roberts_WA_2099_12_ft.pdf')
+            for p in (old_ft, old_m, future):
+                with open(p, 'w') as f:
+                    f.write('x')
+            cleanup_previous_month_pdfs(directory=tmpdir)
+            self.assertFalse(os.path.exists(old_ft))
+            self.assertFalse(os.path.exists(old_m))
+            self.assertTrue(os.path.exists(future))  # future month kept
+
+
 if __name__ == '__main__':
     unittest.main()

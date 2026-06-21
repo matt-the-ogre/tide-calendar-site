@@ -153,8 +153,10 @@ def cleanup_previous_month_pdfs(directory=None):
 
         for pdf_file in glob.glob(pdf_pattern):
             try:
-                # Pattern: tide_calendar_<location>_<YYYY>_<MM>.pdf
-                match = re.search(r'_(\d{4})_(\d{2})\.pdf$', pdf_file)
+                # Pattern: tide_calendar_<location>_<YYYY>_<MM>[_<unit>].pdf
+                # The optional _ft/_m unit token was added with the unit toggle;
+                # cleanup must still match those so old-month PDFs are swept.
+                match = re.search(r'_(\d{4})_(\d{2})(?:_(?:ft|m))?\.pdf$', pdf_file)
                 if match:
                     pdf_year = int(match.group(1))
                     pdf_month = int(match.group(2))
