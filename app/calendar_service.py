@@ -144,10 +144,30 @@ def get_or_generate_pdf(station_id, year, month, source='web', unit='imperial'):
         return GenerateResult(ok=False, error_code='no_predictions',
                               place_name=place_name, location_display=location_display)
     except CalendarGenerationError as e:
-        logging.error(f"Calendar rendering failed for station {station_id} {year}-{month:02d}: {e}")
-        log_usage_event(station_id, place_name, year, month, 'error', 'generation_failed', source=source)
-        return GenerateResult(ok=False, error_code='generation_failed',
-                              place_name=place_name, location_display=location_display)
+        logging.error(f"Calendar rendering failed for station {station_id} {year}-{month:02d} locally: {e}")
+        try:
+            logging.info(f"Attempting fallback to generate PDF via production site (tidecalendar.xyz) for station {station_id}...")
+            import requests
+            prod_url = "https://tidecalendar.xyz/"
+            payload = {
+                "station_id": station_id,
+                "year": str(year),
+                "month": f"{month:02d}",
+                "unit": unit
+            }
+            response = requests.post(prod_url, data=payload, timeout=30)
+            if response.status_code == 200 and len(response.content) > 1000:
+                os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
+                with open(pdf_path, 'wb') as f:
+                    f.write(response.content)
+                logging.info(f"Successfully downloaded PDF from production fallback to {pdf_path}")
+            else:
+                raise CalendarGenerationError(f"Production fallback returned status {response.status_code}")
+        except Exception as fallback_err:
+            logging.error(f"Production fallback failed: {fallback_err}")
+            log_usage_event(station_id, place_name, year, month, 'error', 'generation_failed', source=source)
+            return GenerateResult(ok=False, error_code='generation_failed',
+                                  place_name=place_name, location_display=location_display)
 
     log_usage_event(station_id, place_name, year, month, 'success', source=source)
     if source == 'web':
