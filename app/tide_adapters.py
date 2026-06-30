@@ -356,7 +356,14 @@ class CHSAdapter(TideAdapter):
             station_code: Numeric station code (e.g., "07735")
 
         Returns:
-            UUID string if found, None if lookup fails
+            UUID string if found, None if the station genuinely isn't found.
+
+        Raises:
+            TideServiceUnavailableError: if every endpoint failed for a
+            transient/connectivity reason (gateway 5xx / timeout / network).
+            Canadian stations are overwhelmingly looked up by numeric code, so
+            this lookup is on the hot path; without this, a CHS outage here
+            would surface as a misleading "no predictions" instead of an outage.
         """
         import json
 
@@ -364,6 +371,11 @@ class CHSAdapter(TideAdapter):
             'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
         }
         params = {"code": station_code}
+
+        # Distinguish a transient outage (raise) from a definitive "not found"
+        # (return None), same policy as get_predictions below.
+        transient_failure = False
+        saw_definitive_answer = False
 
         # Try each base URL for station lookup
         for base_url in self.BASE_URLS:
@@ -377,6 +389,8 @@ class CHSAdapter(TideAdapter):
                 )
 
                 if response.status_code == 200:
+                    # A 200 is a definitive answer even if it lists no station.
+                    saw_definitive_answer = True
                     # Parse JSON response
                     stations = json.loads(response.text)
 
@@ -393,22 +407,35 @@ class CHSAdapter(TideAdapter):
 
                     self.logger.info(f"Found UUID {station_uuid} for station code {station_code}")
                     return station_uuid
+                elif response.status_code in [502, 503, 504]:
+                    self.logger.warning(f"Station lookup at {base_url} returned gateway error {response.status_code}")
+                    transient_failure = True
+                    continue
                 else:
+                    # Definitive non-gateway HTTP error (e.g. 404) — not an outage.
                     self.logger.warning(f"Station lookup at {base_url} returned status {response.status_code}")
+                    saw_definitive_answer = True
                     continue
 
             except json.JSONDecodeError as e:
+                # Server responded but the body was unparseable — not a connectivity outage.
                 self.logger.warning(f"Failed to parse station lookup response from {base_url}: {e}")
+                saw_definitive_answer = True
                 continue
             except requests.exceptions.RequestException as e:
                 self.logger.warning(f"Network error during station lookup at {base_url}: {e}")
+                transient_failure = True
                 continue
             except Exception as e:
                 self.logger.warning(f"Unexpected error during station lookup at {base_url}: {e}")
                 continue
 
-        # All endpoints failed
+        # All endpoints failed. Raise only if every failure was transient and no
+        # endpoint gave a definitive answer — otherwise it's a genuine not-found.
         self.logger.error(f"Failed to lookup UUID for station code {station_code} at all endpoints")
+        if transient_failure and not saw_definitive_answer:
+            raise TideServiceUnavailableError(
+                f"CHS station lookup unreachable for code {station_code}")
         return None
 
     def get_predictions(self, station_id: str, year: int, month: int) -> Optional[str]:
@@ -478,11 +505,13 @@ class CHSAdapter(TideAdapter):
         max_retries = 3
         retry_delay = 2  # seconds
 
-        # Track whether the failures we saw were transient/connectivity-related
-        # (gateway 5xx, timeout, network). If every endpoint failed for those
-        # reasons it's an upstream outage (raise), as opposed to a definitive
-        # non-gateway HTTP error which means no usable data (return None).
+        # Distinguish a transient outage from a definitive answer. We raise only
+        # when EVERY endpoint failed for a transient/connectivity reason (gateway
+        # 5xx, timeout, network) AND none returned a definitive non-gateway HTTP
+        # error. A definitive 404 from one endpoint must win over a transient
+        # blip on the mirror, so the user gets "no data" not "outage".
         transient_failure = False
+        saw_definitive_answer = False
 
         # Try each base URL until we get a successful response
         for base_url in self.BASE_URLS:
@@ -518,7 +547,9 @@ class CHSAdapter(TideAdapter):
                     else:
                         self.logger.warning(f"CHS API endpoint {base_url} returned status {response.status_code}, trying next endpoint")
                         self.logger.debug(f"Response: {response.text[:200]}")
-                        # Non-gateway errors don't retry, move to next endpoint
+                        # Non-gateway errors (e.g. 404) are a definitive answer,
+                        # not an outage; don't retry, move to next endpoint.
+                        saw_definitive_answer = True
                         break
 
                 except requests.exceptions.Timeout as e:
@@ -543,7 +574,7 @@ class CHSAdapter(TideAdapter):
 
         # If we get here, all endpoints failed
         self.logger.error(f"All CHS API endpoints failed for station UUID {station_uuid}")
-        if transient_failure:
+        if transient_failure and not saw_definitive_answer:
             raise TideServiceUnavailableError(
                 f"CHS API endpoints all unreachable for station UUID {station_uuid}")
         return None

@@ -65,6 +65,35 @@ class TestAdapterOutageSignal(unittest.TestCase):
         with self.assertRaises(TideServiceUnavailableError):
             CHSAdapter().get_predictions(uuid, 2026, 8)
 
+    @patch('tide_adapters.requests.get')
+    def test_chs_numeric_code_lookup_outage_raises_unavailable(self, mock_get):
+        # Numeric codes (the common Canadian case) must resolve a UUID first; if
+        # that lookup endpoint is in outage, the outage must propagate — not
+        # degrade to a misleading "no predictions".
+        mock_get.return_value = Mock(status_code=504, text='gateway timeout')
+        with self.assertRaises(TideServiceUnavailableError):
+            CHSAdapter().get_predictions('07735', 2026, 8)
+
+    @patch('tide_adapters.requests.get')
+    def test_chs_numeric_code_genuinely_not_found_returns_none(self, mock_get):
+        # A definitive 200-with-empty-list (or 404) is "not found", not an outage.
+        mock_get.return_value = Mock(status_code=200, text='[]')
+        self.assertIsNone(CHSAdapter().get_predictions('07735', 2026, 8))
+
+    @patch('time.sleep', lambda *a, **k: None)
+    @patch('tide_adapters.requests.get')
+    def test_chs_definitive_answer_beats_transient_blip(self, mock_get):
+        # Endpoint 1 gives a definitive 404; endpoint 2 (mirror) times out. The
+        # definitive answer must win -> return None (no data), not raise outage.
+        mock_get.side_effect = [
+            Mock(status_code=404, text='not found'),          # endpoint 1: definitive
+            requests.exceptions.Timeout("blip"),               # endpoint 2: attempt 1
+            requests.exceptions.Timeout("blip"),               # endpoint 2: attempt 2
+            requests.exceptions.Timeout("blip"),               # endpoint 2: attempt 3
+        ]
+        uuid = '5cebf1df3d0f4a073c4bb9a8x'
+        self.assertIsNone(CHSAdapter().get_predictions(uuid, 2026, 8))
+
 
 class TestRawDataCache(unittest.TestCase):
     def setUp(self):
