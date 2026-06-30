@@ -280,6 +280,7 @@ pcal → ps2pdf → ImageMagick. You can run it manually, but it normally runs *
 
 ### Running Tests
 ```bash
+# NOTE: `python` is NOT on PATH — use `venv/bin/python` (or `python3`) for all commands below.
 # Run Python unit tests (same as CI; must run from app/ — tests import sibling modules)
 cd app && python -m unittest discover -p 'test_*.py'
 python scripts/test_usage_events.py
@@ -299,10 +300,11 @@ npx playwright test
 See `docs/performance-benchmarks.md` for detailed performance targets, API latency tables, caching strategy, and monitoring thresholds.
 
 ### Important Notes
-- **Branching workflow**: Work on `development` branch first, PR into `main`. Dev deploys to https://dev.tidecalendar.xyz, main deploys to https://tidecalendar.xyz
+- **Branching workflow**: Work on `development` branch first, PR into `main`. Dev deploys to https://dev.tidecalendar.xyz, main deploys to https://tidecalendar.xyz. GitHub auto-closes a linked issue only on merge to the default branch (`main`), so put `Closes #N` on the `development → main` PR, not the feature → `development` PR. Non-code changes (docs, CLAUDE.md, comments) may skip the feature-branch + PR step and commit directly to `development`.
 - **dev→main merge-commit drift**: after a `development → main` PR merge, `development` lags `main` by the merge commit (file trees identical). Resync with `git checkout development && git merge --ff-only origin/main && git push` so new work starts current.
 - **`app/` must NOT import from `scripts/`**: `.dockerignore` excludes `scripts/` from the image, so any runtime `import scripts.*` from `app/` raises ModuleNotFoundError in the container. Cold-DB dev hides it; warm-DB prod surfaces it. Inline shared logic into the shipped `app/` module (e.g. `station_coordinates.py` has its own `fetch_noaa_coordinates`).
 - **Dual-import idiom**: modules imported by the unittest suite use `try: from app.X import … except ImportError: from X import …` (tests run `cd app && python -m unittest` → siblings top-level; gunicorn runs the `app` package). `routes.py` is NOT unittest-importable (`from app import app`) and no test imports it — test pure helpers by putting them in `database.py`, not in routes.
+- **Smoke-testing routes**: `routes.py` isn't unittest-importable, but you can exercise routes in-process (no network — sandbox-safe) via `PYTHONPATH=. venv/bin/python` → `from app import app; c = app.test_client()`, against a temp `DB_PATH` seeded with `database.init_database()`. Good for verifying status codes and rendered templates end-to-end.
 - **Tests reassign `database.DB_PATH`** at runtime, so reference `database.DB_PATH` dynamically; never `from database import DB_PATH` (the binding goes stale and tests clobber the real DB).
 - **Local manual testing**: seed a temp DB fast with `database.import_stations_from_csv()` + `import_canadian_stations_from_csv()` (CSV, no API), then `DB_PATH=… FLASK_APP=app flask run` to bypass run.py's slow CHS API sync.
 - **Claude Code sandbox can't reach localhost**: curl to a local flask server returns HTTP 000 — verify via the Playwright/Chrome MCP browser (real env) or `dangerouslyDisableSandbox` for localhost-targeting Bash. Run the dev server as a harness background task (`run_in_background`), not `&`/nohup (the sandbox reaps detached processes).
@@ -322,6 +324,7 @@ See `docs/performance-benchmarks.md` for detailed performance targets, API laten
 - **Dependency updates**: Before bumping Python package versions, check `requires_python` on PyPI against the Dockerfile base image (`python:3.12-slim-bookworm`). Use: `curl -s https://pypi.org/pypi/<pkg>/<ver>/json | python3 -c "import sys,json; print(json.load(sys.stdin)['info']['requires_python'])"`
 - **Testing pcal/PDF changes**: Cached PDFs mask code changes. Clear cache before testing: `ssh captain "docker exec <container> sh -c 'rm -f /data/calendars/*.pdf'"` (must use `sh -c` for glob expansion in `docker exec`)
 - **CapRover containers**: SSH host `captain`, container names: `srv-captain--tide-calendar-{dev,prod}.1.<hash>`. Find with: `ssh captain "docker ps --format '{{.Names}}' | grep tide"`
+- **Querying the prod analytics DB**: `/admin/analytics` shows only the 100 most recent events; for full `usage_events` history query the DB directly: `ssh captain "docker exec -i <prod-container> python3 -" <<'PY' … PY`. Use `docker exec -i` (without `-i`, stdin isn't forwarded and you get no output); the slim image has no `sqlite3` CLI, so use the container's `python3`.
 - **subprocess.run gotcha**: When using list args (not `shell=True`), each flag and its value must be separate list elements. `["-s", "0.0:0.0:1.0"]` not `["-s 0.0:0.0:1.0"]`
 - **Docker build context**: `.dockerignore` must NOT exclude `.git` — the Dockerfile's builder stage derives /health's commit_hash from it (only that stage sees it; history never ships in the final image)
 - **pip-audit CI gate**: a red build with no code change usually means a newly published advisory, not a regression — bump the affected pin (it's non-deterministic by design)
