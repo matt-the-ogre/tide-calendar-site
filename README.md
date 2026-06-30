@@ -142,6 +142,7 @@ tide_calendar/
 - **User-Friendly Interface**: Type place names like "Point Roberts, WA" or use station IDs
 - **Remember Last Used**: Automatically remembers your last successful location
 - **PDF Generation**: Creates downloadable monthly tide calendars
+- **Resilient to upstream outages**: Tide data is cached per station/month (independent of units), so once a month has been generated it keeps working even if the NOAA/CHS prediction service is temporarily down. When the upstream service is unreachable, the app shows a clear "try again in a few hours" message instead of a misleading "no predictions" error.
 
 ## Usage
 
@@ -166,6 +167,7 @@ tide_calendar/
 - Ensure `pcal` and `ghostscript` are installed on your system if running locally.
 - The app defaults to "Point Roberts, WA" for demonstration purposes.
 - All tide stations are sourced from NOAA's official tide station database.
+- Tide predictions come from external services (NOAA for US stations, CHS for Canadian). If a calendar fails to generate with a "service temporarily unavailable" message, the upstream provider is having an outage — try again later rather than picking a different station.
 - The application automatically tracks popular stations for better autocomplete suggestions.
 
 For deployment, it's common practice to use standard HTTP (port 80) or HTTPS (port 443) ports to make the application accessible over the web without specifying a port number in the URL. Here’s how you can set this up in your Docker deployment.
