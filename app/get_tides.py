@@ -193,6 +193,7 @@ def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, stati
 
         valid_lines = 0
         skipped_lines = 0
+        low_tide_days = set()
 
         # lines[0] is the header
         for line_num, line in enumerate(lines[1:], start=2):
@@ -230,11 +231,10 @@ def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, stati
 
                 tide_type_full = "High" if tide_type == "H" else "Low"
 
-                # Format the date for pcal (mm/dd); asterisk marks low tides
-                # so pcal colour-codes the day
+                # Format the date for pcal (mm/dd)
                 pcal_date = f"{int(month)}/{int(day)}"
                 if prediction < LOW_TIDE_THRESHOLD:
-                    pcal_date += "*"
+                    low_tide_days.add(int(day))
 
                 pcal_file.write(f"{pcal_date}  {time} {tide_type_full} {_uconv(prediction, unit):.1f} {_usuf(unit)}\n")
                 valid_lines += 1
@@ -248,6 +248,12 @@ def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, stati
 
         if valid_lines == 0:
             raise TideDataError("No valid tide data found in API response")
+
+        # Write empty holiday entries to color-code days with low tides,
+        # keeping the text entries as regular (non-starred) events.
+        if month_num is not None:
+            for day in sorted(low_tide_days):
+                pcal_file.write(f"{month_num}/{day}*\n")
 
         pcal_file.write("\n")
 

@@ -218,12 +218,13 @@
                 _applyUnit(_unitForCountry(country));
             }
 
-            // On unit radio change: update hidden field and set cookie
+            // On unit radio change: update hidden field, set cookie, and reload page
             document.querySelectorAll('input[name="unit_toggle"]').forEach(radio => {
                 radio.addEventListener('change', function() {
                     const hidden = document.getElementById('unit');
                     if (hidden) hidden.value = this.value;
                     setCookie('unit_preference', this.value, 365);
+                    window.location.reload();
                 });
             });
         }
