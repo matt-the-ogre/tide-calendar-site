@@ -25,6 +25,19 @@ from typing import Optional
 MAX_YEARS_AHEAD = 4
 
 
+class TideServiceUnavailableError(Exception):
+    """The upstream prediction API was unreachable after retries — gateway 5xx
+    (502/503/504), timeout, or a network error.
+
+    Deliberately distinct from "this station has no predictions for the period":
+    an outage is transient and worth retrying later, whereas missing data means
+    the user should pick a different station/month. Adapters raise this (instead
+    of returning None) only when the failure was transient/connectivity-related,
+    so callers can show the right message and analytics can tell an upstream
+    outage apart from a genuine no-data result.
+    """
+
+
 def year_in_range(year: int) -> bool:
     return 2000 <= year <= datetime.now(timezone.utc).year + MAX_YEARS_AHEAD
 
@@ -175,14 +188,15 @@ class NOAAAdapter(TideAdapter):
                     # Parse and validate response
                     return self.parse_response(response.text)
                 elif response.status_code in [502, 503, 504]:
-                    # Gateway errors - retry
+                    # Gateway errors - retry, then signal an upstream outage
                     self.logger.warning(f"NOAA API returned {response.status_code} (gateway error), attempt {attempt + 1}/{max_retries}")
                     if attempt == max_retries - 1:
                         self.logger.error(f"NOAA API request failed after {max_retries} attempts with status {response.status_code}")
-                        return None
+                        raise TideServiceUnavailableError(
+                            f"NOAA API returned {response.status_code} after {max_retries} attempts")
                     continue
                 else:
-                    # Other errors - don't retry
+                    # Other errors (4xx etc.) - not an outage, treat as no data
                     self.logger.error(f"NOAA API request failed with status {response.status_code}")
                     return None
 
@@ -190,14 +204,20 @@ class NOAAAdapter(TideAdapter):
                 self.logger.warning(f"NOAA API timeout on attempt {attempt + 1}/{max_retries}: {e}")
                 if attempt == max_retries - 1:
                     self.logger.error(f"NOAA API request timed out after {max_retries} attempts")
-                    return None
+                    raise TideServiceUnavailableError(
+                        f"NOAA API timed out after {max_retries} attempts") from e
                 continue
             except requests.exceptions.RequestException as e:
                 self.logger.warning(f"NOAA API request error on attempt {attempt + 1}/{max_retries}: {e}")
                 if attempt == max_retries - 1:
                     self.logger.error(f"NOAA API request failed after {max_retries} attempts: {e}")
-                    return None
+                    raise TideServiceUnavailableError(
+                        f"NOAA API connection failed after {max_retries} attempts: {e}") from e
                 continue
+            except TideServiceUnavailableError:
+                # Our own outage signal (raised above) — must not be swallowed by
+                # the broad except below.
+                raise
             except Exception as e:
                 self.logger.error(f"Unexpected error in NOAA API request: {e}")
                 return None
@@ -458,6 +478,12 @@ class CHSAdapter(TideAdapter):
         max_retries = 3
         retry_delay = 2  # seconds
 
+        # Track whether the failures we saw were transient/connectivity-related
+        # (gateway 5xx, timeout, network). If every endpoint failed for those
+        # reasons it's an upstream outage (raise), as opposed to a definitive
+        # non-gateway HTTP error which means no usable data (return None).
+        transient_failure = False
+
         # Try each base URL until we get a successful response
         for base_url in self.BASE_URLS:
             endpoint = f"{base_url}/stations/{station_uuid}/data"
@@ -482,6 +508,7 @@ class CHSAdapter(TideAdapter):
                     elif response.status_code in [502, 503, 504]:
                         # Gateway errors - retry same endpoint
                         self.logger.warning(f"CHS API returned {response.status_code} (gateway error), attempt {attempt + 1}/{max_retries}")
+                        transient_failure = True
                         if attempt < max_retries - 1:
                             continue
                         else:
@@ -496,6 +523,7 @@ class CHSAdapter(TideAdapter):
 
                 except requests.exceptions.Timeout as e:
                     self.logger.warning(f"CHS API timeout on attempt {attempt + 1}/{max_retries}: {e}")
+                    transient_failure = True
                     if attempt < max_retries - 1:
                         continue
                     else:
@@ -503,6 +531,7 @@ class CHSAdapter(TideAdapter):
                         break
                 except requests.exceptions.RequestException as e:
                     self.logger.warning(f"CHS API request error on attempt {attempt + 1}/{max_retries}: {e}")
+                    transient_failure = True
                     if attempt < max_retries - 1:
                         continue
                     else:
@@ -514,6 +543,9 @@ class CHSAdapter(TideAdapter):
 
         # If we get here, all endpoints failed
         self.logger.error(f"All CHS API endpoints failed for station UUID {station_uuid}")
+        if transient_failure:
+            raise TideServiceUnavailableError(
+                f"CHS API endpoints all unreachable for station UUID {station_uuid}")
         return None
 
     def parse_response(self, response_data: str) -> Optional[str]:

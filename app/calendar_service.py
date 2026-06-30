@@ -17,10 +17,12 @@ try:
     from app.database import get_station_info, log_station_lookup, log_usage_event
     from app.get_tides import (CalendarGenerationError, TideDataError,
                                generate_calendar)
+    from app.tide_adapters import TideServiceUnavailableError
 except ImportError:
     from database import get_station_info, log_station_lookup, log_usage_event
     from get_tides import (CalendarGenerationError, TideDataError,
                            generate_calendar)
+    from tide_adapters import TideServiceUnavailableError
 
 # Default to app/calendars for local dev, override with PDF_OUTPUT_DIR env var
 # for production
@@ -88,7 +90,8 @@ class GenerateResult:
     download_name: str = None
     place_name: str = None
     location_display: str = None
-    # 'junk_station_id' | 'unknown_station' | 'no_predictions' | 'generation_failed'
+    # 'junk_station_id' | 'unknown_station' | 'no_predictions'
+    #   | 'upstream_unavailable' | 'generation_failed'
     error_code: str = None
 
 
@@ -138,6 +141,15 @@ def get_or_generate_pdf(station_id, year, month, source='web', unit='imperial'):
     logging.info(f"Generating new PDF for station {station_id}, {year}-{month:02d} (source={source})")
     try:
         generate_calendar(station_id, year, month, pdf_path, location_name=location_display, unit=unit)
+    except TideServiceUnavailableError as e:
+        # Upstream API outage (gateway 5xx/timeout/network) — distinct from a
+        # station genuinely having no predictions, so the user gets a "try again
+        # later" message instead of "pick a different station", and analytics can
+        # tell an upstream outage apart from real no-data.
+        logging.error(f"Tide service unavailable for station {station_id} {year}-{month:02d}: {e}")
+        log_usage_event(station_id, place_name, year, month, 'error', 'upstream_unavailable', source=source)
+        return GenerateResult(ok=False, error_code='upstream_unavailable',
+                              place_name=place_name, location_display=location_display)
     except TideDataError as e:
         logging.error(f"No tide data for station {station_id} {year}-{month:02d}: {e}")
         log_usage_event(station_id, place_name, year, month, 'error', 'no_predictions', source=source)
@@ -157,36 +169,59 @@ def get_or_generate_pdf(station_id, year, month, source='web', unit='imperial'):
                           place_name=place_name, location_display=location_display)
 
 
+def _sweep_previous_month_files(pattern, suffix_re, current_year, current_month, label):
+    """Delete files matching `pattern` whose `_YYYY_MM` stamp is before the
+    current month. `suffix_re` matches the trailing date+extension. Returns the
+    count deleted. Shared by the PDF and raw-data caches."""
+    deleted = 0
+    for path in glob.glob(pattern):
+        try:
+            match = re.search(suffix_re, path)
+            if not match:
+                continue
+            year, month = int(match.group(1)), int(match.group(2))
+            if year < current_year or (year == current_year and month < current_month):
+                os.remove(path)
+                deleted += 1
+                logging.info(f"Cleaned up old {label}: {path} ({year}-{month:02d})")
+        except (OSError, ValueError) as e:
+            logging.warning(f"Could not process {label} {path}: {e}")
+    return deleted
+
+
 def cleanup_previous_month_pdfs(directory=None):
-    """Delete cached PDFs from previous months. Called once at startup."""
+    """Delete cached PDFs and raw tide-data files from previous months.
+
+    Called once at startup. The raw-data cache lives in the RAW_CACHE_SUBDIR
+    under the same directory; both are swept on the same month boundary so the
+    persistent volume doesn't accumulate stale months.
+    """
     directory = directory or PDF_OUTPUT_DIR
     try:
         today = datetime.now()
         current_year = today.year
         current_month = today.month
 
-        pdf_pattern = os.path.join(directory, "tide_calendar_*.pdf")
-        deleted_count = 0
+        # Pattern: tide_calendar_<location>_<YYYY>_<MM>[_<unit>].pdf
+        # The optional _ft/_m unit token was added with the unit toggle; cleanup
+        # must still match those so old-month PDFs are swept.
+        deleted_count = _sweep_previous_month_files(
+            os.path.join(directory, "tide_calendar_*.pdf"),
+            r'_(\d{4})_(\d{2})(?:_(?:ft|m))?\.pdf$',
+            current_year, current_month, "PDF")
 
-        for pdf_file in glob.glob(pdf_pattern):
-            try:
-                # Pattern: tide_calendar_<location>_<YYYY>_<MM>[_<unit>].pdf
-                # The optional _ft/_m unit token was added with the unit toggle;
-                # cleanup must still match those so old-month PDFs are swept.
-                match = re.search(r'_(\d{4})_(\d{2})(?:_(?:ft|m))?\.pdf$', pdf_file)
-                if match:
-                    pdf_year = int(match.group(1))
-                    pdf_month = int(match.group(2))
-
-                    if pdf_year < current_year or (pdf_year == current_year and pdf_month < current_month):
-                        os.remove(pdf_file)
-                        deleted_count += 1
-                        logging.info(f"Cleaned up old PDF: {pdf_file} ({pdf_year}-{pdf_month:02d})")
-            except (OSError, ValueError) as e:
-                logging.warning(f"Could not process PDF {pdf_file}: {e}")
+        # Raw data cache: <dir>/rawdata/tidedata_<station>_<YYYY>_<MM>.csv
+        try:
+            from app.get_tides import RAW_CACHE_SUBDIR
+        except ImportError:
+            from get_tides import RAW_CACHE_SUBDIR
+        deleted_count += _sweep_previous_month_files(
+            os.path.join(directory, RAW_CACHE_SUBDIR, "tidedata_*.csv"),
+            r'_(\d{4})_(\d{2})\.csv$',
+            current_year, current_month, "tide data")
 
         if deleted_count > 0:
-            logging.info(f"Cleaned up {deleted_count} PDF(s) from previous months")
+            logging.info(f"Cleaned up {deleted_count} cached file(s) from previous months")
 
     except Exception as e:
-        logging.error(f"Error during previous month PDF cleanup: {e}")
+        logging.error(f"Error during previous month cache cleanup: {e}")
