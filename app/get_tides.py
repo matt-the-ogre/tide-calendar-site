@@ -15,10 +15,10 @@ from datetime import datetime
 
 try:
     from app.database import log_station_lookup, get_station_info
-    from app.tide_adapters import get_adapter_for_station
+    from app.tide_adapters import get_adapter_for_station, TideServiceUnavailableError
 except ImportError:
     from database import log_station_lookup, get_station_info
-    from tide_adapters import get_adapter_for_station
+    from tide_adapters import get_adapter_for_station, TideServiceUnavailableError
 
 try:
     from app.sun_times import sun_times_for_month, format_sun_line, localize_and_filter_csv
@@ -79,6 +79,76 @@ def download_tide_data(station_id, year, month):
     if "No Predictions data was found." in lines[1]:
         raise TideDataError(
             f"No predictions data found for station {station_id} in {year}-{month:02d}")
+
+    return csv_data
+
+
+# Raw tide-data cache. Predictions for a given (station, year, month) are
+# unit-independent (the unit only affects display in convert_tide_data_to_pcal),
+# so caching the standardized CSV here lets the second unit's PDF render without
+# a second upstream call, and lets any later request survive an upstream outage
+# once the data has been fetched at least once. Lives under the same persistent
+# PDF cache dir so production's /data volume retains it across restarts.
+RAW_CACHE_SUBDIR = 'rawdata'
+
+
+def _raw_cache_dir():
+    # Imported lazily to avoid a circular import (calendar_service imports us).
+    try:
+        from app.calendar_service import PDF_OUTPUT_DIR
+    except ImportError:
+        from calendar_service import PDF_OUTPUT_DIR
+    return os.path.join(PDF_OUTPUT_DIR, RAW_CACHE_SUBDIR)
+
+
+def raw_cache_path_for(station_id, year, month):
+    return os.path.join(_raw_cache_dir(), f"tidedata_{station_id}_{year}_{month:02d}.csv")
+
+
+def _valid_cached_csv(csv_data):
+    """Cheap sanity check mirroring download_tide_data's acceptance criteria so a
+    truncated/garbage cache file is ignored rather than served."""
+    if not csv_data:
+        return False
+    lines = csv_data.splitlines()
+    return len(lines) >= 2 and "No Predictions data was found." not in lines[1]
+
+
+def get_tide_data(station_id, year, month):
+    """Standardized tide CSV, served from the raw-data disk cache when present,
+    else fetched live (download_tide_data) and cached on success.
+
+    The cache is what makes a cache-missed PDF resilient to an upstream outage:
+    on a cache hit we never touch the API, so TideServiceUnavailableError /
+    TideDataError can only surface on a *cold* miss that also fails live — which
+    then propagates unchanged to the caller.
+    """
+    cache_path = raw_cache_path_for(station_id, year, month)
+    try:
+        if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
+            with open(cache_path, 'r', encoding='utf-8') as fh:
+                cached = fh.read()
+            if _valid_cached_csv(cached):
+                logging.info(f"Using cached tide data: {cache_path}")
+                return cached
+            logging.warning(f"Ignoring invalid cached tide data: {cache_path}")
+    except OSError as e:
+        logging.warning(f"Could not read cached tide data {cache_path}: {e}")
+
+    # Cold miss: fetch live. May raise TideDataError (no data) or
+    # TideServiceUnavailableError (upstream outage) — both propagate.
+    csv_data = download_tide_data(station_id, year, month)
+
+    # Persist atomically so a concurrent reader never sees a partial file.
+    try:
+        os.makedirs(os.path.dirname(cache_path) or '.', exist_ok=True)
+        tmp = f"{cache_path}.tmp.{os.getpid()}.{threading.get_ident()}"
+        with open(tmp, 'w', encoding='utf-8') as fh:
+            fh.write(csv_data)
+        os.replace(tmp, cache_path)
+        logging.info(f"Cached tide data: {cache_path}")
+    except OSError as e:
+        logging.warning(f"Could not write tide data cache {cache_path}: {e}")
 
     return csv_data
 
@@ -227,7 +297,7 @@ def generate_calendar(station_id, year, month, output_path, location_name=None, 
             "CHS station %s has no timezone; tide times will render in UTC and "
             "no sunrise/sunset line will be shown", station_id)
 
-    csv_data = download_tide_data(station_id, year, month)
+    csv_data = get_tide_data(station_id, year, month)
     # CHS times are UTC -> convert to the station's local zone and trim to the
     # local month (NOAA passes through unchanged).
     csv_data = localize_and_filter_csv(csv_data, api_source, iana_tz, year, month)
@@ -305,6 +375,9 @@ def main():
     try:
         generate_calendar(args.station_id, args.year, args.month, output_path,
                           location_name=args.location_name, unit=args.unit)
+    except TideServiceUnavailableError as e:
+        logging.error(f"Upstream tide service unavailable: {e}")
+        raise SystemExit(2)
     except (TideDataError, CalendarGenerationError) as e:
         logging.error(f"Could not generate calendar: {e}")
         raise SystemExit(1)

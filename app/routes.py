@@ -44,6 +44,21 @@ def _no_predictions_message(where, year, month):
     )
 
 
+def _service_unavailable_message(where, year, month):
+    """Shown when the upstream prediction service is unreachable (an outage),
+    as opposed to the station simply having no data. Tells the user it's a
+    temporary upstream problem and not to bother changing station — so they
+    don't retry pointlessly against a service that's down.
+    """
+    return (
+        f"The tide prediction service (NOAA for US stations, CHS for Canadian) "
+        f"appears to be temporarily unavailable, so we couldn't retrieve the "
+        f"predictions for {where} for {year}-{month:02d}. This is an outage on "
+        f"the upstream service, not a problem with this station — please come "
+        f"back and try again in a few hours."
+    )
+
+
 @app.route('/', methods=['GET', 'POST'])
 @limiter.limit("10 per minute", methods=["POST"])
 def index():
@@ -96,6 +111,9 @@ def index():
             if result.error_code in ('unknown_station', 'junk_station_id'):
                 message = (f"Station ID '{station_id}' was not found. "
                            f"Please select a tide station from the autocomplete dropdown.")
+            elif result.error_code == 'upstream_unavailable':
+                message = _service_unavailable_message(
+                    result.location_display or station_id, year, month)
             else:
                 message = _no_predictions_message(
                     result.location_display or station_id, year, month)
@@ -204,6 +222,11 @@ def api_generate_quick():
                 return jsonify({'error': f"Invalid station_id '{station_id}'"}), 400
             if result.error_code == 'unknown_station':
                 return jsonify({'error': f"Unknown station_id '{station_id}'"}), 404
+            if result.error_code == 'upstream_unavailable':
+                # 503 Service Unavailable: the upstream prediction API is down,
+                # not a client error — signals the caller to retry later.
+                return jsonify({'error': _service_unavailable_message(
+                    result.location_display or station_id, today.year, today.month)}), 503
             return jsonify({'error': _no_predictions_message(
                 result.location_display or station_id, today.year, today.month)}), 500
 

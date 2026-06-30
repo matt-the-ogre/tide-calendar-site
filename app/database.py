@@ -242,13 +242,19 @@ def _import_us_csv(csv_path):
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
 
-            MIN_STATION_THRESHOLD = 100
-            result = cursor.execute(
-                'SELECT COUNT(*) FROM tide_station_ids WHERE place_name IS NOT NULL').fetchone()
-            if result[0] >= MIN_STATION_THRESHOLD:
-                logging.debug(f"Station place names already populated (count: {result[0]})")
-                return True
-
+            # No "already populated, skip" short-circuit on purpose. This importer
+            # is the only path that re-applies the canonical CSV's authoritative
+            # metadata (api_source, country, coordinates, timezone, place_name) to
+            # US rows, and it must keep doing so on a *warm* DB so that drifted
+            # rows self-heal. Production runs on a persistent-volume DB that
+            # survives restarts; if a US row's api_source ever drifts away from
+            # 'NOAA' it routes the station to the wrong adapter and every
+            # generation fails with "no_predictions" (e.g. Point Roberts 9449639),
+            # while dev — which rebuilds the DB from the CSV on every cold start —
+            # stays correct. The upsert below is idempotent and cheap (~2100 rows
+            # in one transaction), and never touches lookup_count, so re-syncing
+            # every startup is safe. Previously a `COUNT(place_name) >= 100`
+            # guard returned early here, which is exactly what blocked the heal.
             imported_count = 0
             csv_station_ids = set()
             with open(csv_path, 'r', encoding='utf-8') as csvfile:
