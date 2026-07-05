@@ -231,12 +231,12 @@ def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, stati
 
                 tide_type_full = "High" if tide_type == "H" else "Low"
 
-                if prediction < LOW_TIDE_THRESHOLD:
-                    low_tide_days.add(int(day))
-
                 # Format the date for pcal (mm/dd); tide lines are never
                 # starred so pcal keeps them in chronological file order
                 pcal_date = f"{int(month)}/{int(day)}"
+
+                if prediction < LOW_TIDE_THRESHOLD:
+                    low_tide_days.add((int(month), int(day)))
 
                 pcal_file.write(f"{pcal_date}  {time} {tide_type_full} {_uconv(prediction, unit):.1f} {_usuf(unit)}\n")
                 valid_lines += 1
@@ -255,9 +255,11 @@ def convert_tide_data_to_pcal(csv_data, pcal_filename, location_name=None, stati
         # for any date with a "*"-flagged entry, but also renders starred
         # entries before regular ones in that day's cell — starring these
         # empty markers instead of the tide lines keeps every day's tides in
-        # chronological order while still colouring the day number.
-        for day in sorted(low_tide_days):
-            pcal_file.write(f"{month_num}/{day}*\n")
+        # chronological order while still colouring the day number. Keyed by
+        # (month, day), not just day, so this can't mis-colour a same-numbered
+        # day in a different month if the CSV ever spanned a month boundary.
+        for month_of_day, day in sorted(low_tide_days):
+            pcal_file.write(f"{month_of_day}/{day}*\n")
 
         pcal_file.write("\n")
 

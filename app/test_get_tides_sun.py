@@ -99,6 +99,13 @@ class PcalLowTideOrderingTest(unittest.TestCase):
     LOW_TIDE_THRESHOLD."""
 
     def test_low_tide_stays_in_chronological_position(self):
+        # NOTE: pcal's own reordering of starred entries happens at render
+        # time, not in this intermediate file, so this only proves the file
+        # itself is written in chronological (CSV) order — it would still
+        # pass against the old, buggy behaviour. The real regression guard
+        # for the "*" placement is test_low_tide_day_gets_text_less_colour_marker
+        # below; the actual rendered pcal cell order was verified manually
+        # (see PR description) since it isn't unit-testable without pcal.
         csv_data = ("Date Time,Prediction,Type\n"
                      "2026-06-15 09:00,3.0,H\n"
                      "2026-06-15 21:00,0.1,L")
@@ -121,6 +128,39 @@ class PcalLowTideOrderingTest(unittest.TestCase):
         self.assertIn('6/15*\n', text)
         self.assertNotIn('6/15*  21:00', text)
         self.assertIn('6/15  21:00 Low', text)
+
+    def test_multiple_low_tide_days_get_sorted_deduped_markers(self):
+        csv_data = ("Date Time,Prediction,Type\n"
+                     "2026-06-20 08:00,0.1,L\n"
+                     "2026-06-20 20:00,0.2,L\n"
+                     "2026-06-15 21:00,0.1,L")
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'events.txt')
+            get_tides.convert_tide_data_to_pcal(csv_data, path, location_name='T',
+                                                unit='metric')
+            with open(path) as f:
+                text = f.read()
+        # day 20 has two below-threshold tides but should get exactly one
+        # marker, and markers should be sorted (15 before 20)
+        self.assertEqual(text.count('6/20*\n'), 1)
+        self.assertIn('6/15*\n', text)
+        self.assertLess(text.index('6/15*'), text.index('6/20*'))
+
+    def test_low_tide_marker_uses_events_own_month(self):
+        # Regression test: markers must be keyed by each event's own
+        # (month, day), not a single CSV-wide month, so a low tide on the
+        # same day-of-month in a different month can't be mis-coloured.
+        csv_data = ("Date Time,Prediction,Type\n"
+                     "2026-08-31 23:50,0.1,L\n"
+                     "2026-09-01 00:20,0.1,L")
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'events.txt')
+            get_tides.convert_tide_data_to_pcal(csv_data, path, location_name='T',
+                                                unit='metric')
+            with open(path) as f:
+                text = f.read()
+        self.assertIn('8/31*\n', text)
+        self.assertIn('9/1*\n', text)
 
     def test_day_without_low_tide_has_no_marker(self):
         csv_data = "Date Time,Prediction,Type\n2026-06-15 09:00,3.0,H"
