@@ -86,5 +86,52 @@ class PcalExtremeTablesTest(unittest.TestCase):
         self.assertNotIn('note/3', text)
 
 
+class PcalLowTideOrderingTest(unittest.TestCase):
+    """Regression coverage for the removed low-tide "callout" behaviour.
+
+    pcal renders "*"-flagged entries before regular ones within a day's cell,
+    which is how the old code (starring the tide line itself) pulled a
+    below-threshold low tide ahead of earlier same-day events. These tests
+    verify the pcal input file's contract: tide lines are written in
+    chronological (CSV) order and are never starred; only a separate,
+    text-less "mm/dd*" marker line is starred, to colour the day number
+    without affecting pcal's within-day ordering. See get_tides.py
+    LOW_TIDE_THRESHOLD."""
+
+    def test_low_tide_stays_in_chronological_position(self):
+        csv_data = ("Date Time,Prediction,Type\n"
+                     "2026-06-15 09:00,3.0,H\n"
+                     "2026-06-15 21:00,0.1,L")
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'events.txt')
+            get_tides.convert_tide_data_to_pcal(csv_data, path, location_name='T',
+                                                unit='metric')
+            with open(path) as f:
+                text = f.read()
+        self.assertLess(text.index('09:00 High'), text.index('21:00 Low'))
+
+    def test_low_tide_day_gets_text_less_colour_marker(self):
+        csv_data = "Date Time,Prediction,Type\n2026-06-15 21:00,0.1,L"
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'events.txt')
+            get_tides.convert_tide_data_to_pcal(csv_data, path, location_name='T',
+                                                unit='metric')
+            with open(path) as f:
+                text = f.read()
+        self.assertIn('6/15*\n', text)
+        self.assertNotIn('6/15*  21:00', text)
+        self.assertIn('6/15  21:00 Low', text)
+
+    def test_day_without_low_tide_has_no_marker(self):
+        csv_data = "Date Time,Prediction,Type\n2026-06-15 09:00,3.0,H"
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'events.txt')
+            get_tides.convert_tide_data_to_pcal(csv_data, path, location_name='T',
+                                                unit='metric')
+            with open(path) as f:
+                text = f.read()
+        self.assertNotIn('*', text)
+
+
 if __name__ == '__main__':
     unittest.main()
