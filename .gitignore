@@ -39,3 +39,6 @@ app/version_info.json
 
 # Playwright MCP scratch
 .playwright-mcp/
+
+# Personal Claude Code notes (not team-shared)
+.claude.local.md
