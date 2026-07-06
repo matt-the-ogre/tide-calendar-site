@@ -121,7 +121,7 @@ def index():
 
         response = make_response(send_file(result.pdf_path, as_attachment=True))
         if result.place_name:
-            response.set_cookie('last_place_name', result.place_name)
+            response.set_cookie('last_place_name', result.place_name, secure=True, samesite='Lax')
         return response
 
     # If GET request, read the last place name from the cookie, if available
@@ -203,7 +203,8 @@ def api_generate_quick():
 
         station_id = data['station_id']
         if not isinstance(station_id, str) or not station_id.strip().isdigit():
-            log_usage_event(str(station_id) or None, None, None, None, 'error', 'invalid_input', source='quick_api')
+            log_usage_event(station_id if isinstance(station_id, str) else None,
+                             None, None, None, 'error', 'invalid_input', source='quick_api')
             return jsonify({'error': 'Invalid station_id (USA: 7 digits, Canada: 5 digits)'}), 400
         station_id = station_id.strip()
 
