@@ -13,6 +13,7 @@ All adapters return tide data in a unified CSV format with columns:
 import logging
 import requests
 import calendar
+import time
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import Optional
@@ -40,6 +41,77 @@ class TideServiceUnavailableError(Exception):
 
 def year_in_range(year: int) -> bool:
     return 2000 <= year <= datetime.now(timezone.utc).year + MAX_YEARS_AHEAD
+
+
+# Identifies this app to upstream APIs (NOAA/CHS) in their request logs.
+# canadian_station_sync.py has its own, deliberately different User-Agent
+# (a distinct startup-sync integration) — not shared with this one.
+USER_AGENT = {
+    'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
+}
+
+
+def _get_with_retry(url, params, logger, label, max_retries=3, retry_delay=2):
+    """Single-endpoint GET with retry/backoff for gateway errors, timeouts,
+    and network errors. Shared by NOAAAdapter.get_predictions (one endpoint)
+    and CHSAdapter.get_predictions (called once per mirror endpoint).
+
+    A non-gateway HTTP status (e.g. 404) is a definitive answer, not
+    retried. An unexpected (non-requests) exception is logged and treated
+    like a definitive give-up for this endpoint, matching prior behavior.
+
+    Args:
+        label: short string used in log messages (e.g. "NOAA API", "CHS API").
+
+    Returns:
+        (response, transient_failure):
+        - Completed HTTP round trip (success or a definitive non-gateway
+          status): (response, False). Caller checks response.status_code.
+        - Every attempt failed for a transient/connectivity reason (gateway
+          5xx, timeout, network error) or an unexpected exception occurred:
+          (None, True) for transient/connectivity failures, (None, False)
+          for an unexpected exception.
+
+    Callers decide what `transient_failure` means for them: a single-endpoint
+    caller (NOAA) can raise TideServiceUnavailableError immediately; a
+    multi-mirror caller (CHS) should try the next mirror and only raise once
+    every mirror has failed transiently with no definitive answer anywhere.
+    """
+    for attempt in range(max_retries):
+        try:
+            if attempt > 0:
+                logger.info(f"Retry attempt {attempt + 1}/{max_retries} for {label}")
+                time.sleep(retry_delay * attempt)  # Exponential backoff: 0, 2, 4 seconds
+
+            logger.debug(f"Requesting {label}: {url}")
+            response = requests.get(url, params=params, headers=USER_AGENT, timeout=30)
+
+            if response.status_code in (502, 503, 504):
+                logger.warning(f"{label} returned {response.status_code} (gateway error), attempt {attempt + 1}/{max_retries}")
+                if attempt == max_retries - 1:
+                    logger.error(f"{label} request failed after {max_retries} attempts with status {response.status_code}")
+                    return None, True
+                continue
+
+            return response, False
+
+        except requests.exceptions.Timeout as e:
+            logger.warning(f"{label} timeout on attempt {attempt + 1}/{max_retries}: {e}")
+            if attempt == max_retries - 1:
+                logger.error(f"{label} timed out after {max_retries} attempts")
+                return None, True
+            continue
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"{label} request error on attempt {attempt + 1}/{max_retries}: {e}")
+            if attempt == max_retries - 1:
+                logger.error(f"{label} request failed after {max_retries} attempts: {e}")
+                return None, True
+            continue
+        except Exception as e:
+            logger.error(f"Unexpected error requesting {label}: {e}")
+            return None, False
+
+    return None, True
 
 
 class TideAdapter(ABC):
@@ -166,62 +238,20 @@ class NOAAAdapter(TideAdapter):
             "format": "csv",
         }
 
-        # Retry logic for handling transient API failures (504 timeouts, network errors)
-        import time
-        max_retries = 3
-        retry_delay = 2  # seconds
+        self.logger.debug(f"Requesting NOAA data for station {station_id}, {year}-{month:02d}")
+        response, transient_failure = _get_with_retry(
+            self.BASE_URL, params, self.logger, "NOAA API")
 
-        headers = {
-            'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
-        }
+        if response is not None:
+            if response.status_code == 200:
+                return self.parse_response(response.text)
+            # Non-gateway error (e.g. 404) - not an outage, treat as no data
+            self.logger.error(f"NOAA API request failed with status {response.status_code}")
+            return None
 
-        for attempt in range(max_retries):
-            try:
-                if attempt > 0:
-                    self.logger.info(f"Retry attempt {attempt + 1}/{max_retries} for station {station_id}")
-                    time.sleep(retry_delay * attempt)  # Exponential backoff: 0, 2, 4 seconds
-
-                self.logger.debug(f"Requesting NOAA data for station {station_id}, {year}-{month:02d}")
-                response = requests.get(self.BASE_URL, params=params, headers=headers, timeout=30)
-
-                if response.status_code == 200:
-                    # Parse and validate response
-                    return self.parse_response(response.text)
-                elif response.status_code in [502, 503, 504]:
-                    # Gateway errors - retry, then signal an upstream outage
-                    self.logger.warning(f"NOAA API returned {response.status_code} (gateway error), attempt {attempt + 1}/{max_retries}")
-                    if attempt == max_retries - 1:
-                        self.logger.error(f"NOAA API request failed after {max_retries} attempts with status {response.status_code}")
-                        raise TideServiceUnavailableError(
-                            f"NOAA API returned {response.status_code} after {max_retries} attempts")
-                    continue
-                else:
-                    # Other errors (4xx etc.) - not an outage, treat as no data
-                    self.logger.error(f"NOAA API request failed with status {response.status_code}")
-                    return None
-
-            except requests.exceptions.Timeout as e:
-                self.logger.warning(f"NOAA API timeout on attempt {attempt + 1}/{max_retries}: {e}")
-                if attempt == max_retries - 1:
-                    self.logger.error(f"NOAA API request timed out after {max_retries} attempts")
-                    raise TideServiceUnavailableError(
-                        f"NOAA API timed out after {max_retries} attempts") from e
-                continue
-            except requests.exceptions.RequestException as e:
-                self.logger.warning(f"NOAA API request error on attempt {attempt + 1}/{max_retries}: {e}")
-                if attempt == max_retries - 1:
-                    self.logger.error(f"NOAA API request failed after {max_retries} attempts: {e}")
-                    raise TideServiceUnavailableError(
-                        f"NOAA API connection failed after {max_retries} attempts: {e}") from e
-                continue
-            except TideServiceUnavailableError:
-                # Our own outage signal (raised above) — must not be swallowed by
-                # the broad except below.
-                raise
-            except Exception as e:
-                self.logger.error(f"Unexpected error in NOAA API request: {e}")
-                return None
-
+        if transient_failure:
+            raise TideServiceUnavailableError(
+                f"NOAA API unreachable for station {station_id} after retries")
         return None
 
     def parse_response(self, response_data: str) -> Optional[str]:
@@ -367,9 +397,6 @@ class CHSAdapter(TideAdapter):
         """
         import json
 
-        headers = {
-            'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
-        }
         params = {"code": station_code}
 
         # Distinguish a transient outage (raise) from a definitive "not found"
@@ -384,7 +411,7 @@ class CHSAdapter(TideAdapter):
                 response = requests.get(
                     f"{base_url}/stations",
                     params=params,
-                    headers=headers,
+                    headers=USER_AGENT,
                     timeout=30
                 )
 
@@ -496,15 +523,6 @@ class CHSAdapter(TideAdapter):
             "to": to_date
         }
 
-        headers = {
-            'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
-        }
-
-        # Retry logic with exponential backoff for each endpoint
-        import time
-        max_retries = 3
-        retry_delay = 2  # seconds
-
         # Distinguish a transient outage from a definitive answer. We raise only
         # when EVERY endpoint failed for a transient/connectivity reason (gateway
         # 5xx, timeout, network) AND none returned a definitive non-gateway HTTP
@@ -516,61 +534,24 @@ class CHSAdapter(TideAdapter):
         # Try each base URL until we get a successful response
         for base_url in self.BASE_URLS:
             endpoint = f"{base_url}/stations/{station_uuid}/data"
+            self.logger.debug(f"Trying CHS API endpoint: {endpoint}, params: {params}")
 
-            for attempt in range(max_retries):
-                try:
-                    if attempt > 0:
-                        self.logger.info(f"Retry attempt {attempt + 1}/{max_retries} for {base_url}")
-                        time.sleep(retry_delay * attempt)  # Exponential backoff: 0, 2, 4 seconds
+            response, endpoint_transient = _get_with_retry(
+                endpoint, params, self.logger, f"CHS API ({base_url})")
 
-                    self.logger.debug(f"Trying CHS API endpoint: {endpoint}")
-                    self.logger.debug(f"CHS API params: {params}")
-                    response = requests.get(endpoint, params=params, headers=headers, timeout=30)
-
-                    self.logger.debug(f"CHS API response status: {response.status_code}")
-
-                    if response.status_code == 200:
-                        self.logger.info(f"Successfully fetched data from {base_url}")
-                        self.logger.debug(f"CHS API response length: {len(response.text)} characters")
-                        # Parse JSON response
-                        return self.parse_response(response.text)
-                    elif response.status_code in [502, 503, 504]:
-                        # Gateway errors - retry same endpoint
-                        self.logger.warning(f"CHS API returned {response.status_code} (gateway error), attempt {attempt + 1}/{max_retries}")
-                        transient_failure = True
-                        if attempt < max_retries - 1:
-                            continue
-                        else:
-                            # Max retries reached for this endpoint, try next endpoint
-                            self.logger.warning(f"CHS API endpoint {base_url} failed after {max_retries} attempts, trying next endpoint")
-                            break
-                    else:
-                        self.logger.warning(f"CHS API endpoint {base_url} returned status {response.status_code}, trying next endpoint")
-                        self.logger.debug(f"Response: {response.text[:200]}")
-                        # Non-gateway errors (e.g. 404) are a definitive answer,
-                        # not an outage; don't retry, move to next endpoint.
-                        saw_definitive_answer = True
-                        break
-
-                except requests.exceptions.Timeout as e:
-                    self.logger.warning(f"CHS API timeout on attempt {attempt + 1}/{max_retries}: {e}")
-                    transient_failure = True
-                    if attempt < max_retries - 1:
-                        continue
-                    else:
-                        self.logger.warning(f"CHS API endpoint {base_url} timed out after {max_retries} attempts, trying next endpoint")
-                        break
-                except requests.exceptions.RequestException as e:
-                    self.logger.warning(f"CHS API request error on attempt {attempt + 1}/{max_retries}: {e}")
-                    transient_failure = True
-                    if attempt < max_retries - 1:
-                        continue
-                    else:
-                        self.logger.warning(f"CHS API endpoint {base_url} failed after {max_retries} attempts, trying next endpoint")
-                        break
-                except Exception as e:
-                    self.logger.warning(f"Unexpected error with {base_url}: {e}, trying next endpoint")
-                    break
+            if response is not None and response.status_code == 200:
+                self.logger.info(f"Successfully fetched data from {base_url}")
+                return self.parse_response(response.text)
+            elif response is not None:
+                # Non-gateway error (e.g. 404) is a definitive answer, not an
+                # outage; don't retry, move to the next mirror.
+                self.logger.warning(f"CHS API endpoint {base_url} returned status {response.status_code}, trying next endpoint")
+                saw_definitive_answer = True
+            elif endpoint_transient:
+                self.logger.warning(f"CHS API endpoint {base_url} failed after retries, trying next endpoint")
+                transient_failure = True
+            # else: unexpected error already logged inside _get_with_retry;
+            # move on to the next mirror without setting either flag.
 
         # If we get here, all endpoints failed
         self.logger.error(f"All CHS API endpoints failed for station UUID {station_uuid}")

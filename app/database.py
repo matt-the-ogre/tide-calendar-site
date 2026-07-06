@@ -23,6 +23,11 @@ DB_PATH = os.getenv('DB_PATH', DEFAULT_DB_PATH)
 CLIENT_ERROR_DETAILS = ('unknown_station', 'station_not_found', 'no_station',
                         'invalid_input', 'junk_station_id')
 
+# Backstop against unbounded growth on a long-lived container: age-based
+# pruning (365 days) only runs at startup, so a container that never
+# redeploys could still accumulate rows indefinitely within that window.
+USAGE_EVENTS_MAX_ROWS = 100_000
+
 
 def _migrate_columns(cursor, table, columns_ddl):
     """Add any missing columns to a table (idempotent startup migration).
@@ -98,6 +103,19 @@ def init_database():
             ''')
             if cursor.rowcount > 0:
                 logging.info(f"Pruned {cursor.rowcount} usage_events older than 365 days")
+
+            # Age-based pruning alone only runs at startup, so a long-lived
+            # container that never redeploys could still accumulate an
+            # unbounded number of rows within the 365-day window. Cap the
+            # total row count too, keeping the most recent USAGE_EVENTS_MAX_ROWS.
+            cursor.execute('''
+                DELETE FROM usage_events
+                WHERE id NOT IN (
+                    SELECT id FROM usage_events ORDER BY timestamp DESC LIMIT ?
+                )
+            ''', (USAGE_EVENTS_MAX_ROWS,))
+            if cursor.rowcount > 0:
+                logging.info(f"Pruned {cursor.rowcount} usage_events over the {USAGE_EVENTS_MAX_ROWS}-row cap")
 
             conn.commit()
             logging.debug("Database initialized successfully")
