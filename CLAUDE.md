@@ -323,7 +323,7 @@ See `docs/performance-benchmarks.md` for detailed performance targets, API laten
 - **Database sync**: On container startup, the database automatically syncs with the CSV files, removing any stations not present in the canonical CSVs
 - **Default demo station**: Station ID 9449639 (Point Roberts, WA)
 - **Low tides**: Events (<0.3m) are marked with asterisks in calendars
-- **Form validation**: Validates station ID (numeric + must exist in the station directory), year (current year through current year + 4), month (1-12). Note: `tide_adapters.py` still hardcodes a 2000-2030 year range — needs a dynamic bound before 2031.
+- **Form validation**: Validates station ID (numeric + must exist in the station directory), year (current year through current year + 4), month (1-12). `tide_adapters.year_in_range()` mirrors this with a dynamic bound (`current year + MAX_YEARS_AHEAD`), not a hardcoded range (fixed in `4c0b96e`).
 - **Production server**: gunicorn (2 workers × 4 threads, `--preload`, 120s timeout) as non-root `appuser`; `docker-entrypoint.sh` chowns the runtime-mounted `/data` volume before dropping privileges. `flask run` remains for local dev only.
 - **Docker file inclusion**: When adding new source files required at runtime, verify the Dockerfile copies them (explicitly or implicitly)
 - **Playwright + hidden inputs**: Radio inputs in country filter are hidden via CSS (`display: none`) with pill-style labels as visible controls. Playwright tests must interact with the parent `<label>` elements (e.g., `locator('xpath=..')`) instead of calling `.check()` on the hidden inputs. See `tests/pages/HomePage.ts` `selectCountryFilter()`.
