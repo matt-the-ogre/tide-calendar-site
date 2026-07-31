@@ -165,6 +165,32 @@ def test_retention_prunes_old_events():
         os.remove(path)
 
 
+def test_row_count_cap_prunes_oldest_events():
+    print("\n=== test_row_count_cap_prunes_oldest_events ===")
+    db, path = _fresh_db()
+    try:
+        db.USAGE_EVENTS_MAX_ROWS = 3
+        with sqlite3.connect(path) as conn:
+            for i in range(5):
+                conn.execute("""
+                    INSERT INTO usage_events (timestamp, station_id, station_name, status, source)
+                    VALUES (datetime('now', ?), ?, 'Station', 'success', 'web')
+                """, (f'-{5 - i} days', f'S{i}'))
+            conn.commit()
+
+        # Re-initialize — the row-count cap runs in init_database
+        db.init_database()
+
+        with sqlite3.connect(path) as conn:
+            remaining = [row[0] for row in conn.execute(
+                'SELECT station_id FROM usage_events ORDER BY timestamp'
+            ).fetchall()]
+            assert remaining == ['S2', 'S3', 'S4'], remaining
+        print("  PASS: row-count cap prunes the oldest events, keeping the most recent N")
+    finally:
+        os.remove(path)
+
+
 def test_get_usage_stats_error_path():
     print("\n=== test_get_usage_stats_error_path ===")
     # Point to a path where we can't open a db (a directory)
@@ -195,6 +221,7 @@ def main():
         test_log_usage_event_swallows_db_errors,
         test_get_usage_stats_aggregates,
         test_retention_prunes_old_events,
+        test_row_count_cap_prunes_oldest_events,
         test_get_usage_stats_error_path,
     ]
     failed = []

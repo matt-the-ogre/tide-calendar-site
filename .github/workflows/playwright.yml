@@ -2,7 +2,10 @@ name: Playwright Smoke Tests
 
 on:
   push:
-    branches: [ main, development ]
+    # This job smoke-tests *production* (tidecalendar.xyz), so it only makes
+    # sense on pushes that actually deploy there. A development push doesn't
+    # trigger a prod deploy, so it would just re-test the previous deploy.
+    branches: [ main ]
   pull_request:
     branches: [ main ]
   schedule:
