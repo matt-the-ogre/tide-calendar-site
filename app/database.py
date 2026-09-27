@@ -533,18 +533,8 @@ def import_canadian_stations_from_csv():
                     province = row.get('province', '')
                     csv_station_ids.add(station_id)
 
-                    # Parse coordinates with error handling
-                    try:
-                        latitude = float(row['latitude']) if row.get('latitude') and row['latitude'].strip() else None
-                    except (ValueError, AttributeError) as e:
-                        logging.warning(f"Invalid latitude for station {station_id} ({place_name}): {row.get('latitude')}. Setting to None.")
-                        latitude = None
-
-                    try:
-                        longitude = float(row['longitude']) if row.get('longitude') and row['longitude'].strip() else None
-                    except (ValueError, AttributeError) as e:
-                        logging.warning(f"Invalid longitude for station {station_id} ({place_name}): {row.get('longitude')}. Setting to None.")
-                        longitude = None
+                    latitude = _parse_coord(row.get('latitude'), station_id, place_name, 'latitude')
+                    longitude = _parse_coord(row.get('longitude'), station_id, place_name, 'longitude')
 
                     country = row.get('country', 'Canada')
                     api_source = row.get('api_source', 'CHS')
@@ -552,20 +542,21 @@ def import_canadian_stations_from_csv():
                     alternative_name = row.get('alternative_name') or None
                     tz = (row.get('timezone') or '').strip() or None
 
-                    # Insert or update station (Canadian stations)
-                    # Use INSERT OR IGNORE to preserve lookup_count for existing stations
+                    # Upsert; existing stations keep their lookup_count
                     cursor.execute('''
-                        INSERT OR IGNORE INTO tide_station_ids
+                        INSERT INTO tide_station_ids
                         (station_id, place_name, country, api_source, latitude, longitude, province, alternative_name, timezone, lookup_count, last_lookup)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+                        ON CONFLICT(station_id) DO UPDATE SET
+                            place_name = excluded.place_name,
+                            country = excluded.country,
+                            api_source = excluded.api_source,
+                            latitude = excluded.latitude,
+                            longitude = excluded.longitude,
+                            province = excluded.province,
+                            alternative_name = excluded.alternative_name,
+                            timezone = COALESCE(excluded.timezone, timezone)
                     ''', (station_id, place_name, country, api_source, latitude, longitude, province, alternative_name, tz))
-
-                    # Update metadata for existing stations without touching lookup_count
-                    cursor.execute('''
-                        UPDATE tide_station_ids
-                        SET place_name = ?, country = ?, api_source = ?, latitude = ?, longitude = ?, province = ?, alternative_name = ?, timezone = COALESCE(?, timezone)
-                        WHERE station_id = ?
-                    ''', (place_name, country, api_source, latitude, longitude, province, alternative_name, tz, station_id))
                     imported_count += 1
 
             # Remove Canadian stations from database that are NOT in the CSV

@@ -33,6 +33,10 @@ VALID_CSV = "Date Time,Prediction,Type\n2026-08-01 02:42,0.605,H\n2026-08-01 09:
 
 
 class TestAdapterOutageSignal(unittest.TestCase):
+    def setUp(self):
+        # The code->UUID memo is per-process; clear it so each test exercises the lookup.
+        CHSAdapter._uuid_by_code.clear()
+
     @patch('time.sleep', lambda *a, **k: None)  # don't actually back off
     @patch('tide_adapters.requests.get')
     def test_noaa_persistent_504_raises_unavailable(self, mock_get):
@@ -65,6 +69,7 @@ class TestAdapterOutageSignal(unittest.TestCase):
         with self.assertRaises(TideServiceUnavailableError):
             CHSAdapter().get_predictions(uuid, 2026, 8)
 
+    @patch('time.sleep', lambda *a, **k: None)
     @patch('tide_adapters.requests.get')
     def test_chs_numeric_code_lookup_outage_raises_unavailable(self, mock_get):
         # Numeric codes (the common Canadian case) must resolve a UUID first; if

@@ -2,9 +2,8 @@
 Canadian Tide Station Synchronization Module
 
 Dynamically imports Canadian tide stations from the CHS IWLS API on container startup.
-Ensures only active, operating stations with high/low tide prediction data are available.
-
-This replaces the static canadian_tide_stations.csv approach with real-time API data.
+Keeps every station that publishes high/low tide predictions (see normalize_station).
+Falls back to the static canadian_tide_stations.csv when the API is unreachable.
 """
 
 import csv
@@ -15,16 +14,16 @@ import os
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 
-# Database path
-APP_DIR = Path(__file__).parent.resolve()
-DEFAULT_DB_PATH = str(APP_DIR / 'tide_station_ids.db')
-DB_PATH = os.getenv('DB_PATH', DEFAULT_DB_PATH)
+# Dual import (app package under gunicorn, top-level siblings under unittest).
+# Reference database.DB_PATH dynamically so tests/scripts that reassign it are honored.
+try:
+    import app.database as database
+    from app.tide_adapters import CHS_BASE_URLS
+except ImportError:
+    import database
+    from tide_adapters import CHS_BASE_URLS
 
-# CHS API endpoints (try both Azure and legacy)
-CHS_BASE_URLS = [
-    "https://api.iwls-sine.azure.cloud-nuage.dfo-mpo.gc.ca/api/v1",
-    "https://api-iwls.dfo-mpo.gc.ca/api/v1"
-]
+APP_DIR = Path(__file__).parent.resolve()
 
 HEADERS = {
     'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; dynamic station sync)'
@@ -120,12 +119,10 @@ def construct_place_name(official_name: str, province: Optional[str], latitude: 
     if not official_name:
         return "Unknown"
 
-    # If province already in name, return as-is
-    if province and official_name.endswith(f", {province}"):
-        return official_name
-
-    # If we have province code, append it
     if province:
+        # Append the province unless the name already ends with it
+        if official_name.endswith(f", {province}"):
+            return official_name
         return f"{official_name}, {province}"
 
     # Infer province from longitude (rough approximation)
@@ -134,9 +131,9 @@ def construct_place_name(official_name: str, province: Optional[str], latitude: 
         inferred_province = "BC"
     elif longitude < -95:
         inferred_province = "MB"  # or other prairie province
-    elif longitude >= -95 and latitude > 50:
+    elif latitude > 50:
         inferred_province = "NT"  # Northern territories
-    elif longitude >= -95 and longitude < -60:
+    elif longitude < -60:
         inferred_province = "QC"  # Quebec/Maritime
     else:
         inferred_province = "NL"  # Newfoundland/Atlantic
@@ -221,8 +218,6 @@ def fetch_canadian_stations_from_api() -> Tuple[Optional[List[Dict]], str]:
         Each station dict contains: code, officialName, alternativeName,
         latitude, longitude, province, place_name
     """
-    import json
-
     # Try each API endpoint
     for base_url in CHS_BASE_URLS:
         try:
@@ -235,8 +230,7 @@ def fetch_canadian_stations_from_api() -> Tuple[Optional[List[Dict]], str]:
                 logging.warning(f"CHS API at {base_url} returned status {response.status_code}")
                 continue
 
-            # Parse JSON response
-            all_stations = json.loads(response.text)
+            all_stations = response.json()
             logging.debug(f"Received {len(all_stations)} total stations from API")
 
             # Normalize + filter (keep any station with wlp-hilo predictions)
@@ -249,20 +243,30 @@ def fetch_canadian_stations_from_api() -> Tuple[Optional[List[Dict]], str]:
             logging.info(f"Found {len(valid_stations)} of {len(all_stations)} stations with wlp-hilo predictions")
             return valid_stations, base_url
 
-        except requests.exceptions.RequestException as e:
-            logging.warning(f"Network error fetching from {base_url}: {e}")
-            continue
-        except json.JSONDecodeError as e:
-            logging.error(f"Failed to parse JSON from {base_url}: {e}")
-            continue
-        except Exception as e:
-            logging.error(f"Unexpected error fetching from {base_url}: {e}")
-            continue
+        except Exception as e:  # network error, bad JSON, or anything else: try the next mirror
+            logging.warning(f"Failed to fetch stations from {base_url}: {e}")
 
     # All endpoints failed
     error_msg = "All CHS API endpoints failed"
     logging.error(error_msg)
     return None, error_msg
+
+
+def _upsert_canadian_stations(cursor, rows) -> None:
+    """Upsert (station_id, place_name, latitude, longitude, province, alternative_name)
+    rows as CHS stations. ON CONFLICT leaves lookup_count untouched."""
+    cursor.executemany('''
+        INSERT INTO tide_station_ids (station_id, place_name, country, api_source, latitude, longitude, province, alternative_name)
+        VALUES (?, ?, 'Canada', 'CHS', ?, ?, ?, ?)
+        ON CONFLICT(station_id) DO UPDATE SET
+            place_name = excluded.place_name,
+            country = excluded.country,
+            api_source = excluded.api_source,
+            latitude = excluded.latitude,
+            longitude = excluded.longitude,
+            province = excluded.province,
+            alternative_name = excluded.alternative_name
+    ''', rows)
 
 
 def import_canadian_stations_from_csv() -> bool:
@@ -281,8 +285,6 @@ def import_canadian_stations_from_csv() -> bool:
     Returns:
         True if successful, False otherwise
     """
-    import csv
-
     csv_path = APP_DIR / 'canadian_tide_stations.csv'
 
     if not csv_path.exists():
@@ -290,43 +292,25 @@ def import_canadian_stations_from_csv() -> bool:
         return False
 
     try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
+        with open(csv_path, 'r', newline='', encoding='utf-8') as f:
+            stations = list(csv.DictReader(f))
 
-            # Read CSV
-            with open(csv_path, 'r', newline='', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                stations = list(reader)
+        logging.info(f"Importing {len(stations)} Canadian stations from CSV fallback...")
+        rows = [(
+            station['station_id'],
+            station.get('place_name', ''),
+            float(station.get('latitude', 0)),
+            float(station.get('longitude', 0)),
+            station.get('province', ''),
+            station.get('alternative_name') or None
+        ) for station in stations]
 
-            logging.info(f"Importing {len(stations)} Canadian stations from CSV fallback...")
-
-            # Import each station
-            for station in stations:
-                cursor.execute('''
-                    INSERT INTO tide_station_ids (station_id, place_name, country, api_source, latitude, longitude, province, alternative_name)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(station_id) DO UPDATE SET
-                        place_name = excluded.place_name,
-                        country = excluded.country,
-                        api_source = excluded.api_source,
-                        latitude = excluded.latitude,
-                        longitude = excluded.longitude,
-                        province = excluded.province,
-                        alternative_name = excluded.alternative_name
-                ''', (
-                    station['station_id'],
-                    station.get('place_name', ''),
-                    'Canada',
-                    'CHS',
-                    float(station.get('latitude', 0)),
-                    float(station.get('longitude', 0)),
-                    station.get('province', ''),
-                    station.get('alternative_name') or None
-                ))
-
+        with sqlite3.connect(database.DB_PATH) as conn:
+            _upsert_canadian_stations(conn.cursor(), rows)
             conn.commit()
-            logging.info(f"Successfully imported {len(stations)} Canadian stations from CSV")
-            return True
+
+        logging.info(f"Successfully imported {len(stations)} Canadian stations from CSV")
+        return True
 
     except (sqlite3.Error, IOError, ValueError) as e:
         logging.error(f"Error importing Canadian stations from CSV: {e}")
@@ -359,35 +343,20 @@ def import_canadian_stations_from_api() -> bool:
 
     # API succeeded, import to database
     try:
-        with sqlite3.connect(DB_PATH) as conn:
+        with sqlite3.connect(database.DB_PATH) as conn:
             cursor = conn.cursor()
 
             # Get list of station codes from API for sync
             api_station_codes = set(s['code'] for s in stations)
 
-            # Import/update each station
-            for station in stations:
-                cursor.execute('''
-                    INSERT INTO tide_station_ids (station_id, place_name, country, api_source, latitude, longitude, province, alternative_name)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(station_id) DO UPDATE SET
-                        place_name = excluded.place_name,
-                        country = excluded.country,
-                        api_source = excluded.api_source,
-                        latitude = excluded.latitude,
-                        longitude = excluded.longitude,
-                        province = excluded.province,
-                        alternative_name = excluded.alternative_name
-                ''', (
-                    station['code'],
-                    station['place_name'],
-                    'Canada',
-                    'CHS',
-                    station['latitude'],
-                    station['longitude'],
-                    station['province'],
-                    station.get('alternativeName') or None
-                ))
+            _upsert_canadian_stations(cursor, [(
+                station['code'],
+                station['place_name'],
+                station['latitude'],
+                station['longitude'],
+                station['province'],
+                station.get('alternativeName') or None
+            ) for station in stations])
 
             # Sync: Remove Canadian stations not in API response (preserving lookup_count)
             # This removes stations that are no longer operating or have been removed from API
@@ -408,11 +377,7 @@ def import_canadian_stations_from_api() -> bool:
 
             return True
 
-    except sqlite3.Error as e:
-        logging.error(f"Database error importing Canadian stations: {e}")
-        logging.warning("Attempting CSV fallback after database error...")
-        return import_canadian_stations_from_csv()
     except Exception as e:
-        logging.error(f"Unexpected error importing Canadian stations: {e}")
-        logging.warning("Attempting CSV fallback after unexpected error...")
+        logging.error(f"Error importing Canadian stations from API data: {e}")
+        logging.warning("Attempting CSV fallback...")
         return import_canadian_stations_from_csv()

@@ -10,6 +10,7 @@ All adapters return tide data in a unified CSV format with columns:
 - Type: H for High tide, L for Low tide
 """
 
+import json
 import logging
 import requests
 import calendar
@@ -49,6 +50,13 @@ def year_in_range(year: int) -> bool:
 USER_AGENT = {
     'User-Agent': 'TideCalendarSite/1.0 (https://tidecalendar.xyz; contact@tidecalendar.xyz)'
 }
+
+# CHS IWLS mirrors (new Azure first, then legacy). Shared with the startup
+# station sync in canadian_station_sync.py.
+CHS_BASE_URLS = [
+    "https://api.iwls-sine.azure.cloud-nuage.dfo-mpo.gc.ca/api/v1",
+    "https://api-iwls.dfo-mpo.gc.ca/api/v1"
+]
 
 
 def _get_with_retry(url, params, logger, label, max_retries=3, retry_delay=2):
@@ -348,10 +356,15 @@ class CHSAdapter(TideAdapter):
     """
 
     # Try both endpoints (new Azure and legacy)
-    BASE_URLS = [
-        "https://api.iwls-sine.azure.cloud-nuage.dfo-mpo.gc.ca/api/v1",
-        "https://api-iwls.dfo-mpo.gc.ca/api/v1"
-    ]
+    BASE_URLS = CHS_BASE_URLS
+
+    # Station code -> UUID. The mapping is stable, so resolve it once per process.
+    _uuid_by_code = {}
+
+    @staticmethod
+    def _is_station_code(station_id: str) -> bool:
+        """Numeric CHS station code (4-6 digits), as opposed to a UUID."""
+        return station_id.isdigit() and 4 <= len(station_id) <= 6
 
     def validate_station(self, station_id: str) -> bool:
         """
@@ -369,10 +382,48 @@ class CHSAdapter(TideAdapter):
             return True
 
         # Accept numeric station codes (4-6 digits)
-        if station_id.isdigit() and 4 <= len(station_id) <= 6:
+        if self._is_station_code(station_id):
             return True
 
         return False
+
+    def _get_from_mirrors(self, path: str, params: dict, what: str):
+        """GET `path` from each mirror in turn (with _get_with_retry) and return
+        the first 200 response, or None.
+
+        Distinguishes a transient outage from a definitive answer: raises
+        TideServiceUnavailableError only when EVERY mirror failed for a
+        transient/connectivity reason (gateway 5xx, timeout, network) AND none
+        returned a definitive non-gateway HTTP error. A definitive 404 from one
+        mirror wins over a transient blip on the other, so the user gets "no
+        data" not "outage".
+        """
+        transient_failure = False
+        saw_definitive_answer = False
+
+        for base_url in self.BASE_URLS:
+            response, endpoint_transient = _get_with_retry(
+                f"{base_url}{path}", params, self.logger, f"CHS API ({base_url})")
+
+            if response is not None and response.status_code == 200:
+                self.logger.info(f"Successfully fetched {what} from {base_url}")
+                return response
+            elif response is not None:
+                # Non-gateway error (e.g. 404) is a definitive answer, not an
+                # outage; don't retry, move to the next mirror.
+                self.logger.warning(f"CHS API endpoint {base_url} returned status {response.status_code} for {what}, trying next endpoint")
+                saw_definitive_answer = True
+            elif endpoint_transient:
+                self.logger.warning(f"CHS API endpoint {base_url} failed after retries for {what}, trying next endpoint")
+                transient_failure = True
+            # else: unexpected error already logged inside _get_with_retry;
+            # move on to the next mirror without setting either flag.
+
+        self.logger.error(f"All CHS API endpoints failed for {what}")
+        if transient_failure and not saw_definitive_answer:
+            raise TideServiceUnavailableError(
+                f"CHS API endpoints all unreachable for {what}")
+        return None
 
     def _lookup_station_uuid(self, station_code: str) -> Optional[str]:
         """
@@ -380,7 +431,7 @@ class CHSAdapter(TideAdapter):
 
         The CHS API requires UUIDs for data requests, but stations are commonly
         identified by numeric codes. This method queries the stations endpoint
-        to get the UUID for a given code.
+        to get the UUID for a given code (memoized per process).
 
         Args:
             station_code: Numeric station code (e.g., "07735")
@@ -395,75 +446,31 @@ class CHSAdapter(TideAdapter):
             this lookup is on the hot path; without this, a CHS outage here
             would surface as a misleading "no predictions" instead of an outage.
         """
-        import json
+        cached = self._uuid_by_code.get(station_code)
+        if cached:
+            return cached
 
-        params = {"code": station_code}
+        response = self._get_from_mirrors(
+            "/stations", {"code": station_code}, f"station code {station_code}")
+        if response is None:
+            return None
 
-        # Distinguish a transient outage (raise) from a definitive "not found"
-        # (return None), same policy as get_predictions below.
-        transient_failure = False
-        saw_definitive_answer = False
+        try:
+            stations = json.loads(response.text)
+        except json.JSONDecodeError as e:
+            # Server responded but the body was unparseable — not an outage.
+            self.logger.warning(f"Failed to parse station lookup response for code {station_code}: {e}")
+            return None
 
-        # Try each base URL for station lookup
-        for base_url in self.BASE_URLS:
-            try:
-                self.logger.debug(f"Looking up UUID for station code {station_code} using {base_url}")
-                response = requests.get(
-                    f"{base_url}/stations",
-                    params=params,
-                    headers=USER_AGENT,
-                    timeout=30
-                )
+        # A 200 is a definitive answer even if it lists no station.
+        station_uuid = stations[0].get('id') if stations else None
+        if not station_uuid:
+            self.logger.warning(f"No station UUID found for code {station_code}")
+            return None
 
-                if response.status_code == 200:
-                    # A 200 is a definitive answer even if it lists no station.
-                    saw_definitive_answer = True
-                    # Parse JSON response
-                    stations = json.loads(response.text)
-
-                    # Response should be an array with at least one station
-                    if not stations or len(stations) == 0:
-                        self.logger.warning(f"No station found with code {station_code} at {base_url}")
-                        continue
-
-                    # Get the UUID from the first matching station
-                    station_uuid = stations[0].get('id')
-                    if not station_uuid:
-                        self.logger.warning(f"Station data missing 'id' field at {base_url}")
-                        continue
-
-                    self.logger.info(f"Found UUID {station_uuid} for station code {station_code}")
-                    return station_uuid
-                elif response.status_code in [502, 503, 504]:
-                    self.logger.warning(f"Station lookup at {base_url} returned gateway error {response.status_code}")
-                    transient_failure = True
-                    continue
-                else:
-                    # Definitive non-gateway HTTP error (e.g. 404) — not an outage.
-                    self.logger.warning(f"Station lookup at {base_url} returned status {response.status_code}")
-                    saw_definitive_answer = True
-                    continue
-
-            except json.JSONDecodeError as e:
-                # Server responded but the body was unparseable — not a connectivity outage.
-                self.logger.warning(f"Failed to parse station lookup response from {base_url}: {e}")
-                saw_definitive_answer = True
-                continue
-            except requests.exceptions.RequestException as e:
-                self.logger.warning(f"Network error during station lookup at {base_url}: {e}")
-                transient_failure = True
-                continue
-            except Exception as e:
-                self.logger.warning(f"Unexpected error during station lookup at {base_url}: {e}")
-                continue
-
-        # All endpoints failed. Raise only if every failure was transient and no
-        # endpoint gave a definitive answer — otherwise it's a genuine not-found.
-        self.logger.error(f"Failed to lookup UUID for station code {station_code} at all endpoints")
-        if transient_failure and not saw_definitive_answer:
-            raise TideServiceUnavailableError(
-                f"CHS station lookup unreachable for code {station_code}")
-        return None
+        self.logger.info(f"Found UUID {station_uuid} for station code {station_code}")
+        self._uuid_by_code[station_code] = station_uuid
+        return station_uuid
 
     def get_predictions(self, station_id: str, year: int, month: int) -> Optional[str]:
         """
@@ -493,7 +500,7 @@ class CHSAdapter(TideAdapter):
         # Determine if we need to lookup the UUID
         # If station_id is a numeric code (4-6 digits), lookup the UUID
         # If station_id is already a UUID (alphanumeric, >10 chars), use it directly
-        if station_id.isdigit() and 4 <= len(station_id) <= 6:
+        if self._is_station_code(station_id):
             # This is a numeric station code, need to lookup UUID
             self.logger.debug(f"Station {station_id} is a numeric code, looking up UUID")
             station_uuid = self._lookup_station_uuid(station_id)
@@ -523,42 +530,9 @@ class CHSAdapter(TideAdapter):
             "to": to_date
         }
 
-        # Distinguish a transient outage from a definitive answer. We raise only
-        # when EVERY endpoint failed for a transient/connectivity reason (gateway
-        # 5xx, timeout, network) AND none returned a definitive non-gateway HTTP
-        # error. A definitive 404 from one endpoint must win over a transient
-        # blip on the mirror, so the user gets "no data" not "outage".
-        transient_failure = False
-        saw_definitive_answer = False
-
-        # Try each base URL until we get a successful response
-        for base_url in self.BASE_URLS:
-            endpoint = f"{base_url}/stations/{station_uuid}/data"
-            self.logger.debug(f"Trying CHS API endpoint: {endpoint}, params: {params}")
-
-            response, endpoint_transient = _get_with_retry(
-                endpoint, params, self.logger, f"CHS API ({base_url})")
-
-            if response is not None and response.status_code == 200:
-                self.logger.info(f"Successfully fetched data from {base_url}")
-                return self.parse_response(response.text)
-            elif response is not None:
-                # Non-gateway error (e.g. 404) is a definitive answer, not an
-                # outage; don't retry, move to the next mirror.
-                self.logger.warning(f"CHS API endpoint {base_url} returned status {response.status_code}, trying next endpoint")
-                saw_definitive_answer = True
-            elif endpoint_transient:
-                self.logger.warning(f"CHS API endpoint {base_url} failed after retries, trying next endpoint")
-                transient_failure = True
-            # else: unexpected error already logged inside _get_with_retry;
-            # move on to the next mirror without setting either flag.
-
-        # If we get here, all endpoints failed
-        self.logger.error(f"All CHS API endpoints failed for station UUID {station_uuid}")
-        if transient_failure and not saw_definitive_answer:
-            raise TideServiceUnavailableError(
-                f"CHS API endpoints all unreachable for station UUID {station_uuid}")
-        return None
+        response = self._get_from_mirrors(
+            f"/stations/{station_uuid}/data", params, f"station UUID {station_uuid}")
+        return self.parse_response(response.text) if response is not None else None
 
     def parse_response(self, response_data: str) -> Optional[str]:
         """
@@ -587,8 +561,6 @@ class CHSAdapter(TideAdapter):
             Standardized CSV string or None if parsing fails
         """
         try:
-            import json
-
             # Parse JSON response
             data = json.loads(response_data)
 
