@@ -323,8 +323,18 @@ def generate_calendar(station_id, year, month, output_path, location_name=None, 
     else:
         high_tides, low_tides = None, None
 
-    os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
-    tmp_pdf = f"{output_path}.tmp.{os.getpid()}.{threading.get_ident()}"
+    out_dir = os.path.dirname(output_path) or '.'
+    os.makedirs(out_dir, exist_ok=True)
+    # Temp name contract (see TestTempPdfNaming): a sibling of the final path
+    # so os.replace() is atomic; unique per PID *and* thread (gunicorn threads
+    # share a PID); dot-prefixed so it never matches the cache/sweep glob
+    # 'tide_calendar_*.pdf'; and it MUST end in '.pdf' — Ubuntu 26.04 confines
+    # /usr/bin/gs with an AppArmor profile that only lets it create files
+    # under $HOME whose extension is on an allow-list, so a '<name>.tmp.<n>'
+    # output is refused with "Could not open the file".
+    tmp_pdf = os.path.join(
+        out_dir,
+        f".tmp-{os.getpid()}-{threading.get_ident()}-{os.path.basename(output_path)}")
 
     try:
         with tempfile.TemporaryDirectory(prefix='tidecal-') as tmpdir:
