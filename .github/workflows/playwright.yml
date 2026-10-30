@@ -18,7 +18,7 @@ env:
 jobs:
   smoke-test:
     name: Production Smoke Test
-    timeout-minutes: 5
+    timeout-minutes: 10  # up to 5 min of deploy-wait + the tests
     # Pinned, not ubuntu-latest: GitHub moved ubuntu-latest to Ubuntu 26.04 on
     # 2026-10-29 and `playwright install --with-deps` hard-fails on any Ubuntu
     # release that the pinned Playwright version doesn't know about ("Playwright
@@ -43,16 +43,38 @@ jobs:
     - name: Install Playwright browsers
       run: npx playwright install chromium --with-deps
 
-    - name: Health check production site
+    - name: Wait for production to serve this commit
+      # On a push to main, CapRover is redeploying this very commit, and for
+      # a minute or so the old container -- or CapRover's "Powered by CapRover"
+      # placeholder, which answers 200 -- still serves the site. A plain
+      # "is it up?" check passes during that window and the smoke tests then
+      # fail on the placeholder (seen on the #121 merge). So: on push, poll
+      # /health until commit_hash equals the SHA that triggered us; on
+      # schedule/PR runs (prod is whatever main is), just require a healthy,
+      # non-placeholder /health. /health lives on the apex host (www 302s).
       run: |
-        # Retry to absorb transient blips (brief redeploys, TLS/network
-        # hiccups) so a single momentary non-2xx doesn't fail the whole run.
-        curl -f --connect-timeout 10 --max-time 30 \
-          --retry 3 --retry-delay 5 --retry-all-errors \
-          https://www.tidecalendar.xyz/ || {
-          echo "Production site is down (failed after retries)"
-          exit 1
-        }
+        set -uo pipefail
+        WANT=""
+        [ "${GITHUB_EVENT_NAME}" = "push" ] && WANT="${GITHUB_SHA}"
+        for i in $(seq 1 30); do
+          BODY=$(curl -fsS --connect-timeout 10 --max-time 30 https://tidecalendar.xyz/health || true)
+          read -r STATUS GOT < <(printf '%s' "$BODY" | python3 -c '
+        import json, sys
+        try:
+            d = json.load(sys.stdin)
+            print(d.get("status", "?"), d.get("commit_hash", "?"))
+        except Exception:
+            print("unparseable ?")
+        ')
+          if [ "$STATUS" = "healthy" ] && { [ -z "$WANT" ] || [ "$GOT" = "$WANT" ]; }; then
+            echo "Production healthy at commit ${GOT} (wanted ${WANT:-any})"
+            exit 0
+          fi
+          echo "attempt ${i}/30: status=${STATUS} commit=${GOT} (want ${WANT:-any}); retrying in 10s"
+          sleep 10
+        done
+        echo "::error::Production did not report a healthy /health at ${WANT:-any commit} within 5 minutes"
+        exit 1
 
     - name: Run smoke tests
       run: npx playwright test smoke.spec.ts --config=playwright.config.smoke.ts
