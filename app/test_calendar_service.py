@@ -227,6 +227,51 @@ class TestGenerateCalendarConcurrency(unittest.TestCase):
             self.assertEqual(os.listdir(tmpdir), [os.path.basename(out_path)])
 
 
+class TestTempPdfNaming(unittest.TestCase):
+    """The half-written PDF handed to ps2pdf must look like a PDF to the OS.
+
+    Ubuntu 26.04 ships an AppArmor profile for /usr/bin/gs that only lets
+    Ghostscript create files under $HOME whose name ends in an approved
+    extension (.pdf, .ps, ...). A temp name like 'x.pdf.tmp.<pid>.<tid>' is
+    denied at the kernel (DENIED operation="mknod" profile="gs"), so the
+    monthly example-image job died with "Could not open the file". The temp
+    file must therefore end in .pdf, sit in the output directory (so the
+    final os.replace stays atomic), and never match the cache/sweep glob
+    'tide_calendar_*.pdf' so a partial file can't be served or swept.
+    """
+
+    CSV = "Date Time, Prediction, Type\n2026-06-01 04:30,1.2,H\n"
+
+    def test_ps2pdf_output_is_a_dotpdf_sibling_hidden_from_cache_glob(self):
+        seen = {}
+
+        def fake_run_tool(cmd):
+            if cmd[0] == "pcal":
+                with open(cmd[4], 'w') as f:
+                    f.write("%!PS-fake\n")
+            elif cmd[0] == "ps2pdf":
+                seen['tmp_pdf'] = cmd[2]
+                with open(cmd[2], 'wb') as f:
+                    f.write(b"%PDF-fake\n")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_path = os.path.join(tmpdir, "tide_calendar_X_2026_06_ft.pdf")
+            with mock.patch.object(get_tides, 'download_tide_data', return_value=self.CSV), \
+                 mock.patch.object(get_tides, '_run_tool', side_effect=fake_run_tool):
+                generate_calendar("9449639", 2026, 6, out_path)
+
+            tmp_pdf = seen['tmp_pdf']
+            self.assertNotEqual(tmp_pdf, out_path)
+            self.assertTrue(tmp_pdf.endswith('.pdf'),
+                            f"AppArmor-confined gs can't create {tmp_pdf!r}")
+            self.assertEqual(os.path.dirname(tmp_pdf), tmpdir,
+                             "temp must be a sibling so os.replace is atomic")
+            import fnmatch
+            self.assertFalse(fnmatch.fnmatch(os.path.basename(tmp_pdf), 'tide_calendar_*.pdf'),
+                             "a half-written PDF must not match the cache/sweep glob")
+            self.assertEqual(os.listdir(tmpdir), [os.path.basename(out_path)])
+
+
 class CleanupUnitSuffixTest(unittest.TestCase):
     """Old-month PDFs carrying the unit token (_ft/_m, added by the unit toggle)
     must still be swept by cleanup_previous_month_pdfs."""
