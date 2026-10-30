@@ -5,6 +5,15 @@ on:
     branches: [ main, development ]
   pull_request:
     branches: [ main, development ]
+  schedule:
+    # Weekly, Monday 07:00 UTC (an hour after the daily smoke test). pip-audit
+    # fails on advisories published *after* the pins were last touched, so a
+    # push-only trigger lets them pile up silently between commits (Jul→Oct
+    # 2026: Werkzeug + urllib3 advisories surfaced only when an unrelated CI
+    # fix opened a PR). A scheduled run turns that into a quiet red on a Monday
+    # instead of a blocked merge. Scheduled runs only fire from main.
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
 
 jobs:
   unit-tests:
@@ -26,13 +35,6 @@ jobs:
     - name: Install dependencies
       run: pip install -r requirements.txt
 
-    - name: Audit dependencies for known vulnerabilities
-      # Fails the build on any known CVE in the pinned set (the urllib3
-      # advisories in June 2026 surfaced only via Dependabot after push).
-      run: |
-        pip install pip-audit==2.10.1
-        pip-audit -r requirements.txt
-
     - name: Run app unit tests
       # Tests import sibling modules (database, canadian_station_sync,
       # tide_adapters) directly, so run from the app/ directory. They are
@@ -42,3 +44,14 @@ jobs:
 
     - name: Run usage_events tests
       run: python scripts/test_usage_events.py
+
+    - name: Audit dependencies for known vulnerabilities
+      # Fails the build on any known CVE in the pinned set (the urllib3
+      # advisories in June 2026 surfaced only via Dependabot after push).
+      # Runs AFTER the tests, and always(), so a freshly published advisory
+      # never hides the test signal: a red here with green tests above means
+      # "bump a pin", not "the app broke".
+      if: always()
+      run: |
+        pip install pip-audit==2.10.1
+        pip-audit -r requirements.txt
