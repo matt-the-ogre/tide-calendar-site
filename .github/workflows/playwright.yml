@@ -19,7 +19,13 @@ jobs:
   smoke-test:
     name: Production Smoke Test
     timeout-minutes: 5
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: GitHub moved ubuntu-latest to Ubuntu 26.04 on
+    # 2026-10-29 and `playwright install --with-deps` hard-fails on any Ubuntu
+    # release that the pinned Playwright version doesn't know about ("Playwright
+    # does not support chromium on ubuntu26.04-x64"). Pinning the runner keeps
+    # the OS and the Playwright lockfile version moving together. When bumping
+    # this, check the Playwright release notes list the new Ubuntu first.
+    runs-on: ubuntu-24.04
 
     steps:
     - name: Checkout code
